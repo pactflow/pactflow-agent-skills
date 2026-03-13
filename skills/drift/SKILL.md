@@ -17,6 +17,8 @@ Drift is a CLI tool that verifies API implementations against OpenAPI specificat
 "API drift" — when your code no longer matches its openapi spec. It's built by PactFlow and supports
 Bi-Directional Contract Testing (BDCT).
 
+Never modify the openapi spec that you are testing.
+
 ## Reference Files
 
 Read these when you need deeper detail on a topic:
@@ -30,6 +32,11 @@ Read these when you need deeper detail on a topic:
 
 ## Scripts
 
+- `scripts/extract_endpoints.py` — Reads the spec and outputs all operations + response codes.
+  Summary mode flags parameters with no spec example. Scaffold mode (`--scaffold`) emits a
+  ready-to-fill `operations:` YAML block with correct auth patterns, nil UUIDs for 404s,
+  `ignore.schema` for 4xx, and `FILL_IN` markers. Use `--only-missing <drift.yaml>` to generate
+  only the gaps not yet covered by an existing test file. Requires `pyyaml`.
 - `scripts/check_coverage.py` — Coverage checker: diffs an OpenAPI spec against Drift test files
   and reports which operations and response codes are missing tests. Requires `pyyaml`.
 - `scripts/run_loop.sh` — Feedback loop runner: retries `drift verifier --failed` until all tests
@@ -189,6 +196,22 @@ the hard parts automatically:
 
 Collect from it: complete operation list (operationId or method+path), all documented
 response codes per operation, and generated test stubs. This is your coverage checklist.
+
+Alternatively, use `extract_endpoints.py` to get the same output directly from the spec
+without the openapi-parser skill — and emit scaffold stubs in one step:
+
+```bash
+# See all operations + response codes, flagging params with no spec example
+.venv/bin/python3 scripts/extract_endpoints.py --spec openapi.yaml
+
+# Generate skeleton stubs for every operation
+.venv/bin/python3 scripts/extract_endpoints.py --spec openapi.yaml \
+  --scaffold --source my-oas > operations.yaml
+
+# Generate ONLY the gaps not already in an existing test file
+.venv/bin/python3 scripts/extract_endpoints.py --spec openapi.yaml \
+  --scaffold --only-missing drift.yaml --source my-oas >> drift.yaml
+```
 
 ```
 GET /products          → 200, 401, 404
