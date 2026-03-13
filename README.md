@@ -14,7 +14,7 @@ test case scaffolding; Drift runs, iterates, and publishes those tests.
 
 ## Installing in Claude Code
 
-Claude Code uses a plugin marketplace system. Requires Claude Code v1.0.33+.
+Claude Code supports [Skills](https://code.claude.com/docs/en/skills) via a plugin marketplace system. Requires Claude Code v1.0.33+.
 
 ### From this repo (recommended for teams)
 
@@ -83,7 +83,7 @@ claude --plugin-dir ./plugins/drift --plugin-dir ./plugins/openapi-parser
 
 ## Installing in OpenCode
 
-OpenCode loads skills from a `SKILL.md` file in a named subdirectory. The agent
+OpenCode supports [Agent Skills](https://opencode.ai/docs/skills) loaded from `SKILL.md` files in named subdirectories. The agent
 automatically selects relevant skills based on task context.
 
 ### Global install (available in all projects)
@@ -200,6 +200,68 @@ cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .git
    cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md > .github/prompts/openapi-parser.prompt.md
    ```
 3. In Copilot Chat, click **Attach context → Prompt...** and select the skill.
+
+---
+
+## Installing in Kiro
+
+Kiro supports [Agent Skills](https://kiro.dev/docs/skills/) loaded from `SKILL.md` files in named subdirectories. Skills can be workspace-scoped or global.
+
+### Import from GitHub (recommended)
+
+1. Open the **Agent Steering & Skills** panel in Kiro
+2. Click **+** → **Import a skill**
+3. Select **GitHub** and paste the URL to each skill folder:
+   - `https://github.com/pactflow/pact-agent-skills/tree/main/skills/drift`
+   - `https://github.com/pactflow/pact-agent-skills/tree/main/skills/openapi-parser`
+
+Imported skills are copied to your skills directory and work immediately.
+
+### Project-level install (manual)
+
+```bash
+mkdir -p .kiro/skills
+cp -r skills/drift .kiro/skills/drift
+cp -r skills/openapi-parser .kiro/skills/openapi-parser
+```
+
+Commit `.kiro/skills/` to share the skills with your team.
+
+### Global install (all your projects)
+
+```bash
+mkdir -p ~/.kiro/skills
+cp -r skills/drift ~/.kiro/skills/drift
+cp -r skills/openapi-parser ~/.kiro/skills/openapi-parser
+```
+
+> When both locations contain a skill with the same name, the workspace skill takes priority.
+
+---
+
+## Installing in Antigravity
+
+Antigravity supports [Agent Skills](https://antigravity.google/docs/skills) loaded from `SKILL.md` files in named subdirectories. Skills can be workspace-scoped or global.
+
+### Project-level install (recommended for teams)
+
+```bash
+mkdir -p .agents/skills
+cp -r skills/drift .agents/skills/drift
+cp -r skills/openapi-parser .agents/skills/openapi-parser
+```
+
+Commit `.agents/skills/` to share the skills with your team.
+
+### Global install (all your projects)
+
+```bash
+mkdir -p ~/.gemini/antigravity/skills
+cp -r skills/drift ~/.gemini/antigravity/skills/drift
+cp -r skills/openapi-parser ~/.gemini/antigravity/skills/openapi-parser
+```
+
+> Antigravity also supports `.agent/skills/` (singular) for backward compatibility.
 
 ---
 
