@@ -12,6 +12,19 @@ test case scaffolding; Drift runs, iterates, and publishes those tests.
 
 ---
 
+## Installation guide for coding agents
+
+- [Claude Code](#installing-in-claude-code)
+- [OpenCode](#installing-in-opencode)
+- [GitHub Copilot (VS Code)](#installing-in-github-copilot-vs-code)
+- [Cursor](#installing-in-cursor)
+- [Windsurf](#installing-in-windsurf)
+- [Codex](#installing-in-codex)
+- [Kiro](#installing-in-kiro)
+- [Antigravity](#installing-in-antigravity)
+
+---
+
 ## Installing in Claude Code
 
 Claude Code supports [Skills](https://code.claude.com/docs/en/skills) via a plugin marketplace system. Requires Claude Code v1.0.33+.
@@ -21,7 +34,7 @@ Claude Code supports [Skills](https://code.claude.com/docs/en/skills) via a plug
 **1. Add the marketplace** inside a Claude Code session:
 
 ```claude
-/plugin marketplace add pactflow/pact-agent-skills
+/plugin marketplace add pactflow/pact-agentic-tooling-extensions
 ```
 
 Or add it to `.claude/settings.json` so teammates are prompted to install it automatically when they open the project:
@@ -29,8 +42,11 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 ```json
 {
   "extraKnownMarketplaces": {
-    "pact-agent-skills": {
-      "source": { "source": "github", "repo": "pactflow/pact-agent-skills" }
+    "pact-agentic-tooling-extensions": {
+      "source": {
+        "source": "github",
+        "repo": "pactflow/pact-agentic-tooling-extensions"
+      }
     }
   }
 }
@@ -39,8 +55,8 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 **2. Install the plugins:**
 
 ```claude
-/plugin install swagger-contract-testing-drift@pact-agent-skills
-/plugin install swagger-contract-testing-openapi-parser@pact-agent-skills
+/plugin install swagger-contract-testing-drift@pact-agentic-tooling-extensions
+/plugin install swagger-contract-testing-openapi-parser@pact-agentic-tooling-extensions
 ```
 
 **Scope options:**
@@ -54,9 +70,9 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 ### From a local clone
 
 ```claude
-/plugin marketplace add ./path/to/pact-agent-skills/.claude-plugin/marketplace.json
-/plugin install swagger-contract-testing-drift@pact-agent-skills
-/plugin install swagger-contract-testing-openapi-parser@pact-agent-skills
+/plugin marketplace add ./path/to/pact-agentic-tooling-extensions/.claude-plugin/marketplace.json
+/plugin install swagger-contract-testing-drift@pact-agentic-tooling-extensions
+/plugin install swagger-contract-testing-openapi-parser@pact-agentic-tooling-extensions
 ```
 
 ### For local development (no marketplace needed)
@@ -73,10 +89,10 @@ claude --plugin-dir ./plugins/drift --plugin-dir ./plugins/openapi-parser
 ```claude
 /plugin                          # open plugin manager (Discover / Installed / Marketplaces / Errors)
 /reload-plugins                  # reload without restarting
-/plugin disable swagger-contract-testing-drift@pact-agent-skills
-/plugin disable swagger-contract-testing-openapi-parser@pact-agent-skills
-/plugin uninstall swagger-contract-testing-drift@pact-agent-skills
-/plugin uninstall swagger-contract-testing-openapi-parser@pact-agent-skills
+/plugin disable swagger-contract-testing-drift@pact-agentic-tooling-extensions
+/plugin disable swagger-contract-testing-openapi-parser@pact-agentic-tooling-extensions
+/plugin uninstall swagger-contract-testing-drift@pact-agentic-tooling-extensions
+/plugin uninstall swagger-contract-testing-openapi-parser@pact-agentic-tooling-extensions
 ```
 
 ---
@@ -203,6 +219,101 @@ cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .git
 
 ---
 
+## Installing in Cursor
+
+Cursor supports [Agent Skills](https://cursor.com/docs/skills) loaded from `SKILL.md` files in named subdirectories. Skills can be project-scoped or global.
+
+### Remote install from GitHub
+
+1. Open **Cursor Settings → Rules**
+2. Click **Add Rule** in Project Rules
+3. Select **Remote Rule (GitHub)**
+4. Enter the URL to each skill folder:
+   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/drift`
+   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/openapi-parser`
+
+### Project-level install (manual)
+
+```bash
+mkdir -p .cursor/skills
+cp -r skills/drift .cursor/skills/drift
+cp -r skills/openapi-parser .cursor/skills/openapi-parser
+```
+
+Commit `.cursor/skills/` to share the skills with your team. Cursor also discovers skills from `.agents/skills/`.
+
+### Global install (all your projects)
+
+```bash
+mkdir -p ~/.cursor/skills
+cp -r skills/drift ~/.cursor/skills/drift
+cp -r skills/openapi-parser ~/.cursor/skills/openapi-parser
+```
+
+---
+
+## Installing in Windsurf
+
+Windsurf supports [Skills](https://docs.windsurf.com/windsurf/cascade/skills) loaded from `SKILL.md` files in named subdirectories. Skills can be workspace-scoped or global.
+
+### From the UI
+
+1. Open the **Cascade** panel
+2. Click the **⋯** menu → **Skills**
+3. Choose **+ Workspace** (project) or **+ Global**
+4. Copy the contents of each `SKILL.md` into the new skill
+
+### Project-level install (manual)
+
+```bash
+mkdir -p .windsurf/skills
+cp -r skills/drift .windsurf/skills/drift
+cp -r skills/openapi-parser .windsurf/skills/openapi-parser
+```
+
+Commit `.windsurf/skills/` to share the skills with your team.
+
+### Global install (all your projects)
+
+```bash
+mkdir -p ~/.codeium/windsurf/skills
+cp -r skills/drift ~/.codeium/windsurf/skills/drift
+cp -r skills/openapi-parser ~/.codeium/windsurf/skills/openapi-parser
+```
+
+---
+
+## Installing in Codex
+
+Codex supports [Skills](https://developers.openai.com/codex/skills/) loaded from `SKILL.md` files in named subdirectories.
+
+### Using the skill installer
+
+```bash
+$skill-installer pactflow/pact-agentic-tooling-extensions/skills/drift
+$skill-installer pactflow/pact-agentic-tooling-extensions/skills/openapi-parser
+```
+
+### Project-level install (manual)
+
+```bash
+mkdir -p .agents/skills
+cp -r skills/drift .agents/skills/drift
+cp -r skills/openapi-parser .agents/skills/openapi-parser
+```
+
+Commit `.agents/skills/` to share the skills with your team.
+
+### Global install (all your projects)
+
+```bash
+mkdir -p ~/.agents/skills
+cp -r skills/drift ~/.agents/skills/drift
+cp -r skills/openapi-parser ~/.agents/skills/openapi-parser
+```
+
+---
+
 ## Installing in Kiro
 
 Kiro supports [Agent Skills](https://kiro.dev/docs/skills/) loaded from `SKILL.md` files in named subdirectories. Skills can be workspace-scoped or global.
@@ -212,8 +323,8 @@ Kiro supports [Agent Skills](https://kiro.dev/docs/skills/) loaded from `SKILL.m
 1. Open the **Agent Steering & Skills** panel in Kiro
 2. Click **+** → **Import a skill**
 3. Select **GitHub** and paste the URL to each skill folder:
-   - `https://github.com/pactflow/pact-agent-skills/tree/main/skills/drift`
-   - `https://github.com/pactflow/pact-agent-skills/tree/main/skills/openapi-parser`
+   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/drift`
+   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/openapi-parser`
 
 Imported skills are copied to your skills directory and work immediately.
 
