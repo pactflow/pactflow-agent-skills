@@ -20,7 +20,7 @@ Claude Code uses a plugin marketplace system. Requires Claude Code v1.0.33+.
 
 **1. Add the marketplace** inside a Claude Code session:
 
-```
+```claude
 /plugin marketplace add pactflow/pact-agent-skills
 ```
 
@@ -38,7 +38,7 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 
 **2. Install the plugins:**
 
-```
+```claude
 /plugin install swagger-contract-testing-drift@pact-agent-skills
 /plugin install swagger-contract-testing-openapi-parser@pact-agent-skills
 ```
@@ -53,7 +53,7 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 
 ### From a local clone
 
-```
+```claude
 /plugin marketplace add ./path/to/pact-agent-skills/.claude-plugin/marketplace.json
 /plugin install swagger-contract-testing-drift@pact-agent-skills
 /plugin install swagger-contract-testing-openapi-parser@pact-agent-skills
@@ -70,7 +70,7 @@ claude --plugin-dir ./plugins/drift --plugin-dir ./plugins/openapi-parser
 
 ### Managing plugins
 
-```
+```claude
 /plugin                          # open plugin manager (Discover / Installed / Marketplaces / Errors)
 /reload-plugins                  # reload without restarting
 /plugin disable swagger-contract-testing-drift@pact-agent-skills
@@ -105,26 +105,81 @@ OpenCode will pick up the skills automatically — no restart required.
 
 ---
 
-## Installing in GitHub Copilot
+## Installing in GitHub Copilot (VS Code)
 
-GitHub Copilot doesn't have a plugin system, but you can give Copilot Chat the same
-context via custom instructions.
+VS Code Copilot supports [Agent Skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills)
+natively. Skills are loaded from `SKILL.md` files in named subdirectories and invoked as slash commands
+in Copilot Chat (`/drift`, `/openapi-parser`). Copilot also auto-loads relevant skills based on context.
 
-### Repo-wide instructions (simplest)
+### Project-level install (recommended for teams)
 
-Concatenate all skill files into `.github/copilot-instructions.md`:
+Copy the skill folders into any of the standard discovery locations — Copilot checks all of them:
+
+```bash
+# .github/skills  (most common for GitHub projects)
+mkdir -p .github/skills
+cp -r skills/drift .github/skills/drift
+cp -r skills/openapi-parser .github/skills/openapi-parser
+
+# or .agents/skills
+mkdir -p .agents/skills
+cp -r skills/drift .agents/skills/drift
+cp -r skills/openapi-parser .agents/skills/openapi-parser
+
+# or .claude/skills (already used by Claude Code)
+mkdir -p .claude/skills
+cp -r skills/drift .claude/skills/drift
+cp -r skills/openapi-parser .claude/skills/openapi-parser
+```
+
+Commit the chosen directory to share the skills with your team. No VS Code configuration required.
+
+### Personal install (all your projects)
+
+Copy to a personal skills directory so the skills are available in every repo you open:
+
+```bash
+mkdir -p ~/.copilot/skills
+cp -r skills/drift ~/.copilot/skills/drift
+cp -r skills/openapi-parser ~/.copilot/skills/openapi-parser
+```
+
+### Custom location
+
+Point Copilot at any directory via VS Code settings:
+
+```json
+{
+  "chat.agentSkillsLocations": ["/path/to/your/skills"]
+}
+```
+
+### Using the skills in Copilot Chat
+
+Once installed, open Copilot Chat and invoke a skill by name:
+
+```claude
+/drift write a test case for POST /orders returning 201
+/openapi-parser generate Drift tests for the payments spec
+```
+
+You can also type `/skills` in chat to browse and configure installed skills. Copilot will
+auto-load a skill when it detects a relevant task even without an explicit slash command.
+
+---
+
+### Fallback: custom instructions (older Copilot versions)
+
+If your version of Copilot doesn't support Agent Skills yet, use custom instructions instead.
+
+**Repo-wide** — applies to every conversation in the repository:
 
 ```bash
 cat skills/drift/SKILL.md skills/drift/references/*.md >> .github/copilot-instructions.md
 cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .github/copilot-instructions.md
 ```
 
-Copilot Chat will apply these instructions automatically to every conversation in the
-repository. Commit the file to share it with your team.
-
-### Path-scoped instructions
-
-Create one instructions file per skill, scoped to relevant file patterns:
+**Path-scoped** — loads only when relevant files are open:
 
 ```bash
 # Drift — scoped to Drift config files
@@ -136,13 +191,10 @@ echo '---\napplyTo: "**/openapi.yaml,**/openapi.json,**/*.oas.yaml"\n---\n' > .g
 cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .github/instructions/openapi-parser.instructions.md
 ```
 
-### Reusable prompts (invoke on demand)
+**Reusable prompts** — attach on demand in chat:
 
-1. Enable prompt files in VS Code settings:
-   ```json
-   { "chat.promptFiles": true }
-   ```
-2. Create a prompt file per skill:
+1. Enable prompt files in VS Code settings: `{ "chat.promptFiles": true }`
+2. Create prompt files:
    ```bash
    cat skills/drift/SKILL.md skills/drift/references/*.md > .github/prompts/drift.prompt.md
    cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md > .github/prompts/openapi-parser.prompt.md
@@ -157,11 +209,18 @@ cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .git
 skills/
 ├── drift/
 │   ├── SKILL.md                  # Drift CLI usage, test case patterns, auth, CI/CD
-│   └── references/
-│       ├── test-cases.md         # Full test case YAML schema
-│       ├── lua-api.md            # Complete Lua API and lifecycle hooks
-│       ├── cli-reference.md      # All CLI commands and flags
-│       └── pactflow-and-cicd.md  # BDCT publishing, GitHub Actions, GitLab CI
+│   ├── references/
+│   │   ├── test-cases.md         # Full test case YAML schema
+│   │   ├── lua-api.md            # Complete Lua API and lifecycle hooks
+│   │   ├── cli-reference.md      # All CLI commands and flags
+│   │   ├── auth.md               # Authentication patterns and credential handling
+│   │   ├── mock-server.md        # Mock server setup and configuration
+│   │   └── pactflow-and-cicd.md  # BDCT publishing, GitHub Actions, GitLab CI
+│   └── scripts/
+│       ├── check_coverage.py     # Coverage analysis script
+│       ├── extract_endpoints.py  # Extract endpoints from OpenAPI specs
+│       ├── run_loop.sh           # Feedback loop runner
+│       └── start_mock.sh         # Start mock server
 │
 └── openapi-parser/
     ├── SKILL.md                  # Workflow: locate → resolve → enumerate → generate
@@ -169,5 +228,3 @@ skills/
         ├── schema-patterns.md    # anyOf/oneOf/allOf/discriminator/$ref/enum/pattern/nullable
         └── drift-mapping.md      # Mapping every pattern to Drift YAML with full examples
 ```
-
-**Drift** documentation: https://pactflow.github.io/drift-docs/
