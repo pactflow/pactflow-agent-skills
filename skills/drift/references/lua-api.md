@@ -290,7 +290,7 @@ const runDrift = (options = {}) => {
   return new Promise((resolve, reject) => {
     const child = spawn(
       "drift",
-      ["verify", "--test-files", testFile, "--server-url", serverUrl],
+      ["verifier", "--test-files", testFile, "--server-url", serverUrl],
       { stdio: "inherit", shell: true },
     );
     child.on("close", (code) => resolve(code ?? 1));
@@ -312,7 +312,7 @@ import subprocess
 
 def run_drift(test_file='./drift.yaml', server_url='http://localhost:8080'):
     result = subprocess.run([
-        'drift', 'verify', '--test-files', test_file, '--server-url', server_url
+        'drift', 'verifier', '--test-files', test_file, '--server-url', server_url
     ])
     return result.returncode
 

@@ -241,9 +241,9 @@ operations:
     tags: [smoke, read-only, products]
 
 # Run by tag
-drift verify -f drift.yaml -u https://... --tags smoke
-drift verify -f drift.yaml -u https://... --tags products,write   # OR logic
-drift verify -f drift.yaml -u https://... --tags '!security'      # exclude
+drift verifier -f drift.yaml -u https://... --tags smoke
+drift verifier -f drift.yaml -u https://... --tags products,write   # OR logic
+drift verifier -f drift.yaml -u https://... --tags '!security'      # exclude
 ```
 
 Common tag strategies:
@@ -269,3 +269,100 @@ instead of hoping the data exists. See `lua-api.md` for full hook documentation.
 | Must clean up after test         | `operation:finished` hook   |
 | Dynamic values (UUID, timestamp) | `exported_functions` in Lua |
 | Guaranteed missing ID            | `${notIn(...)}` expression  |
+
+---
+
+## Datasets
+
+Datasets decouple test logic from test data. Define them in a separate YAML file and
+reference values with dot-notation expressions.
+
+```yaml
+# my-api.dataset.yaml
+drift-dataset-file: V1
+datasets:
+  - name: product-data # used in ${product-data:...}
+    data:
+      products:
+        existing:
+          id: 10
+          name: "cola"
+          price: 10.99
+        new:
+          id: 25
+          name: "chips"
+          price: 5.49
+      orgs:
+        existing: { id: "59d6d97e-3106-4ebb-b608-352fad9c5b34" }
+        forbidden: { id: "00000000-0000-0000-0000-000000000001" }
+```
+
+Register the dataset as a source in `drift.yaml`:
+
+```yaml
+sources:
+  - name: product-data
+    path: ./my-api.dataset.yaml
+```
+
+Reference in an operation — the `dataset` field must match the `name` inside the dataset file:
+
+```yaml
+getProduct_Success:
+  target: source-oas:getProductByID
+  dataset: product-data # activates expressions for this dataset
+  parameters:
+    path:
+      id: ${product-data:products.existing.id}
+```
+
+**Naming convention** — organise by resource, then by role. This prevents key collisions in
+large datasets and makes expressions readable at a glance:
+
+```yaml
+data:
+  orgs:
+    existing: { id: "..." } # the org you own
+    forbidden: { id: "..." } # an org the token cannot access (for 403 tests)
+  projects:
+    existing: { id: "...", org_id: "..." }
+    toDelete: { id: "..." } # DISPOSABLE — throwaway resource only
+  invites:
+    new: { email: "test@example.com", role_id: "..." }
+    existing: { id: "..." } # a pending invite (for cancel tests)
+```
+
+---
+
+## Expressions
+
+Expressions inject dynamic values anywhere a string is accepted (except file headers,
+operation keys, and tags).
+
+| Syntax                                              | Example                                       | Purpose                       |
+| --------------------------------------------------- | --------------------------------------------- | ----------------------------- |
+| `${env:VAR}`                                        | `${env:API_TOKEN}`                            | Environment variable          |
+| `${dataset-name:path}`                              | `${product-data:products.existing.id}`        | Dataset value                 |
+| `${functions:fn_name}`                              | `${functions:generate_uuid}`                  | Call a Lua exported function  |
+| `${source-name:operation.parameters.field.example}` | `${api-spec:operation.parameters.id.example}` | Value from OpenAPI spec       |
+| `${notIn(path)}`                                    | `${product-data:notIn(products.*.id)}`        | Generate value NOT in dataset |
+
+Use glob `*` to reference all items: `${product-data:products.*}` or `${product-data:products.*.id}`
+
+**Execution order:** sources → descriptions → datasets → parameters/expected. You cannot
+reference a later-resolved field from an earlier stage.
+
+**`notIn()` and UUID IDs:** `${dataset:notIn(path.*.id)}` generates an integer value not in
+the dataset. For UUID-format IDs, use a nil UUID instead — it is always non-existent and
+format-valid:
+
+```yaml
+org_id: "00000000-0000-0000-0000-000000000000"
+```
+
+For IDs with custom `pattern` constraints (e.g. `^sha256:[a-f0-9]{64}$`), the nil UUID won't
+satisfy the pattern. Use a correctly-formatted but non-existent value:
+
+```yaml
+image_id: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+```
