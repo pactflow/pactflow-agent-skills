@@ -2,9 +2,9 @@
 
 AI assistant skills for PactFlow's contract testing tools.
 
-| Skill | Plugin name | What it does |
-|---|---|---|
-| **Drift** | `swagger-contract-testing-drift` | Expert assistant for Drift — PactFlow's OpenAPI contract testing CLI. Helps write test cases, configure lifecycle hooks, debug failures, and publish results to PactFlow. |
+| Skill              | Plugin name                               | What it does                                                                                                                                                                       |
+| ------------------ | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Drift**          | `swagger-contract-testing-drift`          | Expert assistant for Drift — PactFlow's OpenAPI contract testing CLI. Helps write test cases, configure lifecycle hooks, debug failures, and publish results to PactFlow.          |
 | **OpenAPI Parser** | `swagger-contract-testing-openapi-parser` | Parses complex OpenAPI specs (anyOf/oneOf/allOf, discriminators, polymorphism, $ref chains, enums, regex) and generates Drift test cases covering every viable schema combination. |
 
 The two skills are designed to work together: OpenAPI Parser analyses a spec and generates
@@ -45,16 +45,16 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 
 **Scope options:**
 
-| Scope | Stored in | Who it applies to |
-|---|---|---|
-| `user` (default) | `~/.claude/settings.json` | You, across all projects |
-| `project` | `.claude/settings.json` | Everyone on the team (commit this file) |
-| `local` | `.claude/settings.local.json` | You, in this project only (gitignored) |
+| Scope            | Stored in                     | Who it applies to                       |
+| ---------------- | ----------------------------- | --------------------------------------- |
+| `user` (default) | `~/.claude/settings.json`     | You, across all projects                |
+| `project`        | `.claude/settings.json`       | Everyone on the team (commit this file) |
+| `local`          | `.claude/settings.local.json` | You, in this project only (gitignored)  |
 
 ### From a local clone
 
 ```
-/plugin marketplace add ./path/to/pact-agent-skills
+/plugin marketplace add ./path/to/pact-agent-skills/.claude-plugin/marketplace.json
 /plugin install swagger-contract-testing-drift@pact-agent-skills
 /plugin install swagger-contract-testing-openapi-parser@pact-agent-skills
 ```
