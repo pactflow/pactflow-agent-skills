@@ -19,6 +19,16 @@ Bi-Directional Contract Testing (BDCT).
 
 Never modify the openapi spec that you are testing.
 
+## Example usage of the skill
+
+- The spec has oneOf in the response — how do I write tests for all the variants?
+- Set up Drift for my API endpoints and openapi spec file
+- I have an OpenAPI spec at openapi.yaml — help me create Drift tests for it
+- How do I publish my Drift results to PactFlow?
+- Set up GitHub Actions to run my Drift tests on every PR
+- Generate tests for endpoints I haven't covered yet without touching my existing tests
+- What hooks can i add into my tests?
+
 ## Reference Files
 
 Read these when you need deeper detail on a topic:

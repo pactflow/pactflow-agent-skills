@@ -12,7 +12,7 @@ test case scaffolding; Drift runs, iterates, and publishes those tests.
 
 ---
 
-## Installation guide for coding agents
+## Installation guide for Agentic IDEs/Coding agents
 
 - [Claude Code](#installing-in-claude-code)
 - [OpenCode](#installing-in-opencode)
@@ -209,7 +209,7 @@ cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .git
 
 **Reusable prompts** — attach on demand in chat:
 
-1. Enable prompt files in VS Code settings: `{ "chat.promptFiles": true }`
+1. Enable prompt files in VS Code settings: `{ "chat.promptFiles": true }`write a Drift test for POST /orders
 2. Create prompt files:
    ```bash
    cat skills/drift/SKILL.md skills/drift/references/*.md > .github/prompts/drift.prompt.md
