@@ -65,6 +65,8 @@ For an LLM-optimised index of all docs, fetch: `https://pactflow.github.io/drift
 
 ## Installation
 
+The npm commands work identically on all platforms (Windows, macOS, Linux):
+
 ```bash
 # Quickest — no install needed
 npx @pactflow/drift --help
@@ -78,6 +80,17 @@ npm install -g @pactflow/drift
 # Verify
 drift --version
 ```
+
+**Windows notes:**
+
+- The shell scripts (`run_loop.sh`, `start_mock.sh`) require Git Bash, WSL, or a bash-compatible shell. They will not run in Command Prompt or PowerShell natively.
+- Python venv activation and paths differ — use `.venv\Scripts\python` instead of `.venv/bin/python3`:
+  ```powershell
+  python -m venv .venv
+  .venv\Scripts\pip install pyyaml -q
+  .venv\Scripts\python scripts\check_coverage.py --spec openapi.yaml --test-files drift.yaml
+  ```
+- Set environment variables in PowerShell with `$env:API_TOKEN = "your-token"`, or in Command Prompt with `set API_TOKEN=your-token`.
 
 ---
 
@@ -368,6 +381,7 @@ echo "Coverage exit: $?"
 ```
 
 Done when both commands exit 0:
+
 - `drift verifier` exits 0 → all tests pass
 - `check_coverage.py` exits 0 → every operation + response code (except 5xx) has a test
 

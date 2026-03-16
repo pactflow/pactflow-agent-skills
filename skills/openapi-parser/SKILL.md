@@ -38,12 +38,18 @@ Read these when you need deeper detail:
 Large specs (40k–70k+ lines) cannot be read in full. Extract only what's needed:
 
 ```bash
-# Find the line number of the endpoint
+# Find the line number of the endpoint (macOS/Linux/Git Bash/WSL)
 grep -n "^  /path/to/endpoint" spec.yaml
 
 # Read just that block (adjust line range as needed)
 # Then follow each $ref to components/schemas
 grep -n "SchemaName:" spec.yaml
+```
+
+```powershell
+# PowerShell equivalents (Windows)
+Select-String -Path spec.yaml -Pattern "^  /path/to/endpoint" | Select-Object LineNumber, Line
+Select-String -Path spec.yaml -Pattern "SchemaName:" | Select-Object LineNumber, Line
 ```
 
 Extract: path/query/header parameters, request body schema, and each response status
@@ -69,15 +75,15 @@ The key principle:
 > return. Aim for minimum tests that maximise schema coverage — not a combinatorial
 > explosion of optional field permutations.
 
-| Pattern | Tests to generate |
-|---|---|
-| `oneOf` / `anyOf` with N branches | N tests — one per branch |
-| `discriminator` with N mapping values | N tests — one per discriminator value |
-| `allOf` (composition / inheritance) | 1 test — merge all schemas into one payload |
-| `enum` | 1 test covers it; add boundary variants only if the value drives behaviour |
-| Optional field cluster | 2 tests: one with all optional fields, one without |
-| `nullable` field | Covered by happy path; add null variant only if it changes behaviour |
-| `pattern` (regex) | 1 valid example matching the pattern; 1 invalid for negative testing |
+| Pattern                               | Tests to generate                                                          |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| `oneOf` / `anyOf` with N branches     | N tests — one per branch                                                   |
+| `discriminator` with N mapping values | N tests — one per discriminator value                                      |
+| `allOf` (composition / inheritance)   | 1 test — merge all schemas into one payload                                |
+| `enum`                                | 1 test covers it; add boundary variants only if the value drives behaviour |
+| Optional field cluster                | 2 tests: one with all optional fields, one without                         |
+| `nullable` field                      | Covered by happy path; add null variant only if it changes behaviour       |
+| `pattern` (regex)                     | 1 valid example matching the pattern; 1 invalid for negative testing       |
 
 ### 4. Generate Drift test cases
 
@@ -143,7 +149,7 @@ Specs live at `<repo-root>/<provider>/openapi.yaml` (sometimes nested, e.g.
 — are: `snyk`, `digitalocean`, `posthog`, `front/core`.
 
 ```bash
-# List all endpoints in a spec
+# List all endpoints in a spec (macOS/Linux/Git Bash/WSL)
 grep "^  /" spec.yaml
 
 # Find endpoints with polymorphic schemas
@@ -159,4 +165,26 @@ for f in $(find . -name "openapi.yaml"); do
   grep -q "pattern:" "$f" && score=$((score+1))
   [ $score -ge 4 ] && echo "$score $f"
 done | sort -rn
+```
+
+```powershell
+# PowerShell equivalents (Windows)
+
+# List all endpoints in a spec
+Select-String -Path spec.yaml -Pattern "^  /" | Select-Object -ExpandProperty Line
+
+# Find endpoints with polymorphic schemas
+Select-String -Path spec.yaml -Pattern "oneOf|anyOf|discriminator" | Select-Object LineNumber, Line
+
+# Find specs using all five complexity patterns
+Get-ChildItem -Recurse -Filter "openapi.yaml" | ForEach-Object {
+  $f = $_.FullName
+  $score = 0
+  if (Select-String -Path $f -Pattern "anyOf"        -Quiet) { $score++ }
+  if (Select-String -Path $f -Pattern "oneOf"        -Quiet) { $score++ }
+  if (Select-String -Path $f -Pattern "allOf"        -Quiet) { $score++ }
+  if (Select-String -Path $f -Pattern "discriminator" -Quiet) { $score++ }
+  if (Select-String -Path $f -Pattern "pattern:"     -Quiet) { $score++ }
+  if ($score -ge 4) { "$score $f" }
+} | Sort-Object -Descending
 ```

@@ -23,6 +23,17 @@ test case scaffolding; Drift runs, iterates, and publishes those tests.
 - [Kiro](#installing-in-kiro)
 - [Antigravity](#installing-in-antigravity)
 
+### Windows users
+
+The install commands throughout this guide use Unix shell syntax. In PowerShell, replace:
+
+| Unix                             | PowerShell                                              |
+| -------------------------------- | ------------------------------------------------------- |
+| `mkdir -p path/to/dir`           | `New-Item -ItemType Directory -Force -Path path\to\dir` |
+| `cp -r skills/drift path/to/dir` | `Copy-Item -Recurse skills\drift path\to\dir`           |
+
+`~` (home directory) works in PowerShell 3+. In older environments use `$HOME` instead.
+
 ---
 
 ## Installing in Claude Code
