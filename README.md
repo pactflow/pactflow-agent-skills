@@ -403,8 +403,10 @@ skills/
 │   └── scripts/
 │       ├── check_coverage.py     # Coverage analysis script
 │       ├── extract_endpoints.py  # Extract endpoints from OpenAPI specs
-│       ├── run_loop.sh           # Feedback loop runner
-│       └── start_mock.sh         # Start mock server
+│       ├── run_loop.sh           # Feedback loop runner (macOS/Linux)
+│       ├── run_loop.ps1          # Feedback loop runner (Windows)
+│       ├── start_mock.sh         # Start mock server (macOS/Linux)
+│       └── start_mock.ps1        # Start mock server (Windows)
 │
 └── openapi-parser/
     ├── SKILL.md                  # Workflow: locate → resolve → enumerate → generate

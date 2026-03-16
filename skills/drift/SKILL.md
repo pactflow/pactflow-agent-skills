@@ -49,10 +49,11 @@ Read these when you need deeper detail on a topic:
   only the gaps not yet covered by an existing test file. Requires `pyyaml`.
 - `scripts/check_coverage.py` — Coverage checker: diffs an OpenAPI spec against Drift test files
   and reports which operations and response codes are missing tests. Requires `pyyaml`.
-- `scripts/run_loop.sh` — Feedback loop runner: retries `drift verifier --failed` until all tests
+- `scripts/run_loop.sh` / `scripts/run_loop.ps1` — Feedback loop runner: retries `drift verifier --failed` until all tests
   pass, then runs `check_coverage.py`. Both gates must pass for exit 0. Auto-creates the Python venv.
-- `scripts/start_mock.sh` — Starts a Prism mock server from an OpenAPI spec. Installs Prism if
-  needed. Supports `--port` and `--dynamic` flags.
+  Use the `.ps1` version on Windows.
+- `scripts/start_mock.sh` / `scripts/start_mock.ps1` — Starts a Prism mock server from an OpenAPI spec. Installs Prism if
+  needed. Supports `--port` and `--dynamic` flags. Use the `.ps1` version on Windows.
 
 Full docs: https://pactflow.github.io/drift-docs/
 For anything not covered here, fetch: `https://pactflow.github.io/drift-docs/docs/<section>/<page>.md`
@@ -83,13 +84,8 @@ drift --version
 
 **Windows notes:**
 
-- The shell scripts (`run_loop.sh`, `start_mock.sh`) require Git Bash, WSL, or a bash-compatible shell. They will not run in Command Prompt or PowerShell natively.
-- Python venv activation and paths differ — use `.venv\Scripts\python` instead of `.venv/bin/python3`:
-  ```powershell
-  python -m venv .venv
-  .venv\Scripts\pip install pyyaml -q
-  .venv\Scripts\python scripts\check_coverage.py --spec openapi.yaml --test-files drift.yaml
-  ```
+- Use `scripts\run_loop.ps1` and `scripts\start_mock.ps1` — PowerShell equivalents of the `.sh` scripts with the same flags.
+- Python venv paths differ — the `.ps1` scripts handle this automatically, but if running Python directly use `.venv\Scripts\python` instead of `.venv/bin/python3`.
 - Set environment variables in PowerShell with `$env:API_TOKEN = "your-token"`, or in Command Prompt with `set API_TOKEN=your-token`.
 
 ---
