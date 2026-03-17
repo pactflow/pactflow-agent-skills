@@ -1,11 +1,11 @@
 # Drift CLI Reference
 
-## `drift verifier`
+## `drift verify`
 
 The primary command. Runs test cases against a live API.
 
 ```bash
-drift verifier --server-url <URL> --test-files <FILE> [OPTIONS]
+drift verify --server-url <URL> --test-files <FILE> [OPTIONS]
 ```
 
 ### Required flags
@@ -30,39 +30,39 @@ drift verifier --server-url <URL> --test-files <FILE> [OPTIONS]
 
 ```bash
 # Basic run
-drift verifier -u https://api.example.com/v1 -f drift.yaml
+drift verify -u https://api.example.com/v1 -f drift.yaml
 
 # Run against local dev server
-drift verifier -u http://localhost:8080 -f drift.yaml
+drift verify -u http://localhost:8080 -f drift.yaml
 
 # Single operation
-drift verifier -u http://localhost:8080 -f drift.yaml --operation getProductByID_Success
+drift verify -u http://localhost:8080 -f drift.yaml --operation getProductByID_Success
 
 # Only re-run failed
-drift verifier -u http://localhost:8080 -f drift.yaml --failed
+drift verify -u http://localhost:8080 -f drift.yaml --failed
 
 # Filter by tags (OR logic)
-drift verifier -u http://localhost:8080 -f drift.yaml --tags smoke
-drift verifier -u http://localhost:8080 -f drift.yaml --tags products,users
-drift verifier -u http://localhost:8080 -f drift.yaml --tags '!destructive'
+drift verify -u http://localhost:8080 -f drift.yaml --tags smoke
+drift verify -u http://localhost:8080 -f drift.yaml --tags products,users
+drift verify -u http://localhost:8080 -f drift.yaml --tags '!destructive'
 
 # Multiple test files
-drift verifier -u http://localhost:8080 -f products.yaml -f users.yaml -f orders.yaml
+drift verify -u http://localhost:8080 -f products.yaml -f users.yaml -f orders.yaml
 
 # Glob pattern
-drift verifier -u http://localhost:8080 -f "tests/*.yaml"
+drift verify -u http://localhost:8080 -f "tests/*.yaml"
 
 # Save results
-drift verifier -u http://localhost:8080 -f drift.yaml --output-dir ./drift-results
+drift verify -u http://localhost:8080 -f drift.yaml --output-dir ./drift-results
 
 # PactFlow BDCT — generate verification bundle
-drift verifier -u https://api.example.com -f drift.yaml --generate-result
+drift verify -u https://api.example.com -f drift.yaml --generate-result
 
 # Debug mode
-drift verifier -u http://localhost:8080 -f drift.yaml --log-level debug
+drift verify -u http://localhost:8080 -f drift.yaml --log-level debug
 
 # Via env var
-LOG_LEVEL=DEBUG drift verifier -u http://localhost:8080 -f drift.yaml
+LOG_LEVEL=DEBUG drift verify -u http://localhost:8080 -f drift.yaml
 ```
 
 ---
@@ -162,9 +162,9 @@ Drift doesn't have native parallelism — run multiple files independently and c
 ### Shell (local)
 
 ```bash
-drift verifier -u http://localhost:8080 -f pets.yaml --output-dir ./results/pets &
-drift verifier -u http://localhost:8080 -f store.yaml --output-dir ./results/store &
-drift verifier -u http://localhost:8080 -f users.yaml --output-dir ./results/users &
+drift verify -u http://localhost:8080 -f pets.yaml --output-dir ./results/pets &
+drift verify -u http://localhost:8080 -f store.yaml --output-dir ./results/store &
+drift verify -u http://localhost:8080 -f users.yaml --output-dir ./results/users &
 wait
 ```
 
@@ -178,7 +178,7 @@ strategy:
 
 steps:
   - name: Run Drift
-    run: drift verifier -u http://localhost:8080 -f drift/${{ matrix.suite }}.yaml
+    run: drift verify -u http://localhost:8080 -f drift/${{ matrix.suite }}.yaml
 ```
 
 Be careful with stateful tests in parallel — use unique ID ranges or isolated API instances per suite.

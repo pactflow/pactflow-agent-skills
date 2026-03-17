@@ -49,7 +49,7 @@ Read these when you need deeper detail on a topic:
   only the gaps not yet covered by an existing test file. Requires `pyyaml`.
 - `scripts/check_coverage.py` — Coverage checker: diffs an OpenAPI spec against Drift test files
   and reports which operations and response codes are missing tests. Requires `pyyaml`.
-- `scripts/run_loop.sh` / `scripts/run_loop.ps1` — Feedback loop runner: retries `drift verifier --failed` until all tests
+- `scripts/run_loop.sh` / `scripts/run_loop.ps1` — Feedback loop runner: retries `drift verify --failed` until all tests
   pass, then runs `check_coverage.py`. Both gates must pass for exit 0. Auto-creates the Python venv.
   Use the `.ps1` version on Windows.
 - `scripts/start_mock.sh` / `scripts/start_mock.ps1` — Starts a Prism mock server from an OpenAPI spec. Installs Prism if
@@ -140,21 +140,21 @@ operations:
 
 ## Running Tests
 
-> **Command name:** The CLI subcommand is `drift verifier`.
+> **Command name:** The CLI subcommand is `drift verify`.
 
 ```bash
 # Basic run
-drift verifier --test-files drift.yaml --server-url https://api.example.com/v1
+drift verify --test-files drift.yaml --server-url https://api.example.com/v1
 
 # Single operation (fast iteration)
-drift verifier --test-files drift.yaml --server-url https://api.example.com/v1 --operation getProductByID
+drift verify --test-files drift.yaml --server-url https://api.example.com/v1 --operation getProductByID
 
 # Re-run only failures
-drift verifier --test-files drift.yaml --server-url https://api.example.com/v1 --failed
+drift verify --test-files drift.yaml --server-url https://api.example.com/v1 --failed
 
 # Filter by tags
-drift verifier --test-files drift.yaml --server-url https://api.example.com/v1 --tags smoke
-drift verifier --test-files drift.yaml --server-url https://api.example.com/v1 --tags '!destructive'
+drift verify --test-files drift.yaml --server-url https://api.example.com/v1 --tags smoke
+drift verify --test-files drift.yaml --server-url https://api.example.com/v1 --tags '!destructive'
 ```
 
 See `references/cli-reference.md` for all flags, parallel execution, JUnit output, and exit codes.
@@ -164,7 +164,7 @@ See `references/cli-reference.md` for all flags, parallel execution, JUnit outpu
 ## Full Coverage Feedback Loop
 
 When the goal is to cover every endpoint and get all tests passing, follow this loop. Don't
-stop until `drift verifier` exits with code 0 and every documented operation + response code
+stop until `drift verify` exits with code 0 and every documented operation + response code
 has at least one test.
 
 > **Caution — destructive tests on production:** If `--server-url` points at a live
@@ -300,10 +300,10 @@ path/to/scripts/run_loop.sh \
 Or run drift manually and iterate:
 
 ```bash
-drift verifier --test-files drift.yaml --server-url https://api.example.com/v1
+drift verify --test-files drift.yaml --server-url https://api.example.com/v1
 
 # Re-run only failures to keep the loop fast
-drift verifier --test-files drift.yaml --server-url https://api.example.com/v1 --failed
+drift verify --test-files drift.yaml --server-url https://api.example.com/v1 --failed
 ```
 
 For local testing with a mock server, start Prism first:
@@ -364,7 +364,7 @@ See `references/lua-api.md` for the full Lua API and the `data` object shape.
 ### Step 6 — Repeat until all green
 
 ```bash
-drift verifier --test-files drift.yaml --server-url https://api.example.com/v1
+drift verify --test-files drift.yaml --server-url https://api.example.com/v1
 echo "Exit code: $?"
 ```
 
@@ -378,7 +378,7 @@ echo "Coverage exit: $?"
 
 Done when both commands exit 0:
 
-- `drift verifier` exits 0 → all tests pass
+- `drift verify` exits 0 → all tests pass
 - `check_coverage.py` exits 0 → every operation + response code (except 5xx) has a test
 
 ---

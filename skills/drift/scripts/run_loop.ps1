@@ -1,6 +1,6 @@
 # run_loop.ps1 — Drift full coverage feedback loop (Windows/PowerShell).
 #
-# Runs `drift verifier --failed` repeatedly until all tests pass, then runs
+# Runs `drift verify --failed` repeatedly until all tests pass, then runs
 # check_coverage.py to verify every operation and response code is covered.
 # Exits with code 0 only when both gates pass.
 #
@@ -12,12 +12,12 @@
 #   --spec           Path to OpenAPI spec (required for coverage check)
 #   --test-files     Drift test file(s) or glob pattern (required)
 #   --server-url     URL of the API under test (required)
-#   --max-rounds     Max number of drift verifier retries (default: 20)
+#   --max-rounds     Max number of drift verify retries (default: 20)
 #   --full           Run full suite each round instead of --failed only
 #   --skip-coverage  Skip the coverage check at the end (just get tests passing)
 #
 # Environment:
-#   Any env vars drift verifier needs (API_TOKEN, etc.) must be set before running.
+#   Any env vars drift verify needs (API_TOKEN, etc.) must be set before running.
 #   e.g. $env:API_TOKEN = "your-token"
 
 param(
@@ -74,7 +74,7 @@ Write-Host ""
 
 # First run — always full (no --failed on round 1)
 Write-Host "-- Round 1 / $maxRounds -- full run --"
-drift verifier --test-files $testFiles --server-url $serverUrl
+drift verify --test-files $testFiles --server-url $serverUrl
 $driftPassed = ($LASTEXITCODE -eq 0)
 
 if ($driftPassed) {
@@ -84,9 +84,9 @@ if ($driftPassed) {
     while ($round -le $maxRounds) {
         Write-Host "`n-- Round $round / $maxRounds --"
         if ($useFailedFlag) {
-            drift verifier --test-files $testFiles --server-url $serverUrl $useFailedFlag
+            drift verify --test-files $testFiles --server-url $serverUrl $useFailedFlag
         } else {
-            drift verifier --test-files $testFiles --server-url $serverUrl
+            drift verify --test-files $testFiles --server-url $serverUrl
         }
         if ($LASTEXITCODE -eq 0) {
             Write-Host "`nAll tests passed (round $round)."

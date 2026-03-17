@@ -19,7 +19,7 @@ Use a **System Account Token** in CI (not a development token) — it needs publ
 
 ```bash
 # Step 1: Run tests and generate verification bundle
-drift verifier \
+drift verify \
   --test-files drift.yaml \
   --server-url https://api.example.com/v1 \
   --generate-result \
@@ -90,7 +90,7 @@ jobs:
 
       - name: Run Drift Tests
         run: |
-          drift verifier \
+          drift verify \
             --test-files drift.yaml \
             --server-url http://localhost:8080 \
             --output-dir ./drift-results \
@@ -150,7 +150,7 @@ jobs:
 
       - name: Run suite
         run: |
-          drift verifier \
+          drift verify \
             --test-files tests/${{ matrix.suite }}.yaml \
             --server-url http://localhost:8080 \
             --output-dir ./results/${{ matrix.suite }} \
@@ -211,7 +211,7 @@ test:
   script:
     - npm start &
     - sleep 5
-    - drift verifier -f drift.yaml -u http://localhost:8080 --generate-result --output-dir ./drift-results
+    - drift verify -f drift.yaml -u http://localhost:8080 --generate-result --output-dir ./drift-results
   artifacts:
     paths:
       - drift-results/
@@ -240,7 +240,7 @@ const runDrift = (options = {}) => {
 
   return new Promise((resolve, reject) => {
     const child = spawn('drift', [
-      'verifier', '--test-files', testFile, '--server-url', serverUrl,
+      'verify', '--test-files', testFile, '--server-url', serverUrl,
       '--log-level', logLevel, '--output-dir', outputDir
     ], { stdio: 'inherit', shell: true });
     child.on('error', reject);
@@ -282,7 +282,7 @@ import pytest
 
 def run_drift(test_file='./drift.yaml', server_url='http://localhost:8080'):
     result = subprocess.run([
-        'drift', 'verifier', '--test-files', test_file, '--server-url', server_url
+        'drift', 'verify', '--test-files', test_file, '--server-url', server_url
     ])
     return result.returncode
 

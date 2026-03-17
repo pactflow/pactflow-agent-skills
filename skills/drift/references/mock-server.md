@@ -15,7 +15,7 @@ prism mock ./openapi.yaml
 # Listening on http://localhost:4010 by default
 
 # Point Drift at it
-drift verifier --test-files drift.yaml --server-url http://localhost:4010
+drift verify --test-files drift.yaml --server-url http://localhost:4010
 ```
 
 ---
@@ -93,7 +93,7 @@ If your Lua hooks make setup/teardown requests, they need to know the server URL
 via an environment variable:
 
 ```bash
-SERVER_URL=http://localhost:4010 drift verifier --test-files drift.yaml --server-url http://localhost:4010
+SERVER_URL=http://localhost:4010 drift verify --test-files drift.yaml --server-url http://localhost:4010
 ```
 
 ```lua

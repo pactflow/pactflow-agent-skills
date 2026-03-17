@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run_loop.sh — Drift full coverage feedback loop.
 #
-# Runs `drift verifier --failed` repeatedly until all tests pass, then runs
+# Runs `drift verify --failed` repeatedly until all tests pass, then runs
 # check_coverage.py to verify every operation and response code is covered.
 # Exits 0 only when both gates pass.
 #
@@ -13,12 +13,12 @@
 #   --spec        Path to OpenAPI spec (required for coverage check)
 #   --test-files  Drift test file(s) or glob pattern (required)
 #   --server-url  URL of the API under test (required)
-#   --max-rounds  Max number of drift verifier retries (default: 20)
+#   --max-rounds  Max number of drift verify retries (default: 20)
 #   --full        Run full suite each round instead of --failed only
 #   --skip-coverage  Skip the coverage check at the end (just get tests passing)
 #
 # Environment:
-#   Any env vars drift verifier needs (API_TOKEN, etc.) must be set before running.
+#   Any env vars drift verify needs (API_TOKEN, etc.) must be set before running.
 
 set -euo pipefail
 
@@ -73,7 +73,7 @@ echo ""
 
 # First run — always full (no --failed on round 1)
 echo "── Round 1 / $MAX_ROUNDS — full run ──"
-if drift verifier --test-files "$TEST_FILES" --server-url "$SERVER_URL"; then
+if drift verify --test-files "$TEST_FILES" --server-url "$SERVER_URL"; then
   echo ""
   echo "✓ All tests passed on first run."
   DRIFT_PASSED=true
@@ -87,7 +87,7 @@ if [[ "$DRIFT_PASSED" == "false" ]]; then
   while [[ $ROUND -le $MAX_ROUNDS ]]; do
     echo ""
     echo "── Round $ROUND / $MAX_ROUNDS ──"
-    if drift verifier --test-files "$TEST_FILES" --server-url "$SERVER_URL" $USE_FAILED; then
+    if drift verify --test-files "$TEST_FILES" --server-url "$SERVER_URL" $USE_FAILED; then
       echo ""
       echo "✓ All tests passed (round $ROUND)."
       DRIFT_PASSED=true

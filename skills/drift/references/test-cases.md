@@ -241,9 +241,9 @@ operations:
     tags: [smoke, read-only, products]
 
 # Run by tag
-drift verifier -f drift.yaml -u https://... --tags smoke
-drift verifier -f drift.yaml -u https://... --tags products,write   # OR logic
-drift verifier -f drift.yaml -u https://... --tags '!security'      # exclude
+drift verify -f drift.yaml -u https://... --tags smoke
+drift verify -f drift.yaml -u https://... --tags products,write   # OR logic
+drift verify -f drift.yaml -u https://... --tags '!security'      # exclude
 ```
 
 Common tag strategies:
