@@ -1,7 +1,7 @@
 {
   "name": "swagger-contract-testing-agent-extensions",
   "owner": {
-    "name": "kevin.rohanvaz"
+    "name": "Pactflow"
   },
   "metadata": {
     "description": "Skills for Swagger contract testing tools",
