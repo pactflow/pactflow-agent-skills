@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "pyyaml",
+# ]
+# ///
 """
 extract_endpoints.py — Extract endpoints and response codes from an OpenAPI spec.
 
@@ -10,8 +15,6 @@ In scaffold mode (--scaffold), emits a ready-to-fill drift.yaml `operations:` bl
 with one stub per (operation, response_code) — pre-wired with correct auth patterns,
 nil UUIDs for 404s, ignore.schema for 4xx, and FILL_IN markers for params without
 spec examples.
-
-Requires: PyYAML  (pip install pyyaml)
 
 Usage:
   python3 extract_endpoints.py --spec openapi.yaml

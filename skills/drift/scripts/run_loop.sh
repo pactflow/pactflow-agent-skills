@@ -51,17 +51,6 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COVERAGE_SCRIPT="$SCRIPT_DIR/check_coverage.py"
 
-# ── Set up Python venv for check_coverage.py ─────────────────────────────────
-VENV_DIR="$SCRIPT_DIR/.venv"
-if [[ ! -f "$VENV_DIR/bin/python3" ]]; then
-  echo "Setting up Python venv for coverage checker..."
-  python3 -m venv "$VENV_DIR"
-  "$VENV_DIR/bin/pip" install pyyaml -q
-  echo "Done."
-  echo ""
-fi
-PYTHON="$VENV_DIR/bin/python3"
-
 # ── Run drift in a loop ───────────────────────────────────────────────────────
 echo "════════════════════════════════════════════════════════════"
 echo "  Drift Coverage Feedback Loop"
@@ -114,7 +103,7 @@ if [[ -z "$SPEC" ]]; then
   echo ""
   echo "Note: --spec not provided, skipping coverage check."
   echo "To verify full coverage run:"
-  echo "  $PYTHON $COVERAGE_SCRIPT --spec openapi.yaml --test-files $TEST_FILES"
+  echo "  uv run $COVERAGE_SCRIPT --spec openapi.yaml --test-files $TEST_FILES"
   exit 0
 fi
 
@@ -122,7 +111,7 @@ echo ""
 echo "════════════════════════════════════════════════════════════"
 echo "  Coverage Check"
 echo "════════════════════════════════════════════════════════════"
-if "$PYTHON" "$COVERAGE_SCRIPT" --spec "$SPEC" --test-files "$TEST_FILES"; then
+if uv run "$COVERAGE_SCRIPT" --spec "$SPEC" --test-files "$TEST_FILES"; then
   echo ""
   echo "✓ Complete: all tests pass AND full coverage verified."
   exit 0

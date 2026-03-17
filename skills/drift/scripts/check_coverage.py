@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "pyyaml",
+# ]
+# ///
 """
 check_coverage.py — Drift test coverage checker.
 
 Reads an OpenAPI spec and one or more Drift test YAML files, then reports which
 operations and response codes are missing test coverage.
-
-Requires: PyYAML  (pip install pyyaml)
 
 Usage:
   python3 check_coverage.py --spec openapi.yaml --test-files drift.yaml

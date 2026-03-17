@@ -52,17 +52,6 @@ $useFailedFlag = if ($full) { "" } else { "--failed" }
 $scriptDir      = Split-Path -Parent $MyInvocation.MyCommand.Path
 $coverageScript = Join-Path $scriptDir "check_coverage.py"
 
-# ── Set up Python venv for check_coverage.py ──────────────────────────────────
-$venvDir    = Join-Path $scriptDir ".venv"
-$venvPython = Join-Path $venvDir "Scripts\python.exe"
-
-if (-not (Test-Path $venvPython)) {
-    Write-Host "Setting up Python venv for coverage checker..."
-    python -m venv $venvDir
-    & (Join-Path $venvDir "Scripts\pip.exe") install pyyaml -q
-    Write-Host "Done.`n"
-}
-
 # ── Run drift in a loop ───────────────────────────────────────────────────────
 Write-Host ("=" * 60)
 Write-Host "  Drift Coverage Feedback Loop"
@@ -111,7 +100,7 @@ if ($skipCoverage) {
 if (-not $spec) {
     Write-Host "`nNote: --spec not provided, skipping coverage check."
     Write-Host "To verify full coverage run:"
-    Write-Host "  $venvPython $coverageScript --spec openapi.yaml --test-files $testFiles"
+    Write-Host "  uv run $coverageScript --spec openapi.yaml --test-files $testFiles"
     exit 0
 }
 
@@ -120,7 +109,7 @@ Write-Host ("=" * 60)
 Write-Host "  Coverage Check"
 Write-Host ("=" * 60)
 
-& $venvPython $coverageScript --spec $spec --test-files $testFiles
+& uv run $coverageScript --spec $spec --test-files $testFiles
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`nComplete: all tests pass AND full coverage verified."
     exit 0
