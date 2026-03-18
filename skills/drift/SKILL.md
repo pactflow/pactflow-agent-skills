@@ -9,6 +9,11 @@ description: >
   drift expressions, drift datasets, drift lifecycle hooks, or Lua scripting in a testing context.
   Trigger when the user wants full endpoint coverage, wants to make all tests pass, or asks you
   to "keep running until everything passes" — this skill has an explicit feedback loop for that.
+
+argument-hint: "[path/to/oad|path/to/drift-test]"
+metadata: 
+  context: fork
+  agent: general-purpose
 ---
 
 # Drift Skill
