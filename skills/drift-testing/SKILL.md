@@ -9,7 +9,7 @@ description: >
   Drift test cases. Use when the user wants full endpoint coverage,
   wants all tests to pass, or asks to "keep running until everything passes".
 
-argument-hint: "[path/to/oad|path/to/drift-test]"
+argument-hint: "[path/to/oas|path/to/drift-test]"
 metadata: 
   context: fork
   agent: general-purpose

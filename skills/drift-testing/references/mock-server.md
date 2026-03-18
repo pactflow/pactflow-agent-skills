@@ -2,12 +2,14 @@
 
 ## Contents
 
-- [Setup](#setup)
-- [Forcing HTTP status codes with `Prefer`](#forcing-http-status-codes-with-prefer)
-- [Common `Prefer` patterns](#common-prefer-patterns)
-- [Spec quality issues surfaced by Drift + Prism](#spec-quality-issues-surfaced-by-drift--prism)
-- [Dynamic base URL in Lua hooks](#dynamic-base-url-in-lua-hooks)
-- [Limitations of mock server testing](#limitations-of-mock-server-testing)
+- [Local Testing with a Mock Server (Prism)](#local-testing-with-a-mock-server-prism)
+  - [Contents](#contents)
+  - [Setup](#setup)
+  - [Forcing HTTP status codes with `Prefer`](#forcing-http-status-codes-with-prefer)
+  - [Common `Prefer` patterns](#common-prefer-patterns)
+  - [Spec quality issues surfaced by Drift + Prism](#spec-quality-issues-surfaced-by-drift--prism)
+  - [Dynamic base URL in Lua hooks](#dynamic-base-url-in-lua-hooks)
+  - [Limitations of mock server testing](#limitations-of-mock-server-testing)
 
 ---
 
@@ -79,7 +81,7 @@ When Drift validates a response against the spec schema and reports something li
 "4a72d1db-b465-4764-99e1-ecedad03b06aX" is not a "uuid"
 ```
 
-this usually means the spec's own response example is invalid — not your test data.
+This usually means the spec's own response example is invalid — not your test data.
 
 **`ignore: { schema: true }` does NOT help here** — it suppresses request schema validation only.
 

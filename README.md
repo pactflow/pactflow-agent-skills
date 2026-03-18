@@ -30,7 +30,7 @@ The install commands throughout this guide use Unix shell syntax. In PowerShell,
 | Unix                             | PowerShell                                              |
 | -------------------------------- | ------------------------------------------------------- |
 | `mkdir -p path/to/dir`           | `New-Item -ItemType Directory -Force -Path path\to\dir` |
-| `cp -r skills/drift path/to/dir` | `Copy-Item -Recurse skills\drift path\to\dir`           |
+| `cp -r skills/drift-testing path/to/dir` | `Copy-Item -Recurse skills\drift-testing path\to\dir`   |
 
 `~` (home directory) works in PowerShell 3+. In older environments use `$HOME` instead.
 
@@ -116,7 +116,7 @@ automatically selects relevant skills based on task context.
 ### Global install (available in all projects)
 
 ```bash
-cp -r skills/drift ~/.config/opencode/skills/drift
+cp -r skills/drift-testing ~/.config/opencode/skills/drift-testing
 cp -r skills/openapi-parser ~/.config/opencode/skills/openapi-parser
 ```
 
@@ -124,7 +124,7 @@ cp -r skills/openapi-parser ~/.config/opencode/skills/openapi-parser
 
 ```bash
 mkdir -p .opencode/skills
-cp -r skills/drift .opencode/skills/drift
+cp -r skills/drift-testing .opencode/skills/drift-testing
 cp -r skills/openapi-parser .opencode/skills/openapi-parser
 ```
 
@@ -136,7 +136,7 @@ OpenCode will pick up the skills automatically — no restart required.
 
 VS Code Copilot supports [Agent Skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills)
 natively. Skills are loaded from `SKILL.md` files in named subdirectories and invoked as slash commands
-in Copilot Chat (`/drift`, `/openapi-parser`). Copilot also auto-loads relevant skills based on context.
+in Copilot Chat (`/drift-testing`, `/openapi-parser`). Copilot also auto-loads relevant skills based on context.
 
 ### Project-level install (recommended for teams)
 
@@ -145,17 +145,17 @@ Copy the skill folders into any of the standard discovery locations — Copilot 
 ```bash
 # .github/skills  (most common for GitHub projects)
 mkdir -p .github/skills
-cp -r skills/drift .github/skills/drift
+cp -r skills/drift-testing .github/skills/drift-testing
 cp -r skills/openapi-parser .github/skills/openapi-parser
 
 # or .agents/skills
 mkdir -p .agents/skills
-cp -r skills/drift .agents/skills/drift
+cp -r skills/drift-testing .agents/skills/drift-testing
 cp -r skills/openapi-parser .agents/skills/openapi-parser
 
 # or .claude/skills (already used by Claude Code)
 mkdir -p .claude/skills
-cp -r skills/drift .claude/skills/drift
+cp -r skills/drift-testing .claude/skills/drift-testing
 cp -r skills/openapi-parser .claude/skills/openapi-parser
 ```
 
@@ -167,7 +167,7 @@ Copy to a personal skills directory so the skills are available in every repo yo
 
 ```bash
 mkdir -p ~/.copilot/skills
-cp -r skills/drift ~/.copilot/skills/drift
+cp -r skills/drift-testing ~/.copilot/skills/drift-testing
 cp -r skills/openapi-parser ~/.copilot/skills/openapi-parser
 ```
 
@@ -202,7 +202,7 @@ If your version of Copilot doesn't support Agent Skills yet, use custom instruct
 **Repo-wide** — applies to every conversation in the repository:
 
 ```bash
-cat skills/drift/SKILL.md skills/drift/references/*.md >> .github/copilot-instructions.md
+cat skills/drift-testing/SKILL.md skills/drift-testing/references/*.md >> .github/copilot-instructions.md
 cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .github/copilot-instructions.md
 ```
 
@@ -211,7 +211,7 @@ cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .git
 ```bash
 # Drift — scoped to Drift config files
 echo '---\napplyTo: "**/drift.yaml,**/*.tests.yaml,**/*.dataset.yaml"\n---\n' > .github/instructions/drift.instructions.md
-cat skills/drift/SKILL.md skills/drift/references/*.md >> .github/instructions/drift.instructions.md
+cat skills/drift-testing/SKILL.md skills/drift-testing/references/*.md >> .github/instructions/drift.instructions.md
 
 # OpenAPI Parser — scoped to OpenAPI spec files
 echo '---\napplyTo: "**/openapi.yaml,**/openapi.json,**/*.oas.yaml"\n---\n' > .github/instructions/openapi-parser.instructions.md
@@ -223,7 +223,7 @@ cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .git
 1. Enable prompt files in VS Code settings: `{ "chat.promptFiles": true }`write a Drift test for POST /orders
 2. Create prompt files:
    ```bash
-   cat skills/drift/SKILL.md skills/drift/references/*.md > .github/prompts/drift.prompt.md
+   cat skills/drift-testing/SKILL.md skills/drift-testing/references/*.md > .github/prompts/drift.prompt.md
    cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md > .github/prompts/openapi-parser.prompt.md
    ```
 3. In Copilot Chat, click **Attach context → Prompt...** and select the skill.
@@ -240,14 +240,14 @@ Cursor supports [Agent Skills](https://cursor.com/docs/skills) loaded from `SKIL
 2. Click **Add Rule** in Project Rules
 3. Select **Remote Rule (GitHub)**
 4. Enter the URL to each skill folder:
-   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/drift`
+   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/drift-testing`
    - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/openapi-parser`
 
 ### Project-level install (manual)
 
 ```bash
 mkdir -p .cursor/skills
-cp -r skills/drift .cursor/skills/drift
+cp -r skills/drift-testing .cursor/skills/drift-testing
 cp -r skills/openapi-parser .cursor/skills/openapi-parser
 ```
 
@@ -257,7 +257,7 @@ Commit `.cursor/skills/` to share the skills with your team. Cursor also discove
 
 ```bash
 mkdir -p ~/.cursor/skills
-cp -r skills/drift ~/.cursor/skills/drift
+cp -r skills/drift-testing ~/.cursor/skills/drift-testing
 cp -r skills/openapi-parser ~/.cursor/skills/openapi-parser
 ```
 
@@ -278,7 +278,7 @@ Windsurf supports [Skills](https://docs.windsurf.com/windsurf/cascade/skills) lo
 
 ```bash
 mkdir -p .windsurf/skills
-cp -r skills/drift .windsurf/skills/drift
+cp -r skills/drift-testing .windsurf/skills/drift-testing
 cp -r skills/openapi-parser .windsurf/skills/openapi-parser
 ```
 
@@ -288,7 +288,7 @@ Commit `.windsurf/skills/` to share the skills with your team.
 
 ```bash
 mkdir -p ~/.codeium/windsurf/skills
-cp -r skills/drift ~/.codeium/windsurf/skills/drift
+cp -r skills/drift-testing ~/.codeium/windsurf/skills/drift-testing
 cp -r skills/openapi-parser ~/.codeium/windsurf/skills/openapi-parser
 ```
 
@@ -301,7 +301,7 @@ Codex supports [Skills](https://developers.openai.com/codex/skills/) loaded from
 ### Using the skill installer
 
 ```bash
-$skill-installer pactflow/pact-agentic-tooling-extensions/skills/drift
+$skill-installer pactflow/pact-agentic-tooling-extensions/skills/drift-testing
 $skill-installer pactflow/pact-agentic-tooling-extensions/skills/openapi-parser
 ```
 
@@ -309,7 +309,7 @@ $skill-installer pactflow/pact-agentic-tooling-extensions/skills/openapi-parser
 
 ```bash
 mkdir -p .agents/skills
-cp -r skills/drift .agents/skills/drift
+cp -r skills/drift-testing .agents/skills/drift-testing
 cp -r skills/openapi-parser .agents/skills/openapi-parser
 ```
 
@@ -319,7 +319,7 @@ Commit `.agents/skills/` to share the skills with your team.
 
 ```bash
 mkdir -p ~/.agents/skills
-cp -r skills/drift ~/.agents/skills/drift
+cp -r skills/drift-testing ~/.agents/skills/drift-testing
 cp -r skills/openapi-parser ~/.agents/skills/openapi-parser
 ```
 
@@ -334,7 +334,7 @@ Kiro supports [Agent Skills](https://kiro.dev/docs/skills/) loaded from `SKILL.m
 1. Open the **Agent Steering & Skills** panel in Kiro
 2. Click **+** → **Import a skill**
 3. Select **GitHub** and paste the URL to each skill folder:
-   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/drift`
+   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/drift-testing`
    - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/openapi-parser`
 
 Imported skills are copied to your skills directory and work immediately.
@@ -343,7 +343,7 @@ Imported skills are copied to your skills directory and work immediately.
 
 ```bash
 mkdir -p .kiro/skills
-cp -r skills/drift .kiro/skills/drift
+cp -r skills/drift-testing .kiro/skills/drift-testing
 cp -r skills/openapi-parser .kiro/skills/openapi-parser
 ```
 
@@ -353,7 +353,7 @@ Commit `.kiro/skills/` to share the skills with your team.
 
 ```bash
 mkdir -p ~/.kiro/skills
-cp -r skills/drift ~/.kiro/skills/drift
+cp -r skills/drift-testing ~/.kiro/skills/drift-testing
 cp -r skills/openapi-parser ~/.kiro/skills/openapi-parser
 ```
 
@@ -369,7 +369,7 @@ Antigravity supports [Agent Skills](https://antigravity.google/docs/skills) load
 
 ```bash
 mkdir -p .agents/skills
-cp -r skills/drift .agents/skills/drift
+cp -r skills/drift-testing .agents/skills/drift-testing
 cp -r skills/openapi-parser .agents/skills/openapi-parser
 ```
 
@@ -379,7 +379,7 @@ Commit `.agents/skills/` to share the skills with your team.
 
 ```bash
 mkdir -p ~/.gemini/antigravity/skills
-cp -r skills/drift ~/.gemini/antigravity/skills/drift
+cp -r skills/drift-testing ~/.gemini/antigravity/skills/drift-testing
 cp -r skills/openapi-parser ~/.gemini/antigravity/skills/openapi-parser
 ```
 
@@ -391,7 +391,7 @@ cp -r skills/openapi-parser ~/.gemini/antigravity/skills/openapi-parser
 
 ```
 skills/
-├── drift/
+├── drift-testing/
 │   ├── SKILL.md                  # Drift CLI usage, test case patterns, auth, CI/CD
 │   ├── references/
 │   │   ├── test-cases.md         # Full test case YAML schema
@@ -400,6 +400,13 @@ skills/
 │   │   ├── auth.md               # Authentication patterns and credential handling
 │   │   ├── mock-server.md        # Mock server setup and configuration
 │   │   └── pactflow-and-cicd.md  # BDCT publishing, GitHub Actions, GitLab CI
+│   ├── evals/
+│   │   ├── 01-basic-get-endpoint.json        # Eval: write a test for a GET endpoint
+│   │   ├── 02-stateful-delete-endpoint.json  # Eval: write a test for a stateful DELETE endpoint
+│   │   ├── 03-debug-failing-test.json        # Eval: debug a failing test
+│   │   └── fixtures/
+│   │       ├── simple-products-api.yaml      # OpenAPI fixture for basic evals
+│   │       └── products-api-with-failures.md # Fixture describing a failing API
 │   └── scripts/
 │       ├── check_coverage.py     # Coverage analysis script
 │       ├── extract_endpoints.py  # Extract endpoints from OpenAPI specs
@@ -410,7 +417,16 @@ skills/
 │
 └── openapi-parser/
     ├── SKILL.md                  # Workflow: locate → resolve → enumerate → generate
+    ├── evals/
+    │   ├── 01-anyof-parameter-variants.json   # Eval: generate tests for anyOf parameter variants
+    │   ├── 02-discriminator-with-allof.json   # Eval: generate tests for discriminator + allOf
+    │   ├── 03-regex-pattern-field.json        # Eval: generate tests for regex pattern fields
+    │   └── fixtures/
+    │       ├── anyof-parameter-variants.yaml  # OpenAPI fixture with anyOf parameters
+    │       ├── discriminator-with-allof.yaml  # OpenAPI fixture with discriminator and allOf
+    │       └── regex-pattern-field.yaml       # OpenAPI fixture with regex pattern fields
     └── references/
         ├── schema-patterns.md    # anyOf/oneOf/allOf/discriminator/$ref/enum/pattern/nullable
-        └── drift-mapping.md      # Mapping every pattern to Drift YAML with full examples
+        ├── drift-mapping.md      # Mapping every pattern to Drift YAML with full examples
+        └── example-repos.md      # Commands for navigating large OpenAPI spec repositories
 ```
