@@ -1,0 +1,49 @@
+/shapes:
+  post:
+    operationId: createShape
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Shape'
+    responses:
+      '201':
+        description: Created
+      '400':
+        description: Invalid input
+
+components:
+  schemas:
+    Shape:
+      discriminator:
+        propertyName: type
+        mapping:
+          circle: '#/components/schemas/Circle'
+          rectangle: '#/components/schemas/Rectangle'
+      oneOf:
+        - $ref: '#/components/schemas/Circle'
+        - $ref: '#/components/schemas/Rectangle'
+    ShapeBase:
+      properties:
+        type:
+          type: string
+        color:
+          type: string
+      required: [type]
+    Circle:
+      allOf:
+        - $ref: '#/components/schemas/ShapeBase'
+        - properties:
+            radius:
+              type: number
+          required: [radius]
+    Rectangle:
+      allOf:
+        - $ref: '#/components/schemas/ShapeBase'
+        - properties:
+            width:
+              type: number
+            height:
+              type: number
+          required: [width, height]

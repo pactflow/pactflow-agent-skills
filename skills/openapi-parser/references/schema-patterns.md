@@ -364,11 +364,11 @@ GET /orgs/{org_id}/issues
     200:
       IssueList → data[]: IssueItem
       IssueItem → oneOf [SnykCodeIssue, SnykOpenSourceIssue, SnykIacIssue]  (3 variants)
-    400: ErrorDocument  (1 test — missing required param)
+    400: ErrorDocument  (2 tests — invalid version format + missing required param)
     401: ErrorDocument  (1 test — no auth)
     404: ErrorDocument  (1 test — invalid org_id)
 
-  Total tests: 3 (200 variants) + 1 (400) + 1 (401) + 1 (404) = 6
+  Total tests: 3 (200 variants) + 2 (400: invalid version + missing param) + 1 (401) + 1 (404) = 7
 ```
 
 This analysis should appear at the top of your output before any YAML.

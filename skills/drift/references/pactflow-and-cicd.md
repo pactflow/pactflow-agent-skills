@@ -1,5 +1,15 @@
 # PactFlow Integration & CI/CD
 
+## Contents
+
+- [Bi-Directional Contract Testing (BDCT) with PactFlow](#bi-directional-contract-testing-bdct-with-pactflow)
+- [GitHub Actions — Full Workflow](#github-actions--full-workflow)
+- [GitHub Actions — Parallel Suites](#github-actions--parallel-suites)
+- [GitLab CI](#gitlab-ci)
+- [Embedding in Test Frameworks](#embedding-in-test-frameworks)
+
+---
+
 ## Bi-Directional Contract Testing (BDCT) with PactFlow
 
 BDCT lets you verify contracts between consumers and providers without them directly testing

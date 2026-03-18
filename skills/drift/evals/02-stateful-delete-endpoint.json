@@ -1,0 +1,16 @@
+{
+  "skills": ["drift-testing"],
+  "query": "Generate Drift tests for the DELETE /products/{id} endpoint in `evals/fixtures/simple-products-api.yaml`. The API has an empty database, so the product must be created before the test runs.",
+  "files": ["evals/fixtures/simple-products-api.yaml"],
+  "expected_behavior": [
+    "Triggers the drift skill to handle test generation for a stateful endpoint",
+    "Produces a success test (deleteProduct_Success or similar) targeting source-oas:deleteProduct and expecting a 204 response",
+    "Includes an operation:started Lua hook in the success test that seeds the product via POST /products before the DELETE runs",
+    "The seed request in the hook uses valid product fields (id, name, price) matching the Product schema",
+    "Produces a 401 test (deleteProduct_Unauthorized or similar) that strips authentication and expects a 401 response",
+    "Produces a 403 test (deleteProduct_Forbidden or similar) that uses a valid token lacking delete permission and expects a 403 response",
+    "Produces a 404 test (deleteProduct_NotFound or similar) that uses a guaranteed non-existent ID and expects a 404 response",
+    "Names operations following the {operationId}_{variant} convention",
+    "Does NOT modify the OpenAPI spec"
+  ]
+}

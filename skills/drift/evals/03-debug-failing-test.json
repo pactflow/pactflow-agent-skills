@@ -1,0 +1,14 @@
+{
+  "skills": ["drift-testing"],
+  "query": "My Drift test `getProduct_Success` is failing with 'Got 404, expected 200'. The test config and failure output are in `evals/fixtures/products-api-with-failures.md`. What's wrong and how do I fix it?",
+  "files": ["evals/fixtures/products-api-with-failures.md"],
+  "expected_behavior": [
+    "Triggers the drift skill to diagnose the test failure",
+    "Correctly identifies the root cause: the product with id 10 does not exist in the clean test environment, causing the server to return 404",
+    "Identifies the missing operation:started hook as the fix — not a change to the test assertion or the OpenAPI spec",
+    "Provides a concrete operation:started Lua hook that seeds the product by calling POST /products with a valid body (id: 10, name, price) before the test runs",
+    "References the 'Got 404, expected 200 → Add operation:started hook to seed the resource' row from the diagnosis table in SKILL.md",
+    "Does not suggest modifying the expected statusCode or the OpenAPI spec as the fix",
+    "Optionally suggests an operation:finished hook to clean up the created resource after the test"
+  ]
+}

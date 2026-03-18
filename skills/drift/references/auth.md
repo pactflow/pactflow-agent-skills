@@ -1,5 +1,16 @@
 # Drift Authentication Reference
 
+## Contents
+
+- [Global auth block](#global-auth-block)
+- [Dynamic tokens (retrieved at runtime)](#dynamic-tokens-retrieved-at-runtime)
+- [Non-standard auth prefix](#non-standard-auth-prefix)
+- [Testing 401 — unauthenticated requests](#testing-401--unauthenticated-requests)
+- [Testing 403 — authenticated but forbidden](#testing-403--authenticated-but-forbidden)
+- [PactFlow auth (for publishing results)](#pactflow-auth-for-publishing-results)
+
+---
+
 ## Global auth block
 
 Configure auth once in `drift.yaml` — it applies to every operation by default:
