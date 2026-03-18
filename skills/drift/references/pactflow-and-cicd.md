@@ -12,18 +12,7 @@
 
 ## Bi-Directional Contract Testing (BDCT) with PactFlow
 
-BDCT lets you verify contracts between consumers and providers without them directly testing
-each other. Drift generates provider-side verification results that PactFlow can compare against
-consumer contracts.
-
-### Setup
-
-```bash
-export PACTFLOW_BASE_URL="https://your-workspace.pactflow.io"
-export PACTFLOW_TOKEN="your-api-token"   # Settings → API Tokens in PactFlow UI
-```
-
-Use a **System Account Token** in CI (not a development token) — it needs publish permissions.
+Drift generates provider-side verification results that PactFlow uses for BDCT. Set credentials as described in `auth.md#pactflow-auth`.
 
 ### Full publish workflow
 
@@ -49,12 +38,11 @@ pactflow publish-provider-contract \
   --spec-content-type application/yaml
 ```
 
-The `--verification-exit-code` must be set to the actual Drift exit code even if tests fail —
-PactFlow needs this to record the verification outcome correctly.
+`--verification-exit-code` must match the actual Drift exit code, even if tests fail.
 
 ### Bundling parallel suite results
 
-When running multiple parallel test files, merge results before publishing:
+Merge parallel suite results before publishing:
 
 ```bash
 drift bundle \

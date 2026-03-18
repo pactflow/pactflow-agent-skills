@@ -9,9 +9,7 @@ description: >
   for an endpoint", "cover all response variants", "generate test cases from the spec",
   or says anything like "each viable combination of responses". Use when the
   user is trying to understand what values are valid for a complex schema field, or
-  when they paste a spec path and ask what tests to write. Works alongside the Drift
-  skill — this skill handles spec analysis and test case generation; Drift handles
-  running and iterating on them.
+  when they paste a spec path and ask what tests to write.
 
 argument-hint: "[path/to/openapi-spec.yaml]"
 metadata:
@@ -21,13 +19,7 @@ metadata:
 
 # OpenAPI Parser Skill
 
-Parses complex OpenAPI specs — including those with polymorphism, discriminated unions,
-deep `$ref` chains, enums, regex patterns, and optional fields — and generates Drift
-test cases that cover each viable schema combination.
-
 ## Reference files
-
-Read these when you need deeper detail:
 
 - [`references/schema-patterns.md`](references/schema-patterns.md) — how to interpret and enumerate every complex pattern
   (anyOf / oneOf / allOf / discriminator / $ref / enum / pattern / nullable / optional),
@@ -40,7 +32,7 @@ Read these when you need deeper detail:
 
 ### 1. Locate the endpoint
 
-Large specs (40k–70k+ lines) cannot be read in full. Extract only what's needed:
+Extract only what's needed:
 
 ```bash
 # Find the line number of the endpoint (macOS/Linux/Git Bash/WSL)
@@ -57,12 +49,9 @@ Select-String -Path spec.yaml -Pattern "^  /path/to/endpoint" | Select-Object Li
 Select-String -Path spec.yaml -Pattern "SchemaName:" | Select-Object LineNumber, Line
 ```
 
-Extract: path/query/header parameters, request body schema, and each response status
-code's schema. Resolve every `$ref` before analysing — see step 2.
+Extract: path/query/header parameters, request body schema, and each response status code's schema.
 
 ### 2. Resolve $refs recursively
-
-`$ref: '#/components/schemas/Foo'` means Foo's definition substitutes inline.
 
 1. Grep for `Foo:` in the spec to find its definition block
 2. If Foo itself contains refs, resolve those too
@@ -73,12 +62,7 @@ properties to get the full schema. See `references/schema-patterns.md` for all p
 
 ### 3. Enumerate viable combinations
 
-For **each response status code**, identify how many distinct schema variants exist.
-The key principle:
-
-> A "viable combination" is one structurally distinct payload the server could legally
-> return. Aim for minimum tests that maximise schema coverage — not a combinatorial
-> explosion of optional field permutations.
+For **each response status code**, enumerate structurally distinct schema variants. Aim for minimum tests that maximise schema coverage — not a combinatorial explosion of optional field permutations.
 
 | Pattern                               | Tests to generate                                                          |
 | ------------------------------------- | -------------------------------------------------------------------------- |

@@ -7,27 +7,19 @@ How to map each OpenAPI schema pattern to Drift test case YAML. Read alongside
 
 ## Table of contents
 
-- [Drift Mapping Reference](#drift-mapping-reference)
-  - [Table of contents](#table-of-contents)
-  - [Naming conventions](#naming-conventions)
-  - [oneOf / anyOf branches](#oneof--anyof-branches)
-  - [discriminator variants](#discriminator-variants)
-  - [allOf (composition)](#allof-composition)
-  - [Primitive type unions in parameters](#primitive-type-unions-in-parameters)
-  - [enum parameters](#enum-parameters)
-  - [regex (pattern) fields](#regex-pattern-fields)
-  - [optional field variants](#optional-field-variants)
-  - [nullable fields](#nullable-fields)
-  - [Negative / error cases](#negative--error-cases)
-  - [Dataset structure](#dataset-structure)
-  - [Lifecycle hooks for stateful variants](#lifecycle-hooks-for-stateful-variants)
-  - [Expected response matchers](#expected-response-matchers)
-    - [Validate specific field values](#validate-specific-field-values)
-    - [Validate against dataset value](#validate-against-dataset-value)
-    - [Validate discriminator property in response](#validate-discriminator-property-in-response)
-    - [Let Drift validate schema automatically](#let-drift-validate-schema-automatically)
-  - [Full example — complex endpoint](#full-example--complex-endpoint)
-
+- [Naming conventions](#naming-conventions)
+- [oneOf / anyOf branches](#oneof--anyof-branches)
+- [discriminator variants](#discriminator-variants)
+- [allOf (composition)](#allof-composition)
+- [Primitive type unions in parameters](#primitive-type-unions-in-parameters)
+- [enum parameters](#enum-parameters)
+- [regex (pattern) fields](#regex-pattern-fields)
+- [optional field variants](#optional-field-variants)
+- [nullable fields](#nullable-fields)
+- [Negative / error cases](#negative--error-cases)
+- [Dataset structure](#dataset-structure)
+- [Lifecycle hooks for stateful variants](#lifecycle-hooks-for-stateful-variants)
+- [Expected response matchers](#expected-response-matchers)
 ---
 
 ## Naming conventions
@@ -36,7 +28,7 @@ How to map each OpenAPI schema pattern to Drift test case YAML. Read alongside
 {operationId}_{variant}
 ```
 
-Variant suffixes that communicate the schema branch being covered:
+Variant suffixes:
 
 | Situation                | Suffix pattern                                                     |
 | ------------------------ | ------------------------------------------------------------------ |
@@ -82,9 +74,7 @@ operations:
         statusCode: 200
 ```
 
-The dataset sets up org IDs that will return each variant. If the server doesn't have
-deterministic org-type data, use a lifecycle hook to create the right resource first
-(see [Lifecycle hooks](#lifecycle-hooks-for-stateful-variants)).
+If the server doesn't have deterministic org-type data, use a lifecycle hook to create the resource first (see [Lifecycle hooks](#lifecycle-hooks-for-stateful-variants)).
 
 ---
 
@@ -159,8 +149,7 @@ operations:
         statusCode: 202
 ```
 
-Dataset entry for `droplets.basic` should merge all required fields from all `allOf`
-branches into a single flat object.
+Dataset entry `droplets.basic` must include all required fields from all `allOf` branches.
 
 ---
 
@@ -401,7 +390,7 @@ operations:
 
 ## Dataset structure
 
-Structure datasets to match the test naming. One entry per test variant.
+One entry per test variant:
 
 ```yaml
 # drift-datasets/issues.dataset.yaml
@@ -491,8 +480,6 @@ local exports = {
 return exports
 ```
 
-Reference the dynamic ID in the operation:
-
 ```yaml
 getRiskFactors_deployed:
   target: source-oas:getIssueRiskFactors
@@ -542,113 +529,6 @@ expected:
 
 ### Let Drift validate schema automatically
 
-Omitting `body` from `expected` causes Drift to validate the response body against the
-OpenAPI response schema automatically — useful when the shape is complex and you trust
-the spec.
+Omitting `body` from `expected` causes Drift to validate the response against the OpenAPI schema automatically.
 
----
-
-## Full example — complex endpoint
-
-`GET /orgs/{org_id}/issues` from the Snyk spec.
-
-**Analysis**:
-
-- `org_id`: string, no variants
-- `version`: string, pattern `^\d{4}-\d{2}-\d{2}$` — add valid + invalid tests
-- 200 response: `IssueList.data[]` is `oneOf [SnykCodeIssue, SnykOpenSourceIssue, SnykIacIssue]` — 3 variants
-- 400, 401, 404 each return `ErrorDocument` — 3 negative tests
-- Total: 3 + 1 (invalid version) + 3 (errors) = 7 tests
-
-```yaml
-operations:
-  listOrgIssues_snykCode:
-    target: source-oas:listOrgIssues
-    tags: [issues, smoke, variant-snyk-code]
-    parameters:
-      path:
-        org_id: ${issue-data:orgs.withCodeIssues.id}
-      query:
-        version: "2024-01-15"
-    expected:
-      response:
-        statusCode: 200
-
-  listOrgIssues_snykOss:
-    target: source-oas:listOrgIssues
-    tags: [issues, variant-snyk-oss]
-    parameters:
-      path:
-        org_id: ${issue-data:orgs.withOssIssues.id}
-      query:
-        version: "2024-01-15"
-    expected:
-      response:
-        statusCode: 200
-
-  listOrgIssues_snykIac:
-    target: source-oas:listOrgIssues
-    tags: [issues, variant-snyk-iac]
-    parameters:
-      path:
-        org_id: ${issue-data:orgs.withIacIssues.id}
-      query:
-        version: "2024-01-15"
-    expected:
-      response:
-        statusCode: 200
-
-  listOrgIssues_invalidVersion:
-    target: source-oas:listOrgIssues
-    tags: [issues, negative, regex-violation]
-    parameters:
-      path:
-        org_id: ${issue-data:orgs.withCodeIssues.id}
-      query:
-        version: "not-a-date"
-    ignore:
-      schema: true
-    expected:
-      response:
-        statusCode: 400
-
-  listOrgIssues_unauthorized:
-    target: source-oas:listOrgIssues
-    tags: [issues, negative, security]
-    exclude:
-      - auth
-    parameters:
-      path:
-        org_id: ${issue-data:orgs.withCodeIssues.id}
-      query:
-        version: "2024-01-15"
-      headers:
-        authorization: "Bearer invalid"
-    expected:
-      response:
-        statusCode: 401
-
-  listOrgIssues_orgNotFound:
-    target: source-oas:listOrgIssues
-    tags: [issues, negative]
-    parameters:
-      path:
-        org_id: ${issue-data:notIn(orgs.*.id)}
-      query:
-        version: "2024-01-15"
-    expected:
-      response:
-        statusCode: 404
-
-  listOrgIssues_missingVersion:
-    target: source-oas:listOrgIssues
-    tags: [issues, negative]
-    parameters:
-      path:
-        org_id: ${issue-data:orgs.withCodeIssues.id}
-    ignore:
-      schema: true
-    expected:
-      response:
-        statusCode: 400
-```
+For a full worked example, see the "Determining test count" section in `schema-patterns.md`.

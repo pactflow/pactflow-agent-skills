@@ -18,8 +18,6 @@
 
 ## `drift verify`
 
-The primary command. Runs test cases against a live API.
-
 ```bash
 drift verify --server-url <URL> --test-files <FILE> [OPTIONS]
 ```
@@ -48,44 +46,26 @@ drift verify --server-url <URL> --test-files <FILE> [OPTIONS]
 # Basic run
 drift verify -u https://api.example.com/v1 -f drift.yaml
 
-# Run against local dev server
-drift verify -u http://localhost:8080 -f drift.yaml
-
 # Single operation
 drift verify -u http://localhost:8080 -f drift.yaml --operation getProductByID_Success
 
 # Only re-run failed
 drift verify -u http://localhost:8080 -f drift.yaml --failed
 
-# Filter by tags (OR logic)
+# Filter by tags (OR logic, exclude with !)
 drift verify -u http://localhost:8080 -f drift.yaml --tags smoke
-drift verify -u http://localhost:8080 -f drift.yaml --tags products,users
 drift verify -u http://localhost:8080 -f drift.yaml --tags '!destructive'
 
 # Multiple test files
 drift verify -u http://localhost:8080 -f products.yaml -f users.yaml -f orders.yaml
 
-# Glob pattern
-drift verify -u http://localhost:8080 -f "tests/*.yaml"
-
-# Save results
-drift verify -u http://localhost:8080 -f drift.yaml --output-dir ./drift-results
-
 # PactFlow BDCT — generate verification bundle
 drift verify -u https://api.example.com -f drift.yaml --generate-result
-
-# Debug mode
-drift verify -u http://localhost:8080 -f drift.yaml --log-level debug
-
-# Via env var
-LOG_LEVEL=DEBUG drift verify -u http://localhost:8080 -f drift.yaml
 ```
 
 ---
 
 ## `drift plugins`
-
-Manage Drift plugins.
 
 ### `drift plugins installed-plugins`
 
@@ -167,8 +147,6 @@ output_dir: ./drift-results
 plugin_dir: ./plugins
 ```
 
-Priority order (highest to lowest): CLI args → env vars → config file
-
 ---
 
 ## Parallel Execution
@@ -210,8 +188,6 @@ plugins:
   - name: oas
   - name: junit-output
 ```
-
-Then upload artifacts in CI:
 
 ```yaml
 - uses: actions/upload-artifact@v4

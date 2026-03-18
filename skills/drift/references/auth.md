@@ -91,9 +91,7 @@ global:
 
 ## Non-standard auth prefix
 
-`scheme: bearer` always emits `Authorization: Bearer <token>`. If the API requires a different
-prefix (e.g. `token`, `ApiKey`, `AWS4-HMAC-SHA256`), inject the header directly via the
-`http:request` hook and skip the global auth block:
+If the API requires a non-standard auth prefix (e.g. `token`, `ApiKey`, `AWS4-HMAC-SHA256`), inject the header directly via the `http:request` hook and skip the global auth block:
 
 ```lua
 -- drift.lua
