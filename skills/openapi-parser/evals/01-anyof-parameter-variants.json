@@ -1,0 +1,14 @@
+{
+  "skills": ["openapi-parser"],
+  "query": "I have this spec at `evals/fixtures/anyof-parameter-variants.yaml`. What Drift tests should I write for the `/v2/images/{image_id}` endpoint?",
+  "files": ["evals/fixtures/anyof-parameter-variants.yaml"],
+  "expected_behavior": [
+    "Triggers the openapi-parser skill (not the drift skill) to handle spec analysis",
+    "Produces an analysis section that identifies the anyOf on image_id as producing 2 parameter-type variants (integer and string) plus a 404 negative test — 3 tests total",
+    "Generates a Drift operations YAML block with exactly two 200-path tests: one using an integer image_id (e.g. getImage_byId) and one using a string image_id (e.g. getImage_bySlug)",
+    "Generates a third test for the 404 case using a guaranteed non-existent ID",
+    "Names operations following the {operationId}_{variant} convention",
+    "Uses dataset expressions (e.g. ${image-data:images.existing.id}) rather than hardcoded literals for path parameters",
+    "Includes a dataset YAML block or notes that one is needed to hold the integer and string ID fixtures"
+  ]
+}

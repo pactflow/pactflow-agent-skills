@@ -1,0 +1,14 @@
+{
+  "skills": ["drift-testing"],
+  "query": "I have an OpenAPI spec at `evals/fixtures/simple-products-api.yaml`. Generate Drift tests for the GET /products/{id} endpoint.",
+  "files": ["evals/fixtures/simple-products-api.yaml"],
+  "expected_behavior": [
+    "Triggers the drift skill to handle test generation",
+    "Produces a happy-path test (getProduct_Success or similar) targeting source-oas:getProduct and expecting a 200 response",
+    "Produces a 401 test (getProduct_Unauthorized or similar) that strips authentication using 'exclude: [auth]' or an invalid token and expects a 401 response",
+    "Produces a 404 test (getProduct_NotFound or similar) that uses a guaranteed non-existent ID — either a nil UUID, a ${notIn(...)} expression, or a large/implausible integer — and expects a 404 response",
+    "Names operations following the {operationId}_{variant} convention (e.g. getProduct_Success, getProduct_Unauthorized, getProduct_NotFound)",
+    "Uses the spec-provided example value (id: 10) or a dataset expression for the happy-path path parameter rather than an arbitrary hardcoded literal",
+    "Does NOT modify the OpenAPI spec"
+  ]
+}

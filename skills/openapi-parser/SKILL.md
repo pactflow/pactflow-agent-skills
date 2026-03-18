@@ -1,17 +1,22 @@
 ---
 name: openapi-parser
 description: >
-  Expert at parsing complex OpenAPI specs and generating Drift test cases from them.
-  Use this skill whenever the user wants to generate, write, or scaffold Drift tests
+  Parses complex OpenAPI specs and generates Drift test cases from them.
+  Use whenever the user wants to generate, write, or scaffold Drift tests
   from an OpenAPI spec — especially when the spec contains complex schemas:
   anyOf/oneOf/allOf, discriminators, polymorphism, inheritance, $ref chains, regex
-  patterns, enums, or optional fields. Trigger when the user asks to "create tests
+  patterns, enums, or optional fields. Use when the user asks to "create tests
   for an endpoint", "cover all response variants", "generate test cases from the spec",
-  or says anything like "each viable combination of responses". Also trigger when the
+  or says anything like "each viable combination of responses". Use when the
   user is trying to understand what values are valid for a complex schema field, or
   when they paste a spec path and ask what tests to write. Works alongside the Drift
   skill — this skill handles spec analysis and test case generation; Drift handles
   running and iterating on them.
+
+argument-hint: "[path/to/openapi-spec.yaml]"
+metadata:
+  context: fork
+  agent: general-purpose
 ---
 
 # OpenAPI Parser Skill
@@ -24,10 +29,10 @@ test cases that cover each viable schema combination.
 
 Read these when you need deeper detail:
 
-- `references/schema-patterns.md` — how to interpret and enumerate every complex pattern
+- [`references/schema-patterns.md`](references/schema-patterns.md) — how to interpret and enumerate every complex pattern
   (anyOf / oneOf / allOf / discriminator / $ref / enum / pattern / nullable / optional),
   with real examples from snyk, digitalocean, posthog, and front/core specs
-- `references/drift-mapping.md` — how to map enumerated schema variants to Drift YAML,
+- [`references/drift-mapping.md`](references/drift-mapping.md) — how to map enumerated schema variants to Drift YAML,
   including datasets, expressions, lifecycle hooks for stateful cases, and expected
   response matchers for each pattern type
 
@@ -142,49 +147,8 @@ operations:
         statusCode: 404
 ```
 
-## Working with konfig-sdks/openapi-examples
+## Working with real-world spec collections
 
-Specs live at `<repo-root>/<provider>/openapi.yaml` (sometimes nested, e.g.
-`atlassian/jira/openapi.yaml`). The most complex specs — all five patterns simultaneously
-— are: `snyk`, `digitalocean`, `posthog`, `front/core`.
-
-```bash
-# List all endpoints in a spec (macOS/Linux/Git Bash/WSL)
-grep "^  /" spec.yaml
-
-# Find endpoints with polymorphic schemas
-grep -n "oneOf\|anyOf\|discriminator" spec.yaml
-
-# Find specs using all five complexity patterns
-for f in $(find . -name "openapi.yaml"); do
-  score=0
-  grep -q "anyOf" "$f" && score=$((score+1))
-  grep -q "oneOf" "$f" && score=$((score+1))
-  grep -q "allOf" "$f" && score=$((score+1))
-  grep -q "discriminator" "$f" && score=$((score+1))
-  grep -q "pattern:" "$f" && score=$((score+1))
-  [ $score -ge 4 ] && echo "$score $f"
-done | sort -rn
-```
-
-```powershell
-# PowerShell equivalents (Windows)
-
-# List all endpoints in a spec
-Select-String -Path spec.yaml -Pattern "^  /" | Select-Object -ExpandProperty Line
-
-# Find endpoints with polymorphic schemas
-Select-String -Path spec.yaml -Pattern "oneOf|anyOf|discriminator" | Select-Object LineNumber, Line
-
-# Find specs using all five complexity patterns
-Get-ChildItem -Recurse -Filter "openapi.yaml" | ForEach-Object {
-  $f = $_.FullName
-  $score = 0
-  if (Select-String -Path $f -Pattern "anyOf"        -Quiet) { $score++ }
-  if (Select-String -Path $f -Pattern "oneOf"        -Quiet) { $score++ }
-  if (Select-String -Path $f -Pattern "allOf"        -Quiet) { $score++ }
-  if (Select-String -Path $f -Pattern "discriminator" -Quiet) { $score++ }
-  if (Select-String -Path $f -Pattern "pattern:"     -Quiet) { $score++ }
-  if ($score -ge 4) { "$score $f" }
-} | Sort-Object -Descending
-```
+For instructions on navigating and querying the `konfig-sdks/openapi-examples` collection
+(which contains providers like snyk, digitalocean, posthog, and front/core), see
+[`references/example-repos.md`](references/example-repos.md).

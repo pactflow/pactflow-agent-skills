@@ -1,0 +1,15 @@
+{
+  "skills": ["openapi-parser"],
+  "query": "What Drift tests should I write for the GET /orgs/{org_id}/reports endpoint in `evals/fixtures/regex-pattern-field.yaml`? The version parameter has a regex constraint.",
+  "files": ["evals/fixtures/regex-pattern-field.yaml"],
+  "expected_behavior": [
+    "Triggers the openapi-parser skill to handle the regex pattern analysis",
+    "Produces an analysis that identifies: org_id has no variants (1 test), version pattern requires 1 valid + 1 invalid test, 200 response has no polymorphism (1 test), plus 400/401/404 negative tests — approximately 5-6 tests total",
+    "Generates a valid version test using a value that matches the pattern (e.g. '2024-01-15') and expects a 200 response",
+    "Generates an invalid version test using a value that violates the pattern (e.g. 'not-a-date') and expects a 400 response",
+    "The invalid version test includes 'ignore: { schema: true }' to suppress request schema validation",
+    "Generates a 401 negative test that strips auth (using 'exclude: [auth]' or invalid token)",
+    "Generates a 404 negative test using a non-existent org_id",
+    "Includes a Gaps section noting any intentionally excluded cases (e.g. 2^N optional field permutations if any optional fields exist)"
+  ]
+}

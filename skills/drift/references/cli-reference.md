@@ -1,5 +1,21 @@
 # Drift CLI Reference
 
+## Contents
+
+- [`drift verify`](#drift-verify)
+- [`drift plugins`](#drift-plugins)
+- [`drift bundle`](#drift-bundle)
+- [`drift check-version`](#drift-check-version)
+- [`drift init`](#drift-init)
+- [`drift auth logout`](#drift-auth-logout)
+- [Configuration via environment variables](#configuration-via-environment-variables)
+- [Configuration file](#configuration-file)
+- [Parallel Execution](#parallel-execution)
+- [JUnit Reports (CI)](#junit-reports-ci)
+- [Exit Codes](#exit-codes)
+
+---
+
 ## `drift verify`
 
 The primary command. Runs test cases against a live API.

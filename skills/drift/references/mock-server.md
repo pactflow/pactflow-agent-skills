@@ -1,5 +1,16 @@
 # Local Testing with a Mock Server (Prism)
 
+## Contents
+
+- [Setup](#setup)
+- [Forcing HTTP status codes with `Prefer`](#forcing-http-status-codes-with-prefer)
+- [Common `Prefer` patterns](#common-prefer-patterns)
+- [Spec quality issues surfaced by Drift + Prism](#spec-quality-issues-surfaced-by-drift--prism)
+- [Dynamic base URL in Lua hooks](#dynamic-base-url-in-lua-hooks)
+- [Limitations of mock server testing](#limitations-of-mock-server-testing)
+
+---
+
 When you don't have a live server, [Prism](https://stoplight.io/open-source/prism) serves a
 mock API directly from the OpenAPI spec. This lets you run the full Drift feedback loop
 locally — no backend needed.

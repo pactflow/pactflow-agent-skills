@@ -1,5 +1,16 @@
 # Drift Lua API — Full Reference
 
+## Contents
+
+- [Script Structure](#script-structure)
+- [Built-in Functions](#built-in-functions)
+- [Standard Lua Modules](#standard-lua-modules)
+- [Lifecycle Events](#lifecycle-events)
+- [Common Patterns](#common-patterns)
+- [Embedding in Test Frameworks](#embedding-in-test-frameworks)
+
+---
+
 Drift embeds Lua 5.4. Scripts are loaded as sources and used for lifecycle hooks and exported
 functions callable from YAML expressions.
 

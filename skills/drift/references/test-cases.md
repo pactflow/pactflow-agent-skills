@@ -1,5 +1,18 @@
 # Drift Test Cases — Full Reference
 
+## Contents
+
+- [File Structure](#file-structure)
+- [Targeting Operations](#targeting-operations)
+- [Full Operation Schema](#full-operation-schema)
+- [Common Patterns](#common-patterns)
+- [Tags](#tags)
+- [Stateful Operations](#stateful-operations)
+- [Datasets](#datasets)
+- [Expressions](#expressions)
+
+---
+
 ## File Structure
 
 ```yaml

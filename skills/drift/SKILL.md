@@ -1,14 +1,15 @@
 ---
-name: drift
+name: drift-testing
 description: >
-  Expert assistant for Drift — PactFlow's OpenAPI contract testing CLI. Use this skill whenever
+  Verifies API implementations against OpenAPI specifications using the Drift CLI,
+  catching spec drift and supporting Bi-Directional Contract Testing (BDCT). Use when
   the user mentions Drift, API contract testing, provider verification, spec drift,
-  OpenAPI verification, Bi-Directional Contract Testing (BDCT), or asks to write/run/debug
-  Drift test cases. Trigger even if they just say "help me test my API against its spec" or
-  "write provider side contract tests" — Drift is likely the right tool. Also trigger when the user mentions
-  drift expressions, drift datasets, drift lifecycle hooks, or Lua scripting in a testing context.
-  Trigger when the user wants full endpoint coverage, wants to make all tests pass, or asks you
-  to "keep running until everything passes" — this skill has an explicit feedback loop for that.
+  OpenAPI verification, BDCT, drift expressions, drift datasets, drift lifecycle hooks,
+  or Lua scripting in a testing context. Use when the user asks to write, run, or debug
+  Drift test cases, or says anything like "help me test my API against its spec" or
+  "write provider side contract tests". Use when the user wants full endpoint coverage,
+  wants all tests to pass, or asks to "keep running until everything passes" — this
+  skill includes an explicit feedback loop for that scenario.
 
 argument-hint: "[path/to/oad|path/to/drift-test]"
 metadata: 
@@ -38,12 +39,12 @@ Never modify the openapi spec that you are testing.
 
 Read these when you need deeper detail on a topic:
 
-- `references/test-cases.md` — Full test case YAML schema, all patterns, datasets, expressions
-- `references/auth.md` — Authentication config, dynamic tokens, non-standard schemes, 401/403 testing
-- `references/mock-server.md` — Local testing with Prism: setup, Prefer header, spec quality issues
-- `references/lua-api.md` — Complete Lua API: lifecycle events, `http()`, `dbg()`, exported functions
-- `references/cli-reference.md` — All CLI commands/flags, configuration, parallel execution, exit codes
-- `references/pactflow-and-cicd.md` — BDCT publishing workflow, GitHub Actions, GitLab CI
+- [`references/test-cases.md`](references/test-cases.md) — Full test case YAML schema, all patterns, datasets, expressions
+- [`references/auth.md`](references/auth.md) — Authentication config, dynamic tokens, non-standard schemes, 401/403 testing
+- [`references/mock-server.md`](references/mock-server.md) — Local testing with Prism: setup, Prefer header, spec quality issues
+- [`references/lua-api.md`](references/lua-api.md) — Complete Lua API: lifecycle events, `http()`, `dbg()`, exported functions
+- [`references/cli-reference.md`](references/cli-reference.md) — All CLI commands/flags, configuration, parallel execution, exit codes
+- [`references/pactflow-and-cicd.md`](references/pactflow-and-cicd.md) — BDCT publishing workflow, GitHub Actions, GitLab CI
 
 ## Scripts
 
@@ -89,7 +90,7 @@ drift --version
 
 **Windows notes:**
 
-- Use `scripts\run_loop.ps1` and `scripts\start_mock.ps1` — PowerShell equivalents of the `.sh` scripts with the same flags.
+- Use `scripts/run_loop.ps1` and `scripts/start_mock.ps1` — PowerShell equivalents of the `.sh` scripts with the same flags.
 - Python venv paths differ — the `.ps1` scripts handle this automatically, but if running Python directly use `.venv\Scripts\python` instead of `.venv/bin/python3`.
 - Set environment variables in PowerShell with `$env:API_TOKEN = "your-token"`, or in Command Prompt with `set API_TOKEN=your-token`.
 
@@ -98,8 +99,10 @@ drift --version
 ## Project Setup
 
 ```bash
-drift init   # interactive wizard — scaffolds all files below (do not run this on your own the user should run this as this is a TUI)
+drift init   # interactive wizard — scaffolds all files below
 ```
+
+> **Note:** `drift init` is a TUI (interactive terminal wizard). Do not run it on the user's behalf — ask the user to run it themselves.
 
 ```
 drift/
@@ -175,6 +178,19 @@ has at least one test.
 > **Caution — destructive tests on production:** If `--server-url` points at a live
 > production API, DELETE and POST tests are permanent. Always use a dedicated test account
 > and confirm any resource used in a DELETE test is disposable.
+
+Copy this checklist and track your progress:
+
+```
+Coverage Loop Progress:
+- [ ] Step 0: Check current coverage (check_coverage.py)
+- [ ] Step 1: Parse spec and collect operation list (openapi-parser skill or extract_endpoints.py)
+- [ ] Step 2: Assemble initial test file
+- [ ] Step 3: Run tests (run_loop.sh / run_loop.ps1)
+- [ ] Step 4: Diagnose and fix each failure
+- [ ] Step 5: Apply common fixes (hooks for state, data seeding)
+- [ ] Step 6: Verify exit code 0 + full coverage
+```
 
 ### Step 0 — Check current coverage
 

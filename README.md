@@ -186,7 +186,7 @@ Point Copilot at any directory via VS Code settings:
 Once installed, open Copilot Chat and invoke a skill by name:
 
 ```claude
-/drift write a test case for POST /orders returning 201
+/drift-testing write a test case for POST /orders returning 201
 /openapi-parser generate Drift tests for the payments spec
 ```
 

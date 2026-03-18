@@ -1,0 +1,14 @@
+{
+  "skills": ["openapi-parser"],
+  "query": "Generate Drift tests for the POST /shapes endpoint in `evals/fixtures/discriminator-with-allof.yaml`. The request body uses a discriminator.",
+  "files": ["evals/fixtures/discriminator-with-allof.yaml"],
+  "expected_behavior": [
+    "Triggers the openapi-parser skill to handle the discriminator and allOf composition",
+    "Produces an analysis identifying 2 discriminator variants (circle, rectangle) from the oneOf/discriminator mapping, plus 1 negative test for the 400 — 3 tests total",
+    "Generates one Drift operation per discriminator value: createShape_circle (type: circle, radius: <value>) and createShape_rectangle (type: rectangle, width: <value>, height: <value>)",
+    "For each discriminator branch, resolves the allOf composition correctly — merging ShapeBase required fields (type) with the branch-specific required fields (radius for Circle; width+height for Rectangle)",
+    "Sets the discriminator property explicitly in each request body (type: circle / type: rectangle)",
+    "Generates a 400 negative test (createShape_missingRequired or similar) that omits required fields and uses ignore: { schema: true }",
+    "Names operations following the {operationId}_{variant} convention with camelCase discriminator suffix"
+  ]
+}
