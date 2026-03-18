@@ -1,0 +1,9 @@
+{
+  "name": "swagger-contract-testing-openapi-parser",
+  "description": "Parses complex OpenAPI specs and generates Drift test cases covering every viable schema combination",
+  "version": "1.0.0",
+  "author": {
+    "name": "Kevin Rohan Vaz",
+    "email": "kevin.rohanvaz@smartbear.com"
+  }
+}
