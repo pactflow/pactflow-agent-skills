@@ -6,10 +6,8 @@ description: >
   the user mentions Drift, API contract testing, provider verification, spec drift,
   OpenAPI verification, BDCT, drift expressions, drift datasets, drift lifecycle hooks,
   or Lua scripting in a testing context. Use when the user asks to write, run, or debug
-  Drift test cases, or says anything like "help me test my API against its spec" or
-  "write provider side contract tests". Use when the user wants full endpoint coverage,
-  wants all tests to pass, or asks to "keep running until everything passes" — this
-  skill includes an explicit feedback loop for that scenario.
+  Drift test cases. Use when the user wants full endpoint coverage,
+  wants all tests to pass, or asks to "keep running until everything passes".
 
 argument-hint: "[path/to/oad|path/to/drift-test]"
 metadata: 
@@ -19,25 +17,9 @@ metadata:
 
 # Drift Skill
 
-Drift is a CLI tool that verifies API implementations against OpenAPI specifications, catching
-"API drift" — when your code no longer matches its openapi spec. It's built by PactFlow and supports
-Bi-Directional Contract Testing (BDCT).
-
 Never modify the openapi spec that you are testing.
 
-## Example usage of the skill
-
-- The spec has oneOf in the response — how do I write tests for all the variants?
-- Set up Drift for my API endpoints and openapi spec file
-- I have an OpenAPI spec at openapi.yaml — help me create Drift tests for it
-- How do I publish my Drift results to PactFlow?
-- Set up GitHub Actions to run my Drift tests on every PR
-- Generate tests for endpoints I haven't covered yet without touching my existing tests
-- What hooks can i add into my tests?
-
 ## Reference Files
-
-Read these when you need deeper detail on a topic:
 
 - [`references/test-cases.md`](references/test-cases.md) — Full test case YAML schema, all patterns, datasets, expressions
 - [`references/auth.md`](references/auth.md) — Authentication config, dynamic tokens, non-standard schemes, 401/403 testing
@@ -72,8 +54,6 @@ For an LLM-optimised index of all docs, fetch: `https://pactflow.github.io/drift
 
 ## Installation
 
-The npm commands work identically on all platforms (Windows, macOS, Linux):
-
 ```bash
 # Quickest — no install needed
 npx @pactflow/drift --help
@@ -88,11 +68,6 @@ npm install -g @pactflow/drift
 drift --version
 ```
 
-**Windows notes:**
-
-- Use `scripts/run_loop.ps1` and `scripts/start_mock.ps1` — PowerShell equivalents of the `.sh` scripts with the same flags.
-- Python venv paths differ — the `.ps1` scripts handle this automatically, but if running Python directly use `.venv\Scripts\python` instead of `.venv/bin/python3`.
-- Set environment variables in PowerShell with `$env:API_TOKEN = "your-token"`, or in Command Prompt with `set API_TOKEN=your-token`.
 
 ---
 
@@ -102,7 +77,7 @@ drift --version
 drift init   # interactive wizard — scaffolds all files below
 ```
 
-> **Note:** `drift init` is a TUI (interactive terminal wizard). Do not run it on the user's behalf — ask the user to run it themselves.
+> `drift init` is interactive — ask the user to run it.
 
 ```
 drift/
@@ -148,8 +123,6 @@ operations:
 
 ## Running Tests
 
-> **Command name:** The CLI subcommand is `drift verify`.
-
 ```bash
 # Basic run
 drift verify --test-files drift.yaml --server-url https://api.example.com/v1
@@ -171,9 +144,7 @@ See `references/cli-reference.md` for all flags, parallel execution, JUnit outpu
 
 ## Full Coverage Feedback Loop
 
-When the goal is to cover every endpoint and get all tests passing, follow this loop. Don't
-stop until `drift verify` exits with code 0 and every documented operation + response code
-has at least one test.
+When the goal is full endpoint coverage:
 
 > **Caution — destructive tests on production:** If `--server-url` points at a live
 > production API, DELETE and POST tests are permanent. Always use a dedicated test account
@@ -194,9 +165,7 @@ Coverage Loop Progress:
 
 ### Step 0 — Check current coverage
 
-Before writing tests (or when resuming an existing test suite), run the coverage script to get
-a precise gap list. The `run_loop.sh` script manages the venv automatically, but you can also
-run it directly:
+Run before writing tests or when resuming an existing test suite:
 
 ```bash
 # Set up once
@@ -226,19 +195,9 @@ The script excludes 500/501/502/503 by default (same rule as Step 1 below). Pass
 
 ### Step 1 — Parse the spec with the openapi-parser skill
 
-Before writing a single test, use the **openapi-parser skill** to analyse the spec. It handles
-the hard parts automatically:
+Use the **openapi-parser skill** to parse the spec. Collect: the complete operation list, all documented response codes per operation, and ready-to-use `operations:` YAML stubs.
 
-- Resolves deep `$ref` chains recursively
-- Enumerates every viable schema variant for `oneOf` / `anyOf` / `allOf` / discriminator
-- Maps optional fields, enums, and regex patterns to concrete test values
-- Produces ready-to-use `operations:` YAML stubs and a dataset for each endpoint
-
-Collect from it: complete operation list (operationId or method+path), all documented
-response codes per operation, and generated test stubs. This is your coverage checklist.
-
-Alternatively, use `extract_endpoints.py` to get the same output directly from the spec
-without the openapi-parser skill — and emit scaffold stubs in one step:
+Alternatively, `extract_endpoints.py` does this without the skill:
 
 ```bash
 # See all operations + response codes, flagging params with no spec example
@@ -259,11 +218,7 @@ POST /products         → 201, 400, 401
 DELETE /products/{id}  → 204, 401, 403, 404
 ```
 
-**Critical: Drift requires explicit values for ALL parameters with no `example` in the spec**
-— this applies to required AND optional parameters. If any query, path, or header parameter
-lacks a spec-level `example`, Drift fails the test with `Value for query parameter X is
-missing` before sending the request. For every parameter without a spec example, supply an
-explicit value in `parameters.query/path/headers`.
+**Critical:** Any parameter without a spec-level `example` causes `Value for query parameter X is missing`. Supply an explicit value in `parameters.query/path/headers` for each.
 
 **Globally-required query parameters** (e.g. `?version=YYYY-MM-DD` on every endpoint) can be
 injected once via the `http:request` hook rather than repeated in every test case:
@@ -277,15 +232,14 @@ end
 ```
 
 **Duplicate `operationId` values** — some specs reuse the same operationId for two different
-paths (a spec bug). Use `method:path` targeting for the affected operation:
+paths. Use `method:path` targeting for the affected operation:
 
 ```yaml
 target: source-oas:post:/orgs/{org_id}/apps/installs/{install_id}/secrets
 ```
 
-**500 responses are excluded from the coverage requirement.** A 500 requires a server bug and
-can't be deterministically triggered. Skip 500 test cases even if every spec endpoint
-documents one.
+**500 responses are excluded from the coverage requirement** — a 500 requires a server bug and
+can't be deterministically triggered.
 
 ### Step 2 — Assemble the initial test file
 
@@ -350,19 +304,11 @@ path/to/scripts/run_loop.sh --spec openapi.yaml --test-files drift.yaml --server
 | Got 400 on a 200 test                    | Missing globally-required query param               | Inject it via `http:request` hook or add to every test case                         |
 | Got 500                                  | Test data triggered a server bug                    | Fix the data                                                                        |
 
-**`ignore: { schema: true }`** suppresses request schema validation — use it on intentionally
-invalid-body tests (400 scenarios). It does NOT suppress response schema validation.
+**`ignore: { schema: true }`** suppresses request schema validation only — use on 400 scenarios. Response schema validation has no bypass; spec example bugs surface as failures (see `references/mock-server.md`).
 
-**Response schema failures from spec bugs:** If the spec's own response example is invalid
-(e.g. a UUID with a trailing character), Drift correctly reports this. There is no per-
-operation bypass for response schema validation. See `references/mock-server.md`.
+**Multiple 2xx codes:** Write one test per documented code — `statusCode: [200, 204]` array syntax is not supported.
 
-**Multiple valid 2xx codes:** If an operation documents both 200 and 204, write two separate
-test cases — array syntax (`statusCode: [200, 204]`) is not a Drift feature.
-
-**Dynamic IDs and hook timing:** Dataset expressions are resolved _before_ `operation:started`
-runs. You can't inject a runtime-created resource ID back into path parameters from a hook.
-Use pre-seeded static IDs in your dataset, or use the `http:request` hook to rewrite the URL.
+**Dynamic IDs and hook timing:** Dataset expressions resolve _before_ `operation:started`. Use pre-seeded static IDs, or rewrite the URL via `http:request`.
 
 ### Step 5 — Common fixes
 
@@ -389,7 +335,7 @@ drift verify --test-files drift.yaml --server-url https://api.example.com/v1
 echo "Exit code: $?"
 ```
 
-Exit code 0 = all tests passed. Before declaring done, verify coverage is complete:
+Before declaring done, verify coverage is complete:
 
 ```bash
 .venv/bin/python3 path/to/scripts/check_coverage.py \
@@ -397,10 +343,7 @@ Exit code 0 = all tests passed. Before declaring done, verify coverage is comple
 echo "Coverage exit: $?"
 ```
 
-Done when both commands exit 0:
-
-- `drift verify` exits 0 → all tests pass
-- `check_coverage.py` exits 0 → every operation + response code (except 5xx) has a test
+Done when both commands exit 0.
 
 ---
 

@@ -11,9 +11,7 @@
 
 ---
 
-When you don't have a live server, [Prism](https://stoplight.io/open-source/prism) serves a
-mock API directly from the OpenAPI spec. This lets you run the full Drift feedback loop
-locally — no backend needed.
+Prism serves a mock API from an OpenAPI spec for local testing.
 
 ## Setup
 
@@ -81,12 +79,9 @@ When Drift validates a response against the spec schema and reports something li
 "4a72d1db-b465-4764-99e1-ecedad03b06aX" is not a "uuid"
 ```
 
-this usually means the spec's own response example is invalid — not your test data. Drift
-is correctly identifying a bug in the spec. Prism faithfully serves whatever example is in
-the spec, and Drift faithfully validates it.
+this usually means the spec's own response example is invalid — not your test data.
 
-**`ignore: { schema: true }` does NOT help here** — it suppresses request schema validation
-only. There is no per-operation bypass for response schema validation.
+**`ignore: { schema: true }` does NOT help here** — it suppresses request schema validation only.
 
 Options when you hit a spec quality issue:
 
@@ -100,8 +95,7 @@ Options when you hit a spec quality issue:
 
 ## Dynamic base URL in Lua hooks
 
-If your Lua hooks make setup/teardown requests, they need to know the server URL. Pass it
-via an environment variable:
+Pass the server URL to Lua hooks via env var:
 
 ```bash
 SERVER_URL=http://localhost:4010 drift verify --test-files drift.yaml --server-url http://localhost:4010

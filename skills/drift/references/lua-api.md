@@ -4,10 +4,8 @@
 
 - [Script Structure](#script-structure)
 - [Built-in Functions](#built-in-functions)
-- [Standard Lua Modules](#standard-lua-modules)
 - [Lifecycle Events](#lifecycle-events)
 - [Common Patterns](#common-patterns)
-- [Embedding in Test Frameworks](#embedding-in-test-frameworks)
 
 ---
 
@@ -71,7 +69,7 @@ res.body     -- string or table (JSON auto-parsed into table)
 
 ### `dbg(data)`
 
-Pretty-prints a Lua table as a human-readable string — useful for inspecting event data.
+Pretty-prints a Lua table.
 
 ```lua
 ["operation:started"] = function(event, data)
@@ -80,14 +78,6 @@ end
 ```
 
 ---
-
-## Standard Lua Modules
-
-- `os` — environment variables (`os.getenv("VAR")`), time (`os.time()`)
-- `io` — file system operations
-- `math` — math functions (`math.random()`)
-- `string` — string manipulation
-- `table` — table utilities
 
 Pure-Lua LuaRocks packages are supported (no C/FFI extensions):
 
@@ -100,8 +90,6 @@ local json = require("dkjson")
 print(json.encode({ status = "ok" }))
 ```
 
-Set LuaRocks paths:
-
 ```bash
 export LUA_PATH="$HOME/.luarocks/share/lua/5.4/?.lua;;"
 export LUA_CPATH="$HOME/.luarocks/lib/lua/5.4/?.so;;"
@@ -110,8 +98,6 @@ export LUA_CPATH="$HOME/.luarocks/lib/lua/5.4/?.so;;"
 ---
 
 ## Lifecycle Events
-
-### Event Reference
 
 | Event                | Fires                                  | Notes                         |
 | -------------------- | -------------------------------------- | ----------------------------- |
@@ -257,12 +243,10 @@ parameters:
 local exports = {
   event_handlers = {
     ["testcase:started"] = function(event, data)
-      -- Seed the database once before all tests
       http({ url = "http://localhost:8080/test/seed", method = "POST" })
     end,
 
     ["testcase:finished"] = function(event, data)
-      -- Wipe test data after all tests complete
       http({ url = "http://localhost:8080/test/reset", method = "POST" })
     end
   }
@@ -286,47 +270,4 @@ return exports
 
 ---
 
-## Embedding in Test Frameworks
-
-Drift runs as a subprocess. Wrap it in your existing test runner:
-
-### Jest (Node.js)
-
-```javascript
-const { spawn } = require("child_process");
-
-const runDrift = (options = {}) => {
-  const { testFile = "./drift.yaml", serverUrl = "http://localhost:8080" } =
-    options;
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      "drift",
-      ["verify", "--test-files", testFile, "--server-url", serverUrl],
-      { stdio: "inherit", shell: true },
-    );
-    child.on("close", (code) => resolve(code ?? 1));
-    child.on("error", reject);
-  });
-};
-
-// In your test:
-it("conforms to OpenAPI spec", async () => {
-  const exitCode = await runDrift();
-  expect(exitCode).toBe(0);
-});
-```
-
-### pytest (Python)
-
-```python
-import subprocess
-
-def run_drift(test_file='./drift.yaml', server_url='http://localhost:8080'):
-    result = subprocess.run([
-        'drift', 'verify', '--test-files', test_file, '--server-url', server_url
-    ])
-    return result.returncode
-
-def test_api_conforms_to_spec(api_server):
-    assert run_drift() == 0, "Drift contract tests failed"
-```
+For embedding Drift in Jest or pytest, see `references/pactflow-and-cicd.md`.

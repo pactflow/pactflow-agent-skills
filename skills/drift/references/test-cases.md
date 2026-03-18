@@ -329,8 +329,7 @@ getProduct_Success:
       id: ${product-data:products.existing.id}
 ```
 
-**Naming convention** — organise by resource, then by role. This prevents key collisions in
-large datasets and makes expressions readable at a glance:
+**Naming convention** — organise by resource, then by role:
 
 ```yaml
 data:
@@ -362,12 +361,9 @@ operation keys, and tags).
 
 Use glob `*` to reference all items: `${product-data:products.*}` or `${product-data:products.*.id}`
 
-**Execution order:** sources → descriptions → datasets → parameters/expected. You cannot
-reference a later-resolved field from an earlier stage.
+**Execution order:** sources → descriptions → datasets → parameters/expected.
 
-**`notIn()` and UUID IDs:** `${dataset:notIn(path.*.id)}` generates an integer value not in
-the dataset. For UUID-format IDs, use a nil UUID instead — it is always non-existent and
-format-valid:
+**`notIn()` and UUID IDs:** `${dataset:notIn(path.*.id)}` generates an integer not in the dataset. For UUID IDs, use a nil UUID:
 
 ```yaml
 org_id: "00000000-0000-0000-0000-000000000000"

@@ -7,29 +7,22 @@ from the konfig-sdks/openapi-examples collection.
 
 ## Table of contents
 
-- [Schema Patterns Reference](#schema-patterns-reference)
-  - [Table of contents](#table-of-contents)
-  - [oneOf](#oneof)
-  - [anyOf](#anyof)
-  - [allOf](#allof)
-  - [discriminator](#discriminator)
-  - [$ref resolution](#ref-resolution)
-  - [enum](#enum)
-  - [pattern (regex)](#pattern-regex)
-  - [nullable and optional fields](#nullable-and-optional-fields)
-    - [nullable](#nullable)
-    - [optional fields](#optional-fields)
-  - [Nested / combined patterns](#nested--combined-patterns)
-  - [Determining test count](#determining-test-count)
+- [oneOf](#oneof)
+- [anyOf](#anyof)
+- [allOf](#allof)
+- [discriminator](#discriminator)
+- [$ref resolution](#ref-resolution)
+- [enum](#enum)
+- [pattern (regex)](#pattern-regex)
+- [nullable and optional fields](#nullable-and-optional-fields)
+- [Nested / combined patterns](#nested--combined-patterns)
+- [Determining test count](#determining-test-count)
 
 ---
 
 ## oneOf
 
 **Semantics**: exactly one of the listed schemas is valid. Mutually exclusive variants.
-
-**When you see it**: the response (or request body) can be one of N distinct object
-shapes that are not compatible with each other.
 
 **How many tests**: one per branch.
 
@@ -153,8 +146,7 @@ oneOf:
   - $ref: "#/components/schemas/Triangle"
 ```
 
-**Enumeration**: for each key in `mapping`, resolve the target schema and write one test
-where `type` equals that key. Three mapping values → three tests.
+**Enumeration**: for each key in `mapping`, resolve the target schema and write one test where `type` equals that key.
 
 **When `mapping` is absent**: the discriminator property value is the schema name itself.
 
@@ -203,8 +195,6 @@ resolved in the current chain — just note it as "recursive/self-referential".
 
 ## enum
 
-**Semantics**: the field's value must be one of a fixed list.
-
 ```yaml
 status:
   type: string
@@ -218,14 +208,11 @@ tests when the enum value drives meaningfully different behaviour:
 - A `format` parameter that changes the response content-type → one test per format
 - A `type` discriminator (see above) → covered under discriminator rules
 
-**Enum in response**: if the response body includes an enum field, validate it in the
-expected block using the Drift `body` matcher. No extra test cases needed.
+**Enum in response**: validate the enum field in the `expected.body` matcher.
 
 ---
 
 ## pattern (regex)
-
-**Semantics**: a string field must match a regular expression.
 
 ```yaml
 id:
@@ -277,16 +264,12 @@ Otherwise include it in the happy-path test as an optional field.
 
 ### optional fields
 
-Fields not listed in `required` are optional.
-
 **How many tests**: 2 per meaningful optional cluster:
 
 - One test with all optional fields included (validates the server accepts and returns them)
 - One test with no optional fields (validates the server works without them)
 
-Avoid testing every permutation of individual optional fields — that grows as 2^N.
-Group optional fields into a single "with extras" / "minimal" pair unless a specific
-field is known to change behaviour.
+Avoid testing every permutation of individual optional fields — group into a "with extras" / "minimal" pair unless a specific field changes behaviour.
 
 **Required-field violations** (negative testing):
 
@@ -309,7 +292,7 @@ operations:
 
 ## Nested / combined patterns
 
-Many real-world schemas combine multiple patterns. Work from the outside in:
+Work from the outside in:
 
 **Example** — DigitalOcean droplet create response:
 
@@ -371,4 +354,4 @@ GET /orgs/{org_id}/issues
   Total tests: 3 (200 variants) + 2 (400: invalid version + missing param) + 1 (401) + 1 (404) = 7
 ```
 
-This analysis should appear at the top of your output before any YAML.
+Output this analysis before any YAML.
