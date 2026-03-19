@@ -137,8 +137,8 @@ getOrg_Unauthorized:
     headers:
       authorization: "Bearer invalid-token"
       Prefer: "code=401"    # only needed with Prism mock servers
-  ignore:
-    schema: true            # Prism error body may not match spec schema
+    ignore:
+      schema: true          # Prism error body may not match spec schema
   expected:
     response:
       statusCode: 401
@@ -167,8 +167,8 @@ listProjects_Forbidden:
       org_id: ${my-data:orgs.forbidden.id}
     headers:
       Prefer: "code=403"    # only needed with Prism mock server
-  ignore:
-    schema: true
+    ignore:
+      schema: true
   expected:
     response:
       statusCode: 403

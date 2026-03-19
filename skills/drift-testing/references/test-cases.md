@@ -357,13 +357,13 @@ operation keys, and tags).
 | `${dataset-name:path}`                              | `${product-data:products.existing.id}`        | Dataset value                 |
 | `${functions:fn_name}`                              | `${functions:generate_uuid}`                  | Call a Lua exported function  |
 | `${source-name:operation.parameters.field.example}` | `${api-spec:operation.parameters.id.example}` | Value from OpenAPI spec       |
-| `${notIn(path)}`                                    | `${product-data:notIn(products.*.id)}`        | Generate value NOT in dataset |
+| `${dataset-name:notIn(path)}`                       | `${product-data:notIn(products.*.id)}`        | Generate value NOT in dataset |
 
 Use glob `*` to reference all items: `${product-data:products.*}` or `${product-data:products.*.id}`
 
 **Execution order:** sources → descriptions → datasets → parameters/expected.
 
-**`notIn()` and UUID IDs:** `${dataset:notIn(path.*.id)}` generates an integer not in the dataset. For UUID IDs, use a nil UUID:
+**`notIn()` and UUID IDs:** `${dataset-name:notIn(path.*.id)}` generates an integer not in the dataset — e.g. `${product-data:notIn(products.*.id)}`. For UUID IDs, use a nil UUID:
 
 ```yaml
 org_id: "00000000-0000-0000-0000-000000000000"

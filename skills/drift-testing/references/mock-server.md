@@ -47,8 +47,8 @@ getOrg_NotFound:
       version: "2024-01-04"
     headers:
       Prefer: "code=404" # ← Prism returns 404
-  ignore:
-    schema: true # ← Prism body may not match the spec's error schema
+    ignore:
+      schema: true # ← Prism body may not match the spec's error schema
   expected:
     response:
       statusCode: 404
