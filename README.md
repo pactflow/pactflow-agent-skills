@@ -42,10 +42,12 @@ Claude Code supports [Skills](https://code.claude.com/docs/en/skills) via a plug
 
 ### From this repo (recommended for teams)
 
+> **Note:** Because these skills are not listed in Anthropic's official plugin registry, the `.claude/settings.json` configuration below is **mandatory** — without it Claude Code won't know where to find the marketplace and the `/plugin install` commands will fail.
+
 **1. Add the marketplace** inside a Claude Code session:
 
 ```claude
-/plugin marketplace add pactflow/pact-agentic-tooling-extensions
+/plugin marketplace add pactflow/pactflow-agent-skills
 ```
 
 Or add it to `.claude/settings.json` so teammates are prompted to install it automatically when they open the project:
@@ -53,10 +55,10 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 ```json
 {
   "extraKnownMarketplaces": {
-    "pact-agentic-tooling-extensions": {
+    "pactflow-agent-skills": {
       "source": {
         "source": "github",
-        "repo": "pactflow/pact-agentic-tooling-extensions"
+        "repo": "pactflow/pactflow-agent-skills"
       }
     }
   }
@@ -66,8 +68,8 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 **2. Install the plugins:**
 
 ```claude
-/plugin install swagger-contract-testing-drift@pact-agentic-tooling-extensions
-/plugin install swagger-contract-testing-openapi-parser@pact-agentic-tooling-extensions
+/plugin install swagger-contract-testing-drift@pactflow-agent-skills
+/plugin install swagger-contract-testing-openapi-parser@pactflow-agent-skills
 ```
 
 **Scope options:**
@@ -81,9 +83,9 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 ### From a local clone
 
 ```claude
-/plugin marketplace add ./path/to/pact-agentic-tooling-extensions/.claude-plugin/marketplace.json
-/plugin install swagger-contract-testing-drift@pact-agentic-tooling-extensions
-/plugin install swagger-contract-testing-openapi-parser@pact-agentic-tooling-extensions
+/plugin marketplace add ./path/to/pactflow-agent-skills/.claude-plugin/marketplace.json
+/plugin install swagger-contract-testing-drift@pactflow-agent-skills
+/plugin install swagger-contract-testing-openapi-parser@pactflow-agent-skills
 ```
 
 ### For local development (no marketplace needed)
@@ -100,10 +102,10 @@ claude --plugin-dir ./plugins/drift --plugin-dir ./plugins/openapi-parser
 ```claude
 /plugin                          # open plugin manager (Discover / Installed / Marketplaces / Errors)
 /reload-plugins                  # reload without restarting
-/plugin disable swagger-contract-testing-drift@pact-agentic-tooling-extensions
-/plugin disable swagger-contract-testing-openapi-parser@pact-agentic-tooling-extensions
-/plugin uninstall swagger-contract-testing-drift@pact-agentic-tooling-extensions
-/plugin uninstall swagger-contract-testing-openapi-parser@pact-agentic-tooling-extensions
+/plugin disable swagger-contract-testing-drift@pactflow-agent-skills
+/plugin disable swagger-contract-testing-openapi-parser@pactflow-agent-skills
+/plugin uninstall swagger-contract-testing-drift@pactflow-agent-skills
+/plugin uninstall swagger-contract-testing-openapi-parser@pactflow-agent-skills
 ```
 
 ---
@@ -240,8 +242,8 @@ Cursor supports [Agent Skills](https://cursor.com/docs/skills) loaded from `SKIL
 2. Click **Add Rule** in Project Rules
 3. Select **Remote Rule (GitHub)**
 4. Enter the URL to each skill folder:
-   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/drift-testing`
-   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/openapi-parser`
+   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/skills/drift-testing`
+   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/skills/openapi-parser`
 
 ### Project-level install (manual)
 
@@ -301,8 +303,8 @@ Codex supports [Skills](https://developers.openai.com/codex/skills/) loaded from
 ### Using the skill installer
 
 ```bash
-$skill-installer pactflow/pact-agentic-tooling-extensions/skills/drift-testing
-$skill-installer pactflow/pact-agentic-tooling-extensions/skills/openapi-parser
+$skill-installer pactflow/pactflow-agent-skills/skills/drift-testing
+$skill-installer pactflow/pactflow-agent-skills/skills/openapi-parser
 ```
 
 ### Project-level install (manual)
@@ -334,8 +336,8 @@ Kiro supports [Agent Skills](https://kiro.dev/docs/skills/) loaded from `SKILL.m
 1. Open the **Agent Steering & Skills** panel in Kiro
 2. Click **+** → **Import a skill**
 3. Select **GitHub** and paste the URL to each skill folder:
-   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/drift-testing`
-   - `https://github.com/pactflow/pact-agentic-tooling-extensions/tree/main/skills/openapi-parser`
+   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/skills/drift-testing`
+   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/skills/openapi-parser`
 
 Imported skills are copied to your skills directory and work immediately.
 
