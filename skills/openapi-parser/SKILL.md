@@ -30,6 +30,9 @@ metadata:
 
 ## Workflow
 
+> **OpenAPI version:** This skill targets OpenAPI 3.x. Swagger 2.0 specs use the same structural patterns (`$ref`, `allOf`, `oneOf`) but different envelope syntax — you may need to adapt field names manually.
+> If working from the `konfig-sdks/openapi-examples` collection, see [`references/example-repos.md`](references/example-repos.md) for navigation commands.
+
 ### 1. Locate the endpoint
 
 Extract only what's needed:
@@ -82,8 +85,11 @@ for full patterns. Key conventions:
 - Name operations as `{operationId}_{variant}` — e.g. `getImage_byId`, `getImage_bySlug`
 - For discriminated unions, set the discriminator property explicitly in the request body
 - For `anyOf` path parameters, write one test per type variant
-- Use `dataset` for test data; use inline `parameters` only for trivial cases
+- Use `dataset` for test data; use inline `parameters` only for static, non-variant values (e.g. a fixed enum query param like `type: user`)
+- For 401 tests, strip global auth with `exclude: [auth]` and pass an invalid bearer token explicitly
+- Add `ignore: { schema: true }` to any operation that sends an intentionally invalid request body
 - Tag each test to indicate which schema branch it covers
+- Omitting `body` from `expected` lets Drift validate the response against the OpenAPI schema automatically; add explicit `body` matchers only when asserting a specific field value (e.g. the discriminator property came back correctly)
 
 ### 5. Output format
 
@@ -103,20 +109,20 @@ Given `GET /v2/images/{image_id}` where `image_id: anyOf: [integer, string]`:
 operations:
   getImage_byId:
     target: source-oas:getImage
-    tags: [images, param-variant-integer]
+    tags: [images, param-integer]
     parameters:
       path:
-        image_id: ${image-data:images.byId.id}
+        image_id: ${image-data:images.existing.id}
     expected:
       response:
         statusCode: 200
 
   getImage_bySlug:
     target: source-oas:getImage
-    tags: [images, param-variant-string]
+    tags: [images, param-string]
     parameters:
       path:
-        image_id: ${image-data:images.bySlug.slug}
+        image_id: ${image-data:images.existing.slug}
     expected:
       response:
         statusCode: 200
@@ -131,8 +137,3 @@ operations:
         statusCode: 404
 ```
 
-## Working with real-world spec collections
-
-For instructions on navigating and querying the `konfig-sdks/openapi-examples` collection
-(which contains providers like snyk, digitalocean, posthog, and front/core), see
-[`references/example-repos.md`](references/example-repos.md).
