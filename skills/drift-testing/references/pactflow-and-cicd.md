@@ -147,12 +147,15 @@ jobs:
         run: npm start &
 
       - name: Run suite
+        id: drift
         run: |
           drift verify \
             --test-files tests/${{ matrix.suite }}.yaml \
             --server-url http://localhost:8080 \
             --output-dir ./results/${{ matrix.suite }} \
             --generate-result
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true   # don't stop — still need to publish
 
       - name: Upload results
         uses: actions/upload-artifact@v4
@@ -162,6 +165,7 @@ jobs:
 
   publish:
     needs: drift-test
+    if: always()   # run even when one or more suites failed
     runs-on: ubuntu-latest
     steps:
       - name: Download all results
@@ -179,11 +183,17 @@ jobs:
 
       - name: Publish to PactFlow
         run: |
+          # Propagate the real outcome: 0 only if every suite passed
+          if [ "${{ needs.drift-test.result }}" = "success" ]; then
+            VERIFICATION_EXIT_CODE=0
+          else
+            VERIFICATION_EXIT_CODE=1
+          fi
           pactflow publish-provider-contract \
             --provider my-api \
             --provider-app-version ${{ github.sha }} \
             --branch ${{ github.ref_name }} \
-            --verification-exit-code 0 \
+            --verification-exit-code $VERIFICATION_EXIT_CODE \
             --verification-results ./bundled/verification-bundle.json \
             --verification-results-content-type application/vnd.smartbear.drift.result \
             --spec openapi.yaml \

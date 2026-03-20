@@ -3,11 +3,14 @@ name: drift-testing
 description: >
   Verifies API implementations against OpenAPI specifications using the Drift CLI,
   catching spec drift and supporting Bi-Directional Contract Testing (BDCT). Use when
-  the user mentions Drift, API contract testing, provider verification, spec drift,
-  OpenAPI verification, BDCT, drift expressions, drift datasets, drift lifecycle hooks,
-  or Lua scripting in a testing context. Use when the user asks to write, run, or debug
-  Drift test cases. Use when the user wants full endpoint coverage,
-  wants all tests to pass, or asks to "keep running until everything passes".
+  the user mentions Drift, API contract testing, provider contract testing, provider
+  verification, spec drift, API conformance testing, OpenAPI verification, BDCT, drift
+  expressions, drift datasets, drift lifecycle hooks, or Lua scripting in a testing
+  context. Use when the user asks to write, run, or debug Drift test cases. Use when the
+  user wants to test their API against an OpenAPI spec, generate tests from an OpenAPI
+  spec, or check whether their API has drifted from its spec. Use when the user wants
+  full endpoint coverage, wants all tests to pass, or asks to "keep running until
+  everything passes".
 
 argument-hint: "[path/to/oas|path/to/drift-test]"
 metadata: 
@@ -38,7 +41,7 @@ Never modify the openapi spec that you are testing.
 - `scripts/check_coverage.py` — Coverage checker: diffs an OpenAPI spec against Drift test files
   and reports which operations and response codes are missing tests. Requires `pyyaml`.
 - `scripts/run_loop.sh` / `scripts/run_loop.ps1` — Feedback loop runner: retries `drift verify --failed` until all tests
-  pass, then runs `check_coverage.py`. Both gates must pass for exit 0. Auto-creates the Python venv.
+  pass, then runs `check_coverage.py`. Both gates must pass for exit 0. Dependencies are installed automatically via uv.
   Use the `.ps1` version on Windows.
 - `scripts/start_mock.sh` / `scripts/start_mock.ps1` — Starts a Prism mock server from an OpenAPI spec. Installs Prism if
   needed. Supports `--port` and `--dynamic` flags. Use the `.ps1` version on Windows.
@@ -168,21 +171,18 @@ Coverage Loop Progress:
 Run before writing tests or when resuming an existing test suite:
 
 ```bash
-# Set up once
-python3 -m venv .venv && .venv/bin/pip install pyyaml -q
-
 # Run against your spec and test file(s)
-.venv/bin/python3 path/to/scripts/check_coverage.py \
+uv run path/to/scripts/check_coverage.py \
   --spec openapi.yaml \
   --test-files drift.yaml
 
 # Multiple files / globs
-.venv/bin/python3 path/to/scripts/check_coverage.py \
+uv run path/to/scripts/check_coverage.py \
   --spec openapi.yaml \
   --test-files "tests/*.yaml"
 
 # Machine-readable output (for CI or scripting)
-.venv/bin/python3 path/to/scripts/check_coverage.py \
+uv run path/to/scripts/check_coverage.py \
   --spec openapi.yaml \
   --test-files drift.yaml --json
 ```
@@ -193,22 +193,20 @@ and overall operation/code percentages. Exit code 0 = full coverage, 1 = gaps re
 The script excludes 500/501/502/503 by default (same rule as Step 1 below). Pass
 `--exclude-codes` to customise.
 
-### Step 1 — Parse the spec with the openapi-parser skill
+### Step 1 — Parse the spec
 
-Use the **openapi-parser skill** to parse the spec. Collect: the complete operation list, all documented response codes per operation, and ready-to-use `operations:` YAML stubs.
-
-Alternatively, `extract_endpoints.py` does this without the skill:
+Use `extract_endpoints.py` to collect the complete operation list, all documented response codes per operation, and ready-to-use `operations:` YAML stubs. If the **openapi-parser skill** is available in your environment, you can use that instead.
 
 ```bash
 # See all operations + response codes, flagging params with no spec example
-.venv/bin/python3 scripts/extract_endpoints.py --spec openapi.yaml
+uv run scripts/extract_endpoints.py --spec openapi.yaml
 
 # Generate skeleton stubs for every operation
-.venv/bin/python3 scripts/extract_endpoints.py --spec openapi.yaml \
+uv run scripts/extract_endpoints.py --spec openapi.yaml \
   --scaffold --source my-oas > operations.yaml
 
 # Generate ONLY the gaps not already in an existing test file
-.venv/bin/python3 scripts/extract_endpoints.py --spec openapi.yaml \
+uv run scripts/extract_endpoints.py --spec openapi.yaml \
   --scaffold --only-missing drift.yaml --source my-oas >> drift.yaml
 ```
 
@@ -257,6 +255,25 @@ getProduct_Success:
       statusCode: 200
 ```
 
+Add tags to every operation — they enable `--tags` filtering and make suites easier to manage:
+
+```yaml
+getProduct_Success:
+  target: source-oas:getProductByID
+  tags: [smoke, read-only, products]
+  ...
+
+getProduct_Unauthorized:
+  tags: [security, auth]
+  ...
+
+deleteProduct_Success:
+  tags: [destructive, products]
+  ...
+```
+
+Common tags: `smoke`, `read-only`, `write`, `destructive`, `security`, `auth`, `regression`. See `references/test-cases.md` for the full tags section.
+
 For error paths, see `references/test-cases.md` for 401, 403, 404, and 400 patterns.
 For mock server setup, see `references/mock-server.md`.
 
@@ -304,7 +321,7 @@ path/to/scripts/run_loop.sh --spec openapi.yaml --test-files drift.yaml --server
 | Got 400 on a 200 test                    | Missing globally-required query param               | Inject it via `http:request` hook or add to every test case                         |
 | Got 500                                  | Test data triggered a server bug                    | Fix the data                                                                        |
 
-**`ignore: { schema: true }`** suppresses request schema validation only — use on 400 scenarios. Response schema validation has no bypass; spec example bugs surface as failures (see `references/mock-server.md`).
+**`ignore: { schema: true }`** suppresses request schema validation only. Use it on any 4xx scenario — especially when testing against a mock server, where Prism doesn't enforce auth and may return an inaccurate error body. Response schema validation has no bypass; spec example bugs surface as failures (see `references/mock-server.md`).
 
 **Multiple 2xx codes:** Write one test per documented code — `statusCode: [200, 204]` array syntax is not supported.
 
@@ -328,7 +345,7 @@ end,
 
 See `references/lua-api.md` for the full Lua API and the `data` object shape.
 
-### Step 6 — Repeat until all green
+### Step 6 — Verify exit code 0 + full coverage
 
 ```bash
 drift verify --test-files drift.yaml --server-url https://api.example.com/v1
@@ -338,7 +355,7 @@ echo "Exit code: $?"
 Before declaring done, verify coverage is complete:
 
 ```bash
-.venv/bin/python3 path/to/scripts/check_coverage.py \
+uv run path/to/scripts/check_coverage.py \
   --spec openapi.yaml --test-files drift.yaml
 echo "Coverage exit: $?"
 ```
