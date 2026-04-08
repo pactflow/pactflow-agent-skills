@@ -1,0 +1,9 @@
+{
+  "name": "swagger-contract-testing",
+  "description": "Expert assistant for PactFlow's OpenAPI contract testing tools — Drift CLI and OpenAPI spec parsing. Helps write and generate test cases, configure lifecycle hooks, debug failures, and publish results to PactFlow.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Kevin Rohan Vaz",
+    "email": "kevin.rohanvaz@smartbear.com"
+  }
+}
