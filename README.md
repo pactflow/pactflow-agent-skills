@@ -2,10 +2,9 @@
 
 AI assistant skills for PactFlow's contract testing tools.
 
-| Skill              | Plugin name                               | What it does                                                                                                                                                                       |
-| ------------------ | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Drift**          | `swagger-contract-testing-drift`          | Expert assistant for Drift — PactFlow's OpenAPI contract testing CLI. Helps write test cases, configure lifecycle hooks, debug failures, and publish results to PactFlow.          |
-| **OpenAPI Parser** | `swagger-contract-testing-openapi-parser` | Parses complex OpenAPI specs (anyOf/oneOf/allOf, discriminators, polymorphism, $ref chains, enums, regex) and generates Drift test cases covering every viable schema combination. |
+| Plugin name                | What it does                                                                                                                                                                                                                                                                                       |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `swagger-contract-testing` | Expert assistant for PactFlow's OpenAPI contract testing tools. Includes two skills: **Drift** (write test cases, configure lifecycle hooks, debug failures, publish results to PactFlow) and **OpenAPI Parser** (parse complex specs with anyOf/oneOf/allOf, discriminators, $ref chains, regex). |
 
 The two skills are designed to work together: OpenAPI Parser analyses a spec and generates
 test case scaffolding; Drift runs, iterates, and publishes those tests.
@@ -27,9 +26,9 @@ test case scaffolding; Drift runs, iterates, and publishes those tests.
 
 The install commands throughout this guide use Unix shell syntax. In PowerShell, replace:
 
-| Unix                             | PowerShell                                              |
-| -------------------------------- | ------------------------------------------------------- |
-| `mkdir -p path/to/dir`           | `New-Item -ItemType Directory -Force -Path path\to\dir` |
+| Unix                                     | PowerShell                                              |
+| ---------------------------------------- | ------------------------------------------------------- |
+| `mkdir -p path/to/dir`                   | `New-Item -ItemType Directory -Force -Path path\to\dir` |
 | `cp -r skills/drift-testing path/to/dir` | `Copy-Item -Recurse skills\drift-testing path\to\dir`   |
 
 `~` (home directory) works in PowerShell 3+. In older environments use `$HOME` instead.
@@ -65,11 +64,10 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 }
 ```
 
-**2. Install the plugins:**
+**2. Install the plugin:**
 
 ```claude
-/plugin install swagger-contract-testing-drift@pactflow-agent-skills
-/plugin install swagger-contract-testing-openapi-parser@pactflow-agent-skills
+/plugin install swagger-contract-testing@pactflow-agent-skills
 ```
 
 **Scope options:**
@@ -84,17 +82,13 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 
 ```claude
 /plugin marketplace add ./path/to/pactflow-agent-skills/.claude-plugin/marketplace.json
-/plugin install swagger-contract-testing-drift@pactflow-agent-skills
-/plugin install swagger-contract-testing-openapi-parser@pactflow-agent-skills
+/plugin install swagger-contract-testing@pactflow-agent-skills
 ```
 
 ### For local development (no marketplace needed)
 
 ```bash
-claude --plugin-dir ./plugins/drift
-claude --plugin-dir ./plugins/openapi-parser
-# or both at once:
-claude --plugin-dir ./plugins/drift --plugin-dir ./plugins/openapi-parser
+claude --plugin-dir ./plugins/swagger-contract-testing
 ```
 
 ### Managing plugins
@@ -102,10 +96,8 @@ claude --plugin-dir ./plugins/drift --plugin-dir ./plugins/openapi-parser
 ```claude
 /plugin                          # open plugin manager (Discover / Installed / Marketplaces / Errors)
 /reload-plugins                  # reload without restarting
-/plugin disable swagger-contract-testing-drift@pactflow-agent-skills
-/plugin disable swagger-contract-testing-openapi-parser@pactflow-agent-skills
-/plugin uninstall swagger-contract-testing-drift@pactflow-agent-skills
-/plugin uninstall swagger-contract-testing-openapi-parser@pactflow-agent-skills
+/plugin disable swagger-contract-testing@pactflow-agent-skills
+/plugin uninstall swagger-contract-testing@pactflow-agent-skills
 ```
 
 ---

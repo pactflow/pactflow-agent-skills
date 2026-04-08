@@ -9,14 +9,9 @@
   },
   "plugins": [
     {
-      "name": "swagger-contract-testing-drift",
-      "source": "./plugins/drift",
-      "description": "Expert assistant for Drift — PactFlow's OpenAPI contract testing CLI"
-    },
-    {
-      "name": "swagger-contract-testing-openapi-parser",
-      "source": "./plugins/openapi-parser",
-      "description": "Parses complex OpenAPI specs and generates Drift test cases covering every viable schema combination"
+      "name": "swagger-contract-testing",
+      "source": "./plugins/swagger-contract-testing",
+      "description": "Expert assistant for PactFlow's OpenAPI contract testing tools — Drift CLI and OpenAPI spec parsing"
     }
   ]
 }
