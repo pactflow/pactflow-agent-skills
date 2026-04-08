@@ -2,12 +2,13 @@
 
 AI assistant skills for PactFlow's contract testing tools.
 
-| Plugin name                | What it does                                                                                                                                                                                                                                                                                       |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `swagger-contract-testing` | Expert assistant for PactFlow's OpenAPI contract testing tools. Includes two skills: **Drift** (write test cases, configure lifecycle hooks, debug failures, publish results to PactFlow) and **OpenAPI Parser** (parse complex specs with anyOf/oneOf/allOf, discriminators, $ref chains, regex). |
+| Plugin name                | Skills             | What it does                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `swagger-contract-testing` | **Drift**          | Expert assistant for Drift — PactFlow's OpenAPI contract testing CLI. Helps write test cases, configure lifecycle hooks, debug failures, and publish results to PactFlow.                                                                                                                                                                      |
+|                            | **OpenAPI Parser** | Parses complex OpenAPI specs (anyOf/oneOf/allOf, discriminators, polymorphism, $ref chains, enums, regex) and generates Drift test cases covering every viable schema combination.                                                                                                                                                             |
+|                            | **PactFlow**       | Expert assistant for PactFlow and Pact contract testing. Uses the SmartBear MCP `contract-testing_*` tools to generate and review Pact tests with AI, publish contracts, verify providers, run can-i-deploy checks, record deployments, and manage the full PactFlow workspace (environments, pacticipants, BDCT, webhooks, secrets, metrics). |
 
-The two skills are designed to work together: OpenAPI Parser analyses a spec and generates
-test case scaffolding; Drift runs, iterates, and publishes those tests.
+The three skills work together: **OpenAPI Parser** analyses a spec and generates Drift test scaffolding; **Drift** runs, iterates, and publishes those tests; **PactFlow** manages the full contract testing lifecycle — from generating Pact tests with AI to safely deploying services.
 
 ---
 
