@@ -113,6 +113,7 @@ automatically selects relevant skills based on task context.
 ```bash
 cp -r skills/drift-testing ~/.config/opencode/skills/drift-testing
 cp -r skills/openapi-parser ~/.config/opencode/skills/openapi-parser
+cp -r skills/pactflow ~/.config/opencode/skills/pactflow
 ```
 
 ### Project-level install (this project only)
@@ -121,6 +122,7 @@ cp -r skills/openapi-parser ~/.config/opencode/skills/openapi-parser
 mkdir -p .opencode/skills
 cp -r skills/drift-testing .opencode/skills/drift-testing
 cp -r skills/openapi-parser .opencode/skills/openapi-parser
+cp -r skills/pactflow .opencode/skills/pactflow
 ```
 
 OpenCode will pick up the skills automatically — no restart required.
@@ -142,16 +144,19 @@ Copy the skill folders into any of the standard discovery locations — Copilot 
 mkdir -p .github/skills
 cp -r skills/drift-testing .github/skills/drift-testing
 cp -r skills/openapi-parser .github/skills/openapi-parser
+cp -r skills/pactflow .github/skills/pactflow
 
 # or .agents/skills
 mkdir -p .agents/skills
 cp -r skills/drift-testing .agents/skills/drift-testing
 cp -r skills/openapi-parser .agents/skills/openapi-parser
+cp -r skills/pactflow .agents/skills/pactflow
 
 # or .claude/skills (already used by Claude Code)
 mkdir -p .claude/skills
 cp -r skills/drift-testing .claude/skills/drift-testing
 cp -r skills/openapi-parser .claude/skills/openapi-parser
+cp -r skills/pactflow .claude/skills/pactflow
 ```
 
 Commit the chosen directory to share the skills with your team. No VS Code configuration required.
@@ -164,6 +169,7 @@ Copy to a personal skills directory so the skills are available in every repo yo
 mkdir -p ~/.copilot/skills
 cp -r skills/drift-testing ~/.copilot/skills/drift-testing
 cp -r skills/openapi-parser ~/.copilot/skills/openapi-parser
+cp -r skills/pactflow ~/.copilot/skills/pactflow
 ```
 
 ### Custom location
@@ -199,6 +205,7 @@ If your version of Copilot doesn't support Agent Skills yet, use custom instruct
 ```bash
 cat skills/drift-testing/SKILL.md skills/drift-testing/references/*.md >> .github/copilot-instructions.md
 cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .github/copilot-instructions.md
+cat skills/pactflow/SKILL.md skills/pactflow/references/*.md >> .github/copilot-instructions.md
 ```
 
 **Path-scoped** — loads only when relevant files are open:
@@ -211,15 +218,20 @@ cat skills/drift-testing/SKILL.md skills/drift-testing/references/*.md >> .githu
 # OpenAPI Parser — scoped to OpenAPI spec files
 echo '---\napplyTo: "**/openapi.yaml,**/openapi.json,**/*.oas.yaml"\n---\n' > .github/instructions/openapi-parser.instructions.md
 cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md >> .github/instructions/openapi-parser.instructions.md
+
+# PactFlow — scoped to Pact test files and pact config
+echo '---\napplyTo: "**/*.pact.test.*,**/pacts/**,**/.pactrc*"\n---\n' > .github/instructions/pactflow.instructions.md
+cat skills/pactflow/SKILL.md skills/pactflow/references/*.md >> .github/instructions/pactflow.instructions.md
 ```
 
 **Reusable prompts** — attach on demand in chat:
 
-1. Enable prompt files in VS Code settings: `{ "chat.promptFiles": true }`write a Drift test for POST /orders
+1. Enable prompt files in VS Code settings: `{ "chat.promptFiles": true }`
 2. Create prompt files:
    ```bash
    cat skills/drift-testing/SKILL.md skills/drift-testing/references/*.md > .github/prompts/drift.prompt.md
    cat skills/openapi-parser/SKILL.md skills/openapi-parser/references/*.md > .github/prompts/openapi-parser.prompt.md
+   cat skills/pactflow/SKILL.md skills/pactflow/references/*.md > .github/prompts/pactflow.prompt.md
    ```
 3. In Copilot Chat, click **Attach context → Prompt...** and select the skill.
 
@@ -244,6 +256,7 @@ Cursor supports [Agent Skills](https://cursor.com/docs/skills) loaded from `SKIL
 mkdir -p .cursor/skills
 cp -r skills/drift-testing .cursor/skills/drift-testing
 cp -r skills/openapi-parser .cursor/skills/openapi-parser
+cp -r skills/pactflow .cursor/skills/pactflow
 ```
 
 Commit `.cursor/skills/` to share the skills with your team. Cursor also discovers skills from `.agents/skills/`.
@@ -254,6 +267,7 @@ Commit `.cursor/skills/` to share the skills with your team. Cursor also discove
 mkdir -p ~/.cursor/skills
 cp -r skills/drift-testing ~/.cursor/skills/drift-testing
 cp -r skills/openapi-parser ~/.cursor/skills/openapi-parser
+cp -r skills/pactflow ~/.cursor/skills/pactflow
 ```
 
 ---
@@ -275,6 +289,7 @@ Windsurf supports [Skills](https://docs.windsurf.com/windsurf/cascade/skills) lo
 mkdir -p .windsurf/skills
 cp -r skills/drift-testing .windsurf/skills/drift-testing
 cp -r skills/openapi-parser .windsurf/skills/openapi-parser
+cp -r skills/pactflow .windsurf/skills/pactflow
 ```
 
 Commit `.windsurf/skills/` to share the skills with your team.
@@ -285,6 +300,7 @@ Commit `.windsurf/skills/` to share the skills with your team.
 mkdir -p ~/.codeium/windsurf/skills
 cp -r skills/drift-testing ~/.codeium/windsurf/skills/drift-testing
 cp -r skills/openapi-parser ~/.codeium/windsurf/skills/openapi-parser
+cp -r skills/pactflow ~/.codeium/windsurf/skills/pactflow
 ```
 
 ---
@@ -298,6 +314,7 @@ Codex supports [Skills](https://developers.openai.com/codex/skills/) loaded from
 ```bash
 $skill-installer pactflow/pactflow-agent-skills/skills/drift-testing
 $skill-installer pactflow/pactflow-agent-skills/skills/openapi-parser
+$skill-installer pactflow/pactflow-agent-skills/skills/pactflow
 ```
 
 ### Project-level install (manual)
@@ -306,6 +323,7 @@ $skill-installer pactflow/pactflow-agent-skills/skills/openapi-parser
 mkdir -p .agents/skills
 cp -r skills/drift-testing .agents/skills/drift-testing
 cp -r skills/openapi-parser .agents/skills/openapi-parser
+cp -r skills/pactflow .agents/skills/pactflow
 ```
 
 Commit `.agents/skills/` to share the skills with your team.
@@ -316,6 +334,7 @@ Commit `.agents/skills/` to share the skills with your team.
 mkdir -p ~/.agents/skills
 cp -r skills/drift-testing ~/.agents/skills/drift-testing
 cp -r skills/openapi-parser ~/.agents/skills/openapi-parser
+cp -r skills/pactflow ~/.agents/skills/pactflow
 ```
 
 ---
@@ -331,6 +350,7 @@ Kiro supports [Agent Skills](https://kiro.dev/docs/skills/) loaded from `SKILL.m
 3. Select **GitHub** and paste the URL to each skill folder:
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/skills/drift-testing`
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/skills/openapi-parser`
+   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/skills/pactflow`
 
 Imported skills are copied to your skills directory and work immediately.
 
@@ -340,6 +360,7 @@ Imported skills are copied to your skills directory and work immediately.
 mkdir -p .kiro/skills
 cp -r skills/drift-testing .kiro/skills/drift-testing
 cp -r skills/openapi-parser .kiro/skills/openapi-parser
+cp -r skills/pactflow .kiro/skills/pactflow
 ```
 
 Commit `.kiro/skills/` to share the skills with your team.
@@ -350,6 +371,7 @@ Commit `.kiro/skills/` to share the skills with your team.
 mkdir -p ~/.kiro/skills
 cp -r skills/drift-testing ~/.kiro/skills/drift-testing
 cp -r skills/openapi-parser ~/.kiro/skills/openapi-parser
+cp -r skills/pactflow ~/.kiro/skills/pactflow
 ```
 
 > When both locations contain a skill with the same name, the workspace skill takes priority.
@@ -366,6 +388,7 @@ Antigravity supports [Agent Skills](https://antigravity.google/docs/skills) load
 mkdir -p .agents/skills
 cp -r skills/drift-testing .agents/skills/drift-testing
 cp -r skills/openapi-parser .agents/skills/openapi-parser
+cp -r skills/pactflow .agents/skills/pactflow
 ```
 
 Commit `.agents/skills/` to share the skills with your team.
@@ -376,6 +399,7 @@ Commit `.agents/skills/` to share the skills with your team.
 mkdir -p ~/.gemini/antigravity/skills
 cp -r skills/drift-testing ~/.gemini/antigravity/skills/drift-testing
 cp -r skills/openapi-parser ~/.gemini/antigravity/skills/openapi-parser
+cp -r skills/pactflow ~/.gemini/antigravity/skills/pactflow
 ```
 
 > Antigravity also supports `.agent/skills/` (singular) for backward compatibility.
@@ -410,18 +434,40 @@ skills/
 │       ├── start_mock.sh         # Start mock server (macOS/Linux)
 │       └── start_mock.ps1        # Start mock server (Windows)
 │
-└── openapi-parser/
-    ├── SKILL.md                  # Workflow: locate → resolve → enumerate → generate
+├── openapi-parser/
+│   ├── SKILL.md                  # Workflow: locate → resolve → enumerate → generate
+│   ├── evals/
+│   │   ├── 01-anyof-parameter-variants.json   # Eval: generate tests for anyOf parameter variants
+│   │   ├── 02-discriminator-with-allof.json   # Eval: generate tests for discriminator + allOf
+│   │   ├── 03-regex-pattern-field.json        # Eval: generate tests for regex pattern fields
+│   │   └── fixtures/
+│   │       ├── anyof-parameter-variants.yaml  # OpenAPI fixture with anyOf parameters
+│   │       ├── discriminator-with-allof.yaml  # OpenAPI fixture with discriminator and allOf
+│   │       └── regex-pattern-field.yaml       # OpenAPI fixture with regex pattern fields
+│   └── references/
+│       ├── schema-patterns.md    # anyOf/oneOf/allOf/discriminator/$ref/enum/pattern/nullable
+│       ├── drift-mapping.md      # Mapping every pattern to Drift YAML with full examples
+│       └── example-repos.md      # Commands for navigating large OpenAPI spec repositories
+│
+└── pactflow/
+    ├── SKILL.md                  # Core concepts, MCP setup, workflow, AI tools, diagnostics
     ├── evals/
-    │   ├── 01-anyof-parameter-variants.json   # Eval: generate tests for anyOf parameter variants
-    │   ├── 02-discriminator-with-allof.json   # Eval: generate tests for discriminator + allOf
-    │   ├── 03-regex-pattern-field.json        # Eval: generate tests for regex pattern fields
-    │   └── fixtures/
-    │       ├── anyof-parameter-variants.yaml  # OpenAPI fixture with anyOf parameters
-    │       ├── discriminator-with-allof.yaml  # OpenAPI fixture with discriminator and allOf
-    │       └── regex-pattern-field.yaml       # OpenAPI fixture with regex pattern fields
+    │   └── evals.json            # 4 eval prompts covering MCP setup, can-i-deploy, JS tests, Kafka/Java
     └── references/
-        ├── schema-patterns.md    # anyOf/oneOf/allOf/discriminator/$ref/enum/pattern/nullable
-        ├── drift-mapping.md      # Mapping every pattern to Drift YAML with full examples
-        └── example-repos.md      # Commands for navigating large OpenAPI spec repositories
+        ├── mcp-setup.md          # SmartBear MCP install and config (Claude Code, Desktop, VS Code, Cursor)
+        ├── pact-concepts.md      # Terminology, how Pact works end-to-end, provider states
+        ├── pact-faq.md           # FAQ, what Pact is/isn't good for, comparisons
+        ├── pact-consumer.md      # Writing consumer tests, matching rules, recommended config
+        ├── pact-provider.md      # Provider verification, auth, fixing failures, state handlers
+        ├── pact-messages.md      # Async/message pact (Kafka, SQS, SNS), JS and Java examples
+        ├── pact-plugins.md       # Pact Plugin Framework: gRPC, Protobuf, CSV, Avro
+        ├── pact-implementations.md # Language guides: JS, Go, JVM, Ruby
+        ├── pact-recipes.md       # Optional fields, GraphQL, Kafka, API Gateway, Cypress patterns
+        ├── pact-broker-setup.md  # Broker setup checklist, CLI reference, webhook debugging
+        ├── pact-broker-advanced.md # Consumer version selectors, pending/WIP pacts, branches
+        ├── pact-cicd.md          # Pact Nirvana CI/CD guide, can-i-deploy deep-dive
+        ├── workflow.md           # End-to-end workflow with exact MCP tool calls
+        ├── bdct.md               # Bi-Directional Contract Testing patterns and tools
+        ├── tools.md              # Full contract-testing_* tool catalog with parameters
+        └── pact-docs-index.md    # Complete index of docs.pact.io documentation with URLs
 ```
