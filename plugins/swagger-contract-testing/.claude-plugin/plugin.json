@@ -7,16 +7,19 @@
     "email": "kevin.rohanvaz@smartbear.com"
   },
   "skills": "./skills/",
-  "agents": "./agents/",
-  "hooks": "./hooks/hooks.json",
+  "agents": ["./agents/pact-generator.md", "./agents/pact-implementor.md", "./agents/pact-reviewer.md", "./agents/bdct-tester.md"],
   "mcpServers": "./.mcp.json",
   "userConfig": {
     "pact_broker_base_url": {
+      "title": "PactFlow Base URL",
       "description": "Your PactFlow or Pact Broker URL (e.g. https://yourorg.pactflow.io)",
+      "type": "string",
       "sensitive": false
     },
     "pact_broker_token": {
+      "title": "PactFlow API Token",
       "description": "PactFlow API token — get it from app.pactflow.io/settings/api-tokens",
+      "type": "string",
       "sensitive": true
     }
   }

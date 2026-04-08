@@ -79,6 +79,31 @@ Or add it to `.claude/settings.json` so teammates are prompted to install it aut
 | `project`        | `.claude/settings.json`       | Everyone on the team (commit this file) |
 | `local`          | `.claude/settings.local.json` | You, in this project only (gitignored)  |
 
+**3. Configure your PactFlow credentials:**
+
+Add a `pluginConfigs` block to `~/.claude/settings.json` with your PactFlow base URL and API token:
+
+```json
+{
+  "pluginConfigs": {
+    "swagger-contract-testing@pactflow-agent-skills": {
+      "options": {
+        "pact_broker_base_url": "https://yourorg.pactflow.io",
+        "pact_broker_token": "your-api-token"
+      }
+    }
+  }
+}
+```
+
+Get your API token from `https://yourorg.pactflow.io/settings/api-tokens`. For an open-source Pact Broker, use `pact_broker_username` and `pact_broker_password` instead of `pact_broker_token`.
+
+Then reload the plugin to start the MCP server:
+
+```claude
+/reload-plugins
+```
+
 ### From a local clone
 
 ```claude
