@@ -2,6 +2,9 @@
 
 > Sources: https://docs.pact.io/implementation_guides/overview.md, https://docs.pact.io/implementation_guides/javascript/docs/consumer.md, https://docs.pact.io/implementation_guides/javascript/docs/provider.md, https://docs.pact.io/implementation_guides/go/docs/consumer.md, https://docs.pact.io/implementation_guides/go/docs/provider.md, https://docs.pact.io/implementation_guides/jvm/consumer.md, https://docs.pact.io/implementation_guides/jvm/provider.md, https://docs.pact.io/implementation_guides/ruby/creating_pacts.md, https://docs.pact.io/implementation_guides/ruby/verifying_pacts.md
 
+**DSL references** (language-specific syntax, matchers, and patterns):
+[dsl.javascript.md](dsl.javascript.md) · [dsl.typescript.md](dsl.typescript.md) · [dsl.java.md](dsl.java.md) · [dsl.kotlin.md](dsl.kotlin.md) · [dsl.golang.md](dsl.golang.md) · [dsl.dotnet.md](dsl.dotnet.md) · [dsl.php.md](dsl.php.md) · [dsl.swift.md](dsl.swift.md)
+
 ---
 
 ## Language Support Matrix
