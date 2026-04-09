@@ -82,7 +82,6 @@ Generate or update consumer Pact tests targeting **Pact v4** format. Aim for max
 
 **Write the tests** to the appropriate file for the language/framework:
 
-- Lua (pact-lua): follow the `Pact.new() → :interaction() → :given() → :with_request() → :will_respond_with() → :run_test()` pattern
 - JS/TS: use `@pact-foundation/pact`
 - Java: use `au.com.dius.pact.consumer`
 - Go: use `github.com/pact-foundation/pact-go/v2`
