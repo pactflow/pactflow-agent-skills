@@ -28,13 +28,23 @@
 
 ### Consumer Tests
 
-```javascript
-import { Pact, like, eachLike, term } from "@pact-foundation/pact";
+```typescript
+import {
+  Pact,
+  Matchers,
+  SpecificationVersion,
+  LogLevel,
+} from "@pact-foundation/pact";
 
+const { like, eachLike } = Matchers;
+
+// `Pact` is aliased to `PactV4` — use this for all new projects
 const provider = new Pact({
+  dir: path.resolve(process.cwd(), "pacts"),
   consumer: "MyConsumer",
   provider: "MyProvider",
-  // port defaults to random; dir defaults to './pacts'
+  spec: SpecificationVersion.SPECIFICATION_VERSION_V4,
+  logLevel: "debug" as LogLevel,
 });
 
 describe("My API client", () => {
@@ -43,15 +53,17 @@ describe("My API client", () => {
       .addInteraction()
       .given("products exist")
       .uponReceiving("a request for all products")
-      .withRequest({ method: "GET", path: "/products" })
-      .willRespondWith({
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-        body: eachLike({
-          id: like(1),
-          name: like("Widget"),
-          type: term({ generate: "PRODUCT", matcher: "^[A-Z]+$" }),
-        }),
+      .withRequest("GET", "/products", (builder) => {
+        builder.headers({ Accept: "application/json" });
+      })
+      .willRespondWith(200, (builder) => {
+        builder.headers({ "Content-Type": "application/json" });
+        builder.jsonBody(
+          eachLike({
+            id: like(1),
+            name: like("Widget"),
+          })
+        );
       })
       .executeTest(async (mockserver) => {
         const client = new ProductsClient(mockserver.url);
@@ -62,7 +74,9 @@ describe("My API client", () => {
 });
 ```
 
-**Version selection**: use `Pact` (aliased to `PactV4`) for new projects. `PactV2` and `PactV3` are available for older code.
+**Version selection**: `Pact` is aliased to `PactV4` — always use it for new projects. Pass `spec: SpecificationVersion.SPECIFICATION_VERSION_V4` explicitly. `PactV2` and `PactV3` exports are available only for legacy code.
+
+**V4 builder pattern**: `withRequest(method, path, builder?)` and `willRespondWith(status, builder?)` take optional builder callbacks instead of plain objects — use `builder.headers()`, `builder.jsonBody()`, `builder.query()`, etc.
 
 **Interaction metadata (V4)**: mark interactions as `pending()`, add `comment()`, or set `testName()` for advanced lifecycle control.
 
@@ -383,18 +397,37 @@ Language-agnostic CLI tools available for all Pact implementations:
 | `pact-stub-server`                   | Serve pact files as HTTP stubs                              |
 | `pact-verifier`                      | Verify pacts against a running provider (language-agnostic) |
 
-Install via:
+Install via (see [docs.pact.io/implementation_guides/cli](https://docs.pact.io/implementation_guides/cli#-installation-methods) for full details):
 
 ```bash
-# Standalone (no Ruby required)
-# Download from: https://github.com/pact-foundation/pact-ruby-standalone/releases
+# Linux/macOS/WSL (recommended: Unified CLI)
+curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-cli/main/install.sh | sh
+
+# Homebrew (macOS/Linux)
+brew tap pact-foundation/tap
+brew install pact-foundation/tap/pact
+
+# Windows (PowerShell)
+iwr -useb https://raw.githubusercontent.com/pact-foundation/pact-cli/main/install.ps1 | iex
+
+# Windows (Scoop)
+scoop bucket add pact https://github.com/pact-foundation/scoop
+scoop install pact
+
+# Cargo (Rust)
+cargo install pact
 
 # Docker
-docker pull pactfoundation/pact-cli:latest
-docker run --rm pactfoundation/pact-cli pact-broker can-i-deploy ...
+docker run --rm -it pactfoundation/pact:latest
+# or via GitHub Container Registry
+docker run --rm -it ghcr.io/pact-foundation/pact:latest
+```
 
-# Ruby gem
-gem install pact_broker-client
+```yaml
+# GitHub Actions
+- uses: pact-foundation/pact-cli@main
+- name: Run Pact CLI
+  run: pact --help
 ```
 
 See `references/pact-broker-setup.md` for full CLI command reference.

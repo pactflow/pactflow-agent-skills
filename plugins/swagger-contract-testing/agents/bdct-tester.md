@@ -42,19 +42,27 @@ Run at most **5 fix-and-republish loops**. If BDCT still fails after 5 iteration
 
 ### Phase 1 — Discovery
 
-1. **Understand the API surface**
-   - Look for an existing OpenAPI spec (`openapi.yaml`, `openapi.json`, `swagger.yaml`, `api/*.yaml`, etc.)
-   - If no spec exists, read the provider source code (routes, handlers, controllers) to enumerate all endpoints, HTTP methods, path params, query params, request bodies, and response schemas
+1. **Locate the provider and consumer codebases**
+   - Ask the user where the provider codebase lives and where the consumer codebase lives — they may be in separate folders or separate repositories
+   - Do not assume both are under the current working directory
+
+2. **Understand the API surface (provider codebase)**
+   - Working inside the **provider** codebase, look for an existing OpenAPI spec (`openapi.yaml`, `openapi.json`, `swagger.yaml`, `api/*.yaml`, etc.)
+   - **If no spec is found, stop immediately.** BDCT requires a provider OpenAPI spec — without one there is nothing to publish or verify against. Inform the user that they need to create an OpenAPI spec first, then exit.
    - Note every status code the provider can return per endpoint
 
-2. **Understand the consumer**
-   - Read the consumer source code (API client layer, HTTP calls) to understand which endpoints and fields it actually uses
+3. **Understand the consumer**
+   - Working inside the **consumer** codebase, read the consumer source code (API client layer, HTTP calls) to understand which endpoints and fields it actually uses
    - If there is no consumer yet, generate tests covering the full API surface
 
-3. **Check PactFlow state**
-   - Call `contract-testing_list_pacticipants` to see if these participants already exist
+3. **Determine pacticipant names**
+   - Inspect the consumer and provider codebases for any existing Pact configuration (e.g. `consumer`/`provider` fields in test setup, `pact.json`, CI scripts, or `pact-broker` CLI invocations) to discover the names already in use
+   - If no names are found in the code, ask the user for the consumer name and provider name before proceeding
+
+4. **Check PactFlow state**
+   - Call `contract-testing_list_pacticipants` using the names discovered above to see if these participants already exist
    - If consumer pacts already exist, fetch them with `contract-testing_get_pacts_for_verification`
-   - Determine consumer name, provider name, and version to use for publishing (default: `1.0.0` on branch `main`)
+   - Use the git SHA as the version and the git branch name as the branch — do not default these values. Use `--auto-detect-version-properties` (or `-r`) to let the CLI detect them automatically from git
 
 ---
 
