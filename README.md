@@ -2,13 +2,18 @@
 
 AI assistant skills for PactFlow's contract testing tools.
 
-| Plugin name                | Skills             | What it does                                                                                                                                                                                                                                                                                                                                   |
-| -------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `swagger-contract-testing` | **Drift**          | Expert assistant for Drift — PactFlow's OpenAPI contract testing CLI. Helps write test cases, configure lifecycle hooks, debug failures, and publish results to PactFlow.                                                                                                                                                                      |
-|                            | **OpenAPI Parser** | Parses complex OpenAPI specs (anyOf/oneOf/allOf, discriminators, polymorphism, $ref chains, enums, regex) and generates Drift test cases covering every viable schema combination.                                                                                                                                                             |
-|                            | **PactFlow**       | Expert assistant for PactFlow and Pact contract testing. Uses the SmartBear MCP `contract-testing_*` tools to generate and review Pact tests with AI, publish contracts, verify providers, run can-i-deploy checks, record deployments, and manage the full PactFlow workspace (environments, pacticipants, BDCT, webhooks, secrets, metrics). |
+| Plugin name                | Skills / Agents        | What it does                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `swagger-contract-testing` | **Drift**              | Expert assistant for Drift — PactFlow's OpenAPI contract testing CLI. Helps write test cases, configure lifecycle hooks, debug failures, and publish results to PactFlow.                                                                                                                                                                      |
+|                            | **OpenAPI Parser**     | Parses complex OpenAPI specs (anyOf/oneOf/allOf, discriminators, polymorphism, $ref chains, enums, regex) and generates Drift test cases covering every viable schema combination.                                                                                                                                                             |
+|                            | **PactFlow**           | Expert assistant for PactFlow and Pact contract testing. Uses the SmartBear MCP `contract-testing_*` tools to generate and review Pact tests with AI, publish contracts, verify providers, run can-i-deploy checks, record deployments, and manage the full PactFlow workspace (environments, pacticipants, BDCT, webhooks, secrets, metrics). |
+|                            | **pact-generator**     | Agent: generates new Pact consumer tests and provider state handlers from existing code, OpenAPI specs, or example request/response pairs.                                                                                                                                                                                                     |
+|                            | **pact-reviewer**      | Agent: reviews Pact consumer tests and provider verification code for best-practice violations, false positives, and provider state naming issues.                                                                                                                                                                                             |
+|                            | **pact-implementor**   | Agent: builds a new Pact client library from scratch in any language by wrapping the Pact FFI.                                                                                                                                                                                                                                                 |
+|                            | **pact-maintainer**    | Agent: audits PactFlow workspace health, fixes failing verifications, and cleans up stale pacticipants, branches, and environments.                                                                                                                                                                                                            |
+|                            | **bdct-tester**        | Agent: drives a full Bi-Directional Contract Testing flow end-to-end — consumer tests, provider contract verification, publishing, and can-i-deploy.                                                                                                                                                                                          |
 
-The three skills work together: **OpenAPI Parser** analyses a spec and generates Drift test scaffolding; **Drift** runs, iterates, and publishes those tests; **PactFlow** manages the full contract testing lifecycle — from generating Pact tests with AI to safely deploying services.
+The three skills work together: **OpenAPI Parser** analyses a spec and generates Drift test scaffolding; **Drift** runs, iterates, and publishes those tests; **PactFlow** manages the full contract testing lifecycle — from generating Pact tests with AI to safely deploying services. The agents handle specialised sub-tasks autonomously within the PactFlow skill.
 
 ---
 
@@ -17,6 +22,7 @@ The three skills work together: **OpenAPI Parser** analyses a spec and generates
 - [Claude Code](#installing-in-claude-code)
 - [OpenCode](#installing-in-opencode)
 - [GitHub Copilot (VS Code)](#installing-in-github-copilot-vs-code)
+- [GitHub Copilot CLI](#installing-in-github-copilot-cli)
 - [Cursor](#installing-in-cursor)
 - [Windsurf](#installing-in-windsurf)
 - [Codex](#installing-in-codex)
@@ -262,6 +268,45 @@ cat skills/pactflow/SKILL.md skills/pactflow/references/*.md >> .github/instruct
 
 ---
 
+## Installing in GitHub Copilot CLI
+
+GitHub Copilot CLI supports plugins via the `/plugin` command (requires `gh copilot` v1+).
+
+**1. Add the marketplace:**
+
+```shell
+copilot plugin marketplace add pactflow/pactflow-agent-skills
+```
+
+**2. Install the plugin:**
+
+```shell
+copilot plugin install swagger-contract-testing@pactflow-agent-skills
+```
+
+Or install directly from the repo without adding a marketplace first:
+
+```shell
+copilot plugin install pactflow/pactflow-agent-skills
+```
+
+**3. Configure your PactFlow credentials** in `~/.copilot/settings.json` (or the equivalent config file for your environment):
+
+```json
+{
+  "pluginConfigs": {
+    "swagger-contract-testing@pactflow-agent-skills": {
+      "options": {
+        "pact_broker_base_url": "https://yourorg.pactflow.io",
+        "pact_broker_token": "your-api-token"
+      }
+    }
+  }
+}
+```
+
+---
+
 ## Installing in Cursor
 
 Cursor supports [Agent Skills](https://cursor.com/docs/skills) loaded from `SKILL.md` files in named subdirectories. Skills can be project-scoped or global.
@@ -431,68 +476,89 @@ cp -r skills/pactflow ~/.gemini/antigravity/skills/pactflow
 
 ---
 
-## Skill contents
+## Plugin contents
 
 ```
-skills/
-├── drift-testing/
-│   ├── SKILL.md                  # Drift CLI usage, test case patterns, auth, CI/CD
-│   ├── references/
-│   │   ├── test-cases.md         # Full test case YAML schema
-│   │   ├── lua-api.md            # Complete Lua API and lifecycle hooks
-│   │   ├── cli-reference.md      # All CLI commands and flags
-│   │   ├── auth.md               # Authentication patterns and credential handling
-│   │   ├── mock-server.md        # Mock server setup and configuration
-│   │   └── pactflow-and-cicd.md  # BDCT publishing, GitHub Actions, GitLab CI
-│   ├── evals/
-│   │   ├── 01-basic-get-endpoint.json        # Eval: write a test for a GET endpoint
-│   │   ├── 02-stateful-delete-endpoint.json  # Eval: write a test for a stateful DELETE endpoint
-│   │   ├── 03-debug-failing-test.json        # Eval: debug a failing test
-│   │   └── fixtures/
-│   │       ├── simple-products-api.yaml      # OpenAPI fixture for basic evals
-│   │       └── products-api-with-failures.md # Fixture describing a failing API
-│   └── scripts/
-│       ├── check_coverage.py     # Coverage analysis script
-│       ├── extract_endpoints.py  # Extract endpoints from OpenAPI specs
-│       ├── run_loop.sh           # Feedback loop runner (macOS/Linux)
-│       ├── run_loop.ps1          # Feedback loop runner (Windows)
-│       ├── start_mock.sh         # Start mock server (macOS/Linux)
-│       └── start_mock.ps1        # Start mock server (Windows)
+plugins/swagger-contract-testing/
+├── agents/
+│   ├── pact-generator.md    # Generates Pact consumer tests and provider state handlers
+│   ├── pact-reviewer.md     # Reviews Pact tests for best-practice violations
+│   ├── pact-implementor.md  # Builds a new Pact client library wrapping the Pact FFI
+│   ├── pact-maintainer.md   # Audits and maintains PactFlow workspace health
+│   └── bdct-tester.md       # Drives a full BDCT flow end-to-end
 │
-├── openapi-parser/
-│   ├── SKILL.md                  # Workflow: locate → resolve → enumerate → generate
-│   ├── evals/
-│   │   ├── 01-anyof-parameter-variants.json   # Eval: generate tests for anyOf parameter variants
-│   │   ├── 02-discriminator-with-allof.json   # Eval: generate tests for discriminator + allOf
-│   │   ├── 03-regex-pattern-field.json        # Eval: generate tests for regex pattern fields
-│   │   └── fixtures/
-│   │       ├── anyof-parameter-variants.yaml  # OpenAPI fixture with anyOf parameters
-│   │       ├── discriminator-with-allof.yaml  # OpenAPI fixture with discriminator and allOf
-│   │       └── regex-pattern-field.yaml       # OpenAPI fixture with regex pattern fields
-│   └── references/
-│       ├── schema-patterns.md    # anyOf/oneOf/allOf/discriminator/$ref/enum/pattern/nullable
-│       ├── drift-mapping.md      # Mapping every pattern to Drift YAML with full examples
-│       └── example-repos.md      # Commands for navigating large OpenAPI spec repositories
+├── hooks/
+│   ├── hooks.json               # Hook definitions (SessionStart, PostToolUse)
+│   ├── check-pact-config.sh     # SessionStart: validates PactFlow credentials are set
+│   └── deployment-reminder.sh   # PostToolUse: reminds to record deployments after Bash calls
 │
-└── pactflow/
-    ├── SKILL.md                  # Core concepts, MCP setup, workflow, AI tools, diagnostics
-    ├── evals/
-    │   └── evals.json            # 4 eval prompts covering MCP setup, can-i-deploy, JS tests, Kafka/Java
-    └── references/
-        ├── mcp-setup.md          # SmartBear MCP install and config (Claude Code, Desktop, VS Code, Cursor)
-        ├── pact-concepts.md      # Terminology, how Pact works end-to-end, provider states
-        ├── pact-faq.md           # FAQ, what Pact is/isn't good for, comparisons
-        ├── pact-consumer.md      # Writing consumer tests, matching rules, recommended config
-        ├── pact-provider.md      # Provider verification, auth, fixing failures, state handlers
-        ├── pact-messages.md      # Async/message pact (Kafka, SQS, SNS), JS and Java examples
-        ├── pact-plugins.md       # Pact Plugin Framework: gRPC, Protobuf, CSV, Avro
-        ├── pact-implementations.md # Language guides: JS, Go, JVM, Ruby
-        ├── pact-recipes.md       # Optional fields, GraphQL, Kafka, API Gateway, Cypress patterns
-        ├── pact-broker-setup.md  # Broker setup checklist, CLI reference, webhook debugging
-        ├── pact-broker-advanced.md # Consumer version selectors, pending/WIP pacts, branches
-        ├── pact-cicd.md          # Pact Nirvana CI/CD guide, can-i-deploy deep-dive
-        ├── workflow.md           # End-to-end workflow with exact MCP tool calls
-        ├── bdct.md               # Bi-Directional Contract Testing patterns and tools
-        ├── tools.md              # Full contract-testing_* tool catalog with parameters
-        └── pact-docs-index.md    # Complete index of docs.pact.io documentation with URLs
+└── skills/
+    ├── drift-testing/
+    │   ├── SKILL.md                  # Drift CLI usage, test case patterns, auth, CI/CD
+    │   ├── references/
+    │   │   ├── test-cases.md         # Full test case YAML schema
+    │   │   ├── lua-api.md            # Complete Lua API and lifecycle hooks
+    │   │   ├── cli-reference.md      # All CLI commands and flags
+    │   │   ├── auth.md               # Authentication patterns and credential handling
+    │   │   ├── mock-server.md        # Mock server setup and configuration
+    │   │   └── pactflow-and-cicd.md  # BDCT publishing, GitHub Actions, GitLab CI
+    │   ├── evals/
+    │   │   ├── 01-basic-get-endpoint.json        # Eval: write a test for a GET endpoint
+    │   │   ├── 02-stateful-delete-endpoint.json  # Eval: write a test for a stateful DELETE endpoint
+    │   │   ├── 03-debug-failing-test.json        # Eval: debug a failing test
+    │   │   └── fixtures/
+    │   │       ├── simple-products-api.yaml      # OpenAPI fixture for basic evals
+    │   │       └── products-api-with-failures.md # Fixture describing a failing API
+    │   └── scripts/
+    │       ├── check_coverage.py     # Coverage analysis script
+    │       ├── extract_endpoints.py  # Extract endpoints from OpenAPI specs
+    │       ├── run_loop.sh           # Feedback loop runner (macOS/Linux)
+    │       ├── run_loop.ps1          # Feedback loop runner (Windows)
+    │       ├── start_mock.sh         # Start mock server (macOS/Linux)
+    │       └── start_mock.ps1        # Start mock server (Windows)
+    │
+    ├── openapi-parser/
+    │   ├── SKILL.md                  # Workflow: locate → resolve → enumerate → generate
+    │   ├── evals/
+    │   │   ├── 01-anyof-parameter-variants.json   # Eval: generate tests for anyOf parameter variants
+    │   │   ├── 02-discriminator-with-allof.json   # Eval: generate tests for discriminator + allOf
+    │   │   ├── 03-regex-pattern-field.json        # Eval: generate tests for regex pattern fields
+    │   │   └── fixtures/
+    │   │       ├── anyof-parameter-variants.yaml  # OpenAPI fixture with anyOf parameters
+    │   │       ├── discriminator-with-allof.yaml  # OpenAPI fixture with discriminator and allOf
+    │   │       └── regex-pattern-field.yaml       # OpenAPI fixture with regex pattern fields
+    │   └── references/
+    │       ├── schema-patterns.md    # anyOf/oneOf/allOf/discriminator/$ref/enum/pattern/nullable
+    │       ├── drift-mapping.md      # Mapping every pattern to Drift YAML with full examples
+    │       └── example-repos.md      # Commands for navigating large OpenAPI spec repositories
+    │
+    └── pactflow/
+        ├── SKILL.md                  # Core concepts, MCP setup, workflow, AI tools, diagnostics
+        ├── evals/
+        │   └── evals.json            # 4 eval prompts covering MCP setup, can-i-deploy, JS tests, Kafka/Java
+        └── references/
+            ├── mcp-setup.md          # SmartBear MCP install and config (Claude Code, Desktop, VS Code, Cursor)
+            ├── pact-concepts.md      # Terminology, how Pact works end-to-end, provider states
+            ├── pact-faq.md           # FAQ, what Pact is/isn't good for, comparisons
+            ├── pact-consumer.md      # Writing consumer tests, matching rules, recommended config
+            ├── pact-provider.md      # Provider verification, auth, fixing failures, state handlers
+            ├── pact-messages.md      # Async/message pact (Kafka, SQS, SNS), JS and Java examples
+            ├── pact-plugins.md       # Pact Plugin Framework: gRPC, Protobuf, CSV, Avro
+            ├── pact-implementations.md # Language guides: JS, Go, JVM, Ruby, .NET, PHP, Swift
+            ├── dsl.javascript.md     # JavaScript DSL syntax and patterns
+            ├── dsl.typescript.md     # TypeScript DSL syntax and patterns
+            ├── dsl.java.md           # Java DSL syntax and patterns
+            ├── dsl.kotlin.md         # Kotlin DSL syntax and patterns
+            ├── dsl.golang.md         # Go DSL syntax and patterns
+            ├── dsl.dotnet.md         # .NET DSL syntax and patterns
+            ├── dsl.php.md            # PHP DSL syntax and patterns
+            ├── dsl.swift.md          # Swift DSL syntax and patterns
+            ├── pact-recipes.md       # Optional fields, GraphQL, Kafka, API Gateway, Cypress patterns
+            ├── pact-broker-setup.md  # Broker setup checklist, CLI reference, webhook debugging
+            ├── pact-broker-advanced.md # Consumer version selectors, pending/WIP pacts, branches
+            ├── pact-cicd.md          # Pact Nirvana CI/CD guide, can-i-deploy deep-dive
+            ├── workflow.md           # End-to-end workflow with exact MCP tool calls
+            ├── bdct.md               # Bi-Directional Contract Testing patterns and tools
+            ├── tools.md              # Full contract-testing_* tool catalog with parameters
+            └── pact-docs-index.md    # Complete index of docs.pact.io documentation with URLs
 ```
