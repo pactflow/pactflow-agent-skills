@@ -9,6 +9,8 @@ description: >
   limit is reached). Also invoke when the user asks to "make BDCT pass", "set up
   bi-directional contract testing", or "publish and verify contracts for X".
 model: sonnet
+skills:
+  - swagger-contract-testing:pactflow
 tools:
   - Read
   - Glob

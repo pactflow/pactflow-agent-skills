@@ -10,6 +10,8 @@ description: >
   or verifier to a new runtime. This agent knows the full architecture of how
   Pact libraries work internally and can scaffold a complete implementation.
 model: opus
+skills:
+  - swagger-contract-testing:pactflow
 tools:
   - Read
   - Glob

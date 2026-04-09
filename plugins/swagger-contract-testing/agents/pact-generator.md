@@ -8,6 +8,8 @@ description: >
   create provider state handlers for an existing pact. Also invoke when the user
   asks Claude to "write a pact test for X" or "generate contract tests for Y".
 model: sonnet
+skills:
+  - swagger-contract-testing:pactflow
 tools:
   - Read
   - Glob

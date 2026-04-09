@@ -8,6 +8,8 @@ description: >
   user wants to know why a verification is failing and needs a structured review
   of the test files and error output.
 model: sonnet
+skills:
+  - swagger-contract-testing:pactflow
 tools:
   - Read
   - Glob
