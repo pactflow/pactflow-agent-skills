@@ -7,7 +7,7 @@
     "email": "kevin.rohanvaz@smartbear.com"
   },
   "skills": "./skills/",
-  "agents": ["./agents/pact-generator.md", "./agents/pact-implementor.md", "./agents/pact-reviewer.md", "./agents/bdct-tester.md"],
+  "agents": ["./agents/pact-generator.md", "./agents/pact-implementor.md", "./agents/pact-reviewer.md", "./agents/bdct-tester.md", "./agents/pact-maintainer.md"],
   "mcpServers": "./.mcp.json",
   "userConfig": {
     "pact_broker_base_url": {
