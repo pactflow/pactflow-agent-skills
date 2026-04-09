@@ -68,7 +68,7 @@ Run at most **5 fix-and-republish loops**. If BDCT still fails after 5 iteration
 
 ### Phase 2 — Generate Consumer Tests (high coverage)
 
-Generate or update consumer Pact tests targeting **Pact v4** format. Aim for maximum coverage:
+Generate or update consumer Pact tests targeting the **Pact specification V4** format (i.e. the spec version, not a DSL version). Aim for maximum coverage:
 
 **Coverage targets:**
 
@@ -77,44 +77,28 @@ Generate or update consumer Pact tests targeting **Pact v4** format. Aim for max
 - Common error cases the consumer handles (404, 400, 401, 422)
 - Each optional field presence vs absence (separate interactions with different provider states)
 
-**Matching rules — always prefer type matchers over exact values:**
-
-| Situation                               | Use                      |
-| --------------------------------------- | ------------------------ |
-| Any string                              | `like("example")`        |
-| Any integer                             | `integer(1)`             |
-| Any decimal                             | `decimal(1.5)`           |
-| Array of items with a known shape       | `eachLike({...}, min=1)` |
-| Value must match a pattern              | `term(regex, example)`   |
-| Exact value matters (enum, status code) | exact match              |
 
 **Provider states:** name them descriptively and specifically, e.g. `"product 123 exists"`, `"no products exist"`, `"user is unauthenticated"`.
 
 **Write the tests** to the appropriate file for the language/framework:
 
-- JS/TS: use `@pact-foundation/pact`
-- Java: use `au.com.dius.pact.consumer`
-- Go: use `github.com/pact-foundation/pact-go/v2`
-- Python: use `pact-python`
+- JS/TS: use [`@pact-foundation/pact`](https://github.com/pact-foundation/pact-js)
+- Java: use [`au.com.dius.pact.consumer`](https://github.com/pact-foundation/pact-jvm)
+- Go: use [`github.com/pact-foundation/pact-go/v2`](https://github.com/pact-foundation/pact-go)
+- Python: use [`pact-python`](https://github.com/pact-foundation/pact-python)
 
-**Run the consumer tests** to generate the pact file. Fix any failures before proceeding.
+**Run the consumer tests** to generate the pact file. Ensure the tests exercise the actual API client (not just the mock) — the goal is a good unit test for the client that produces a contract as a side-effect. Follow the guidance in `references/pact-consumer.md` for what to test and what to avoid. Fix any failures before proceeding.
 
 ---
 
-### Phase 3 — Generate Provider Contract (OpenAPI spec)
+### Phase 3 — Verify the Provider Contract (OpenAPI spec)
 
-Create or update `openapi.yaml` in the provider directory:
+The OpenAPI spec must already exist in the provider codebase (confirmed in Phase 1). Do **not** create or modify it here — the spec should reflect what the provider actually implements, not what the consumer expects. Modifying the spec to satisfy consumer interactions without first verifying the implementation risks adding promises to the contract that the provider does not honour.
 
-1. **Spec must cover every interaction in the consumer pact** — every path, method, and status code
-2. **Schema must be compatible with the consumer's matching rules** — if the consumer expects `{ "id": integer, "name": string }`, the spec must declare those fields with those types. Additional fields are fine.
-3. **Required fields** — mark fields required only if the provider always returns them
-4. **Use OAS 3.0.x** format
+Verify the existing spec is ready to publish:
 
-**Run self-verification**: start the provider server and issue curl requests for each endpoint. Check:
-
-- HTTP status codes match the spec
-- Response bodies match the schema types
-- Record results as text
+1. **Spec covers the endpoints exercised by the consumer pact** — confirm every path, method, and status code referenced in the pact exists in the spec. If gaps exist, the provider team must update their implementation and spec first.
+2. **Confirm the spec format** — detect whether the spec uses OAS 2.0 (Swagger), OAS 3.0.x, or OAS 3.1.x and use whatever version is already in place
 
 ---
 
@@ -126,8 +110,7 @@ Create or update `openapi.yaml` in the provider directory:
 contract-testing_publish_consumer_contracts(
   pacticipantName = <consumer>,
   pacticipantVersionNumber = <version>,
-  branch = "main",
-  tags = ["main"],
+  branch = <branch>,
   contracts = [{ consumerName, providerName, content (base64), contentType="application/json", specification="pact" }]
 )
 ```
@@ -140,8 +123,7 @@ Base64-encode the pact JSON file content before publishing.
 contract-testing_publish_provider_contract(
   providerName = <provider>,
   pacticipantVersionNumber = <version>,
-  branch = "main",
-  tags = ["main"],
+  branch = <branch>,
   contract = {
     content (base64 of openapi.yaml),
     contentType = "application/yaml",
@@ -180,15 +162,15 @@ Call `contract-testing_get_bdct_cross-contract_verification_results` to get deta
 
 **Common failure patterns and fixes:**
 
-| Failure                                                  | Fix                                                                                          |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `"$.body.X is not defined in the spec"`                  | Consumer expects field X — add X to the provider's OpenAPI schema                            |
-| `"$.body.X type mismatch: expected string, got integer"` | Fix the type in the OpenAPI spec to match what the provider actually returns                 |
-| `"Path /foo not found in spec"`                          | Add the missing path to the OpenAPI spec                                                     |
-| `"Response status 200 not defined for GET /foo"`         | Add the missing response status to the OpenAPI spec                                          |
-| `"Self-verification failed"`                             | Fix the provider server or the self-verification curl checks                                 |
-| `"Request body does not match schema"`                   | Fix the request body schema in the OpenAPI spec                                              |
-| Consumer uses a field not returned by provider           | Fix the provider to return the field, or remove it from the consumer test if it's not needed |
+| Failure                                                  | Fix                                                                                                                                                             |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"$.body.X is not defined in the spec"`                  | Verify the provider actually returns field X, then update the spec to document it — do not add it to the spec if the implementation does not return it          |
+| `"$.body.X type mismatch: expected string, got integer"` | Check what the provider actually returns; fix the spec to match the real implementation, not the consumer expectation                                           |
+| `"Path /foo not found in spec"`                          | Verify the provider implements the path, then document it in the spec — if the provider does not implement it, remove it from the consumer test                 |
+| `"Response status 200 not defined for GET /foo"`         | Verify the provider returns that status, then add it to the spec — do not add statuses the provider does not return                                             |
+| `"Self-verification failed"`                             | Fix the provider server or the self-verification curl checks                                                                                                    |
+| `"Request body does not match schema"`                   | Check what the provider actually accepts; fix the spec to match the real implementation                                                                         |
+| Consumer uses a field not returned by provider           | Fix the provider to return the field, or remove it from the consumer test if it's not needed                                                                    |
 
 After fixing, **bump the version** (e.g. `1.0.0` → `1.0.1`, `1.0.1` → `1.0.2`) and republish both consumer and provider contracts. Then re-poll the matrix.
 
@@ -225,8 +207,6 @@ Status: PASSED / FAILED (after N iterations)
 
 ## Important constraints
 
-- Never invent endpoints or fields that don't exist in the provider implementation
 - Never use random/dynamic test data in pact definitions — use stable example values
-- Always use type matchers unless the exact value semantically matters to the consumer
 - Keep provider states descriptive and minimal — only the data the interaction needs
-- When bumping version for a fix iteration, use patch version increments (`1.0.0`, `1.0.1`, `1.0.2`, ...)
+- Version each publish using the git SHA of the commit — commit changes before republishing each iteration. Alternatively use a `semver-sha` format (e.g. `1.0.0+abc1234`) which keeps semver readability while letting Pact detect the SHA for webhooks and other integrations
