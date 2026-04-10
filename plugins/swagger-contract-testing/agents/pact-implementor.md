@@ -350,7 +350,7 @@ Each folder contains request/response JSON test cases. Run them against your moc
 1. **FFI bindings** — load the library, call `pactffi_version()` to confirm linkage works
 2. **Logging setup** — `logger_init` → `logger_attach_sink` → `logger_apply`
 3. **Pact + interaction builder** — `new_pact`, `new_interaction`, `with_request`, response helpers
-4. **Mock server** — `create_mock_server_for_pact`, `mock_server_matched`, `write_pact_file`, `cleanup`
+4. **Mock server** — `pactffi_create_mock_server_for_transport`, `mock_server_matched`, `write_pact_file`, `cleanup`
 5. **Language-idiomatic DSL** — wrap the above in a fluent builder or test framework integration
 6. **Matching rules** — expose Integration JSON matchers via type-safe helpers (`like()`, `eachLike()`, `term()`)
 7. **Provider verification** — `verifier_new`, `verifier_set_provider_info`, `verifier_execute`
