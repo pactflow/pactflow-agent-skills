@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "smartbear": {
+      "command": "npx",
+      "args": ["-y", "@smartbear/mcp@latest"],
+      "env": {
+        "PACT_BROKER_BASE_URL": "${PACT_BROKER_BASE_URL}",
+        "PACT_BROKER_TOKEN": "${PACT_BROKER_TOKEN}",
+        "PACT_BROKER_USERNAME": "${PACT_BROKER_USERNAME}",
+        "PACT_BROKER_PASSWORD": "${PACT_BROKER_PASSWORD}"
+      }
+    }
+  }
+}
