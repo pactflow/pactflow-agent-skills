@@ -51,9 +51,19 @@ claude mcp add --transport stdio smartbear node mcp
 
 Then set environment variables in your shell profile (`~/.zshrc`, `~/.bashrc`):
 
+**PactFlow Cloud (token):**
+
 ```bash
 export PACT_BROKER_BASE_URL="https://yourorg.pactflow.io"
 export PACT_BROKER_TOKEN="your-api-token"
+```
+
+**Open-source Pact Broker (username/password):**
+
+```bash
+export PACT_BROKER_BASE_URL="https://your-self-hosted-broker.example.com"
+export PACT_BROKER_USERNAME="your-username"
+export PACT_BROKER_PASSWORD="your-password"
 ```
 
 Or pass them inline when starting a session:
@@ -67,6 +77,8 @@ claude
 ### Claude Desktop
 
 Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+**PactFlow Cloud (token):**
 
 ```json
 {
@@ -83,9 +95,29 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 }
 ```
 
+**Open-source Pact Broker (username/password):**
+
+```json
+{
+  "mcpServers": {
+    "smartbear": {
+      "command": "npx",
+      "args": ["-y", "@smartbear/mcp@latest"],
+      "env": {
+        "PACT_BROKER_BASE_URL": "https://your-self-hosted-broker.example.com",
+        "PACT_BROKER_USERNAME": "your-username",
+        "PACT_BROKER_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
 ### VS Code (with Copilot or Claude extension)
 
 Create or edit `.vscode/mcp.json` in your project root:
+
+**PactFlow Cloud (token):**
 
 ```json
 {
@@ -103,9 +135,30 @@ Create or edit `.vscode/mcp.json` in your project root:
 }
 ```
 
+**Open-source Pact Broker (username/password):**
+
+```json
+{
+  "servers": {
+    "smartbear": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@smartbear/mcp@latest"],
+      "env": {
+        "PACT_BROKER_BASE_URL": "https://your-self-hosted-broker.example.com",
+        "PACT_BROKER_USERNAME": "your-username",
+        "PACT_BROKER_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
 ### Cursor
 
 Edit `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project):
+
+**PactFlow Cloud (token):**
 
 ```json
 {
@@ -116,6 +169,24 @@ Edit `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project):
       "env": {
         "PACT_BROKER_BASE_URL": "https://yourorg.pactflow.io",
         "PACT_BROKER_TOKEN": "your-api-token"
+      }
+    }
+  }
+}
+```
+
+**Open-source Pact Broker (username/password):**
+
+```json
+{
+  "mcpServers": {
+    "smartbear": {
+      "command": "npx",
+      "args": ["-y", "@smartbear/mcp@latest"],
+      "env": {
+        "PACT_BROKER_BASE_URL": "https://your-self-hosted-broker.example.com",
+        "PACT_BROKER_USERNAME": "your-username",
+        "PACT_BROKER_PASSWORD": "your-password"
       }
     }
   }
