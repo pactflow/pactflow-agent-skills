@@ -19,7 +19,7 @@ keywords:
   - api conformance
 ---
 
-# SmartBear Contract Testing
+# Swagger Contract Testing
 
 ## Onboarding
 
