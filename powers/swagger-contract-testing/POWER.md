@@ -1,6 +1,6 @@
 ---
 name: "swagger-contract-testing"
-displayName: "SmartBear Contract Testing"
+displayName: "Swagger Contract Testing"
 description: "Expert assistant for the full contract testing lifecycle — Pact consumer-driven contracts, provider verification, can-i-deploy, Drift API spec conformance, OpenAPI parsing, and Bi-Directional Contract Testing (BDCT) with PactFlow."
 keywords:
   - pact
