@@ -19,6 +19,7 @@ The three skills work together: **OpenAPI Parser** analyses a spec and generates
 
 ## Installation guide for Agentic IDEs/Coding agents
 
+- [Quick install with `npx skills`](#quick-install-with-npx-skills)
 - [Claude Code](#installing-in-claude-code)
 - [OpenCode](#installing-in-opencode)
 - [GitHub Copilot (VS Code)](#installing-in-github-copilot-vs-code)
@@ -28,6 +29,18 @@ The three skills work together: **OpenAPI Parser** analyses a spec and generates
 - [Codex](#installing-in-codex)
 - [Kiro](#installing-in-kiro)
 - [Antigravity](#installing-in-antigravity)
+
+## Quick install with `npx skills`
+
+The [`skills` CLI](https://skills.sh) installs agent skills from GitHub directly into your project. It auto-detects which agentic coding tools you use and places the skill files in the correct location for each one.
+
+```bash
+npx skills add pactflow/pactflow-agent-skills
+```
+
+This installs the `swagger-contract-testing` skills for all detected agents in your project (Claude Code, Copilot, Cursor, Windsurf, Kiro, Codex, OpenCode, Antigravity, and more).
+
+---
 
 ### Windows users
 
