@@ -73,3 +73,9 @@ Install these Kiro skills alongside this Power for deeper reference material and
 | **openapi-parser** | Complex OpenAPI schema patterns (anyOf/oneOf/allOf/discriminator/$ref) and Drift YAML mapping                         | `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/openapi-parser` |
 
 To install: open the **Agent Steering & Skills** panel in Kiro → **+** → **Import a skill** → **GitHub** → paste the URL.
+
+## License and support
+
+This power integrates with [SmartBear MCP](https://github.com/SmartBear-DevRel/smartbear-mcp) (MIT).
+- [Privacy Policy](https://smartbear.com/privacy/)
+- [Support](https://support.smartbear.com/)
