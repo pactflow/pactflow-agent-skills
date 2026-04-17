@@ -16,6 +16,7 @@ const verifier = new Verifier({
   pactBrokerToken: process.env.PACT_BROKER_TOKEN,
   provider: "OrderService",
 
+  // Recommended selectors for comprehensive verification coverage:
   consumerVersionSelectors: [
     { mainBranch: true }, // latest from consumer's main branch
     { matchingBranch: true }, // feature branch pair-testing

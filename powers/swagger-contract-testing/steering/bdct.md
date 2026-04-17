@@ -1,6 +1,6 @@
 # Bi-Directional Contract Testing (BDCT)
 
-BDCT is a PactFlow Cloud-only feature. The provider publishes an OpenAPI spec and self-verification results (e.g. from Drift, Dredd, or Schemathesis). PactFlow performs the cross-contract comparison automatically — the provider never needs to run consumer Pact tests.
+BDCT is a PactFlow cloud-only feature. The provider publishes an OpenAPI spec and self-verification results (e.g. from Drift, Dredd, or Schemathesis). PactFlow performs the cross-contract comparison automatically — the provider never needs to run consumer Pact tests.
 
 ## When to Use BDCT
 
@@ -13,7 +13,7 @@ BDCT is a PactFlow Cloud-only feature. The provider publishes an OpenAPI spec an
 ## Full BDCT Workflow
 
 ```
-Provider: run Drift OR Pact tests against live API
+Provider: run Drift against live API
       ↓
 contract-testing_publish_provider_contract   ← upload OpenAPI + verification result
       ↓
@@ -22,33 +22,35 @@ PactFlow performs cross-contract verification automatically
 Consumer: publish pact
 contract-testing_publish_consumer_contracts
       ↓
-contract-testing_can_i_deploy                ← gate before deploy
       ↓
-Deploy
+BOTH SIDES independently before deploying:
       ↓
-contract-testing_record_deployment           ← update workspace state
+contract-testing_can_i_deploy                ← gate before deploy (consumer checks its version)
+contract-testing_can_i_deploy                ← gate before deploy (provider checks its version)
+      ↓
+Deploy respective service
+      ↓
+BOTH SIDES after successful deploy:
+      ↓
+contract-testing_record_deployment           ← consumer records its deployment
+contract-testing_record_deployment           ← provider records its deployment
 ```
 
-> Consumer and Provider publishing steps can happen in any order — PactFlow re-triggers cross-contract verification whenever either side is updated.
+> **Important:** Consumer and Provider publishing steps can happen in any order — PactFlow re-triggers cross-contract verification whenever either side is updated. Each side independently runs `can-i-deploy` before their own deployment and records their deployment afterward.
 
 ---
 
 ## Step 1: Provider — Self-Verify and Publish
 
-Run your chosen self-verification tool against the live API (or a running mock):
+Run a self-verification tool that validates your OpenAPI spec against the live API (or a running mock):
 
-**Option A — Drift** (OpenAPI spec conformance):
+**Drift** (OpenAPI spec conformance):
+
 ```bash
 drift verify --base-url http://localhost:3000 drift.yaml
 ```
 
-> **Important:** the spec passed to Drift must be the same OpenAPI file you publish as the provider contract.
-
-**Option B — Pact provider tests** (consumer-driven verification):
-```bash
-# Run your standard Pact provider verification suite
-npm test -- --provider OrderService
-```
+> **Important:** The spec passed to your verification tool must be the same OpenAPI file you publish as the provider contract. Standard Pact provider verification is NOT sufficient for BDCT — it verifies consumer pacts, not the OpenAPI spec.
 
 Then publish the OpenAPI spec and self-verification result. Set `verifier` to match the tool you ran:
 
@@ -131,11 +133,11 @@ contract-testing_get_bdct_consumer_contract_verification_results_by_consumer_ver
 
 **Common failure causes:**
 
-| Symptom                                  | Cause                                                              | Fix                                                    |
-| ---------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------ |
-| Cross-contract verification failed       | Consumer pact uses a request shape not covered by the OpenAPI spec | Update OpenAPI spec or relax the consumer's matcher    |
-| `selfVerificationResults.success: false` | Self-verification tool failures before publishing                  | Fix failing tests first, re-run, then re-publish       |
-| Provider contract not found              | Wrong `providerName` or version                                    | Verify with `contract-testing_list_pacticipants`       |
+| Symptom                                  | Cause                                                              | Fix                                                                                 |
+| ---------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Cross-contract verification failed       | Consumer pact uses a request shape not covered by the OpenAPI spec | Update OpenAPI spec or update the consumer's expectations to match the OpenAPI spec |
+| `selfVerificationResults.success: false` | Self-verification tool failures before publishing                  | Fix failing tests first, re-run, then re-publish                                    |
+| Provider contract not found              | Wrong `providerName` or version                                    | Verify with `contract-testing_list_pacticipants`                                    |
 
 ---
 

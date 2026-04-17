@@ -1,5 +1,6 @@
 .DS_Store
 kiro-powers/
+.agents/
 drift-workspace/
 pactflow-workspace/
 settings.local.json
