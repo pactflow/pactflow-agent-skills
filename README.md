@@ -1,6 +1,10 @@
 # PactFlow Agent Skills
 
-AI assistant skills for PactFlow's contract testing tools.
+Agent skills teach your AI coding assistant — Claude Code, GitHub Copilot, Cursor, Windsurf, and others — how to work with Pact, PactFlow, and Drift. Instead of explaining contract testing concepts every time you start a conversation, the skills give your AI persistent, deep knowledge of consumer test patterns, provider verification, can-i-deploy diagnostics, Drift test authoring, and workspace management.
+
+The plugin goes further: it bundles the [SmartBear MCP server](docs/ai-tools/smartbear-mcp.md) alongside the skills, so your assistant can connect directly to your PactFlow workspace or Pact Broker. It can fetch live provider states before generating tests, query the contract matrix to diagnose a failing can-i-deploy, publish pacts and provider contracts, record deployments, and manage environments — all without leaving your editor.
+
+There are two types of components in this repo. **Skills** are context files that activate when the task matches — the assistant reads them and applies the knowledge. **Agents** are autonomous sub-tasks the PactFlow skill delegates to: generating tests, reviewing them for best-practice violations, running a full BDCT flow end-to-end, or auditing workspace health.
 
 | Plugin name                | Skills / Agents        | What it does                                                                                                                                                                                                                                                                                                                                   |
 | -------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
