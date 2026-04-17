@@ -76,6 +76,6 @@ To install: open the **Agent Steering & Skills** panel in Kiro → **+** → **I
 
 ## License and support
 
-This power integrates with [SmartBear MCP](https://github.com/SmartBear-DevRel/smartbear-mcp) (MIT).
+This power integrates with [SmartBear MCP](https://github.com/SmartBear/smartbear-mcp) (MIT).
 - [Privacy Policy](https://smartbear.com/privacy/)
 - [Support](https://support.smartbear.com/)
