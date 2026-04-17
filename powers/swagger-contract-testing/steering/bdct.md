@@ -4,7 +4,7 @@ BDCT is a PactFlow cloud-only feature. The provider publishes an OpenAPI spec an
 
 ## When to Use BDCT
 
-- The provider already has API testing in place (Drift, Pact provider tests, Dredd, Schemathesis, Postman)
+- The provider already has API testing in place (Drift, Pact provider tests, Dredd, Schemathesis)
 - Migrating a REST API to contract testing with minimal provider-side changes
 - Large organisations where consumer and provider teams are loosely coupled
 
