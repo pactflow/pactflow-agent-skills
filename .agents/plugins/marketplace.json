@@ -1,0 +1,17 @@
+{
+  "name": "pactflow-agent-skills",
+  "owner": {
+    "name": "Pactflow"
+  },
+  "metadata": {
+    "description": "Skills for PactFlow contract testing tools",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "swagger-contract-testing",
+      "source": "./plugins/swagger-contract-testing",
+      "description": "Expert assistant for PactFlow's contract testing tools — Drift CLI, OpenAPI spec parsing, Pact consumer/provider testing, BDCT, and full PactFlow workspace management."
+    }
+  ]
+}
