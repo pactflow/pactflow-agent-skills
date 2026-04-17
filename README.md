@@ -426,6 +426,23 @@ cp -r plugins/swagger-contract-testing/skills/pactflow ~/.agents/skills/pactflow
 
 Kiro supports [Agent Skills](https://kiro.dev/docs/skills/) loaded from `SKILL.md` files in named subdirectories. Skills can be workspace-scoped or global.
 
+### Kiro Power (recommended for Kiro users)
+
+For a one-click install that also bundles the SmartBear MCP server, use the Power instead of installing skills individually:
+
+1. Open the **Powers** panel in Kiro
+2. Click **Add power from GitHub**
+3. Enter: `https://github.com/pactflow/pactflow-agent-skills` and select `powers/swagger-contract-testing`
+
+Or install from a local clone:
+1. Open the **Powers** panel in Kiro
+2. Click **Add power from Local Path**
+3. Select: `path/to/pactflow-agent-skills/powers/swagger-contract-testing`
+
+Set `PACT_BROKER_BASE_URL` and `PACT_BROKER_TOKEN` in your shell profile or Kiro's secrets manager before activating.
+
+---
+
 ### Import from GitHub (recommended)
 
 1. Open the **Agent Steering & Skills** panel in Kiro
