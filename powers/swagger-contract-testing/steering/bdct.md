@@ -12,28 +12,27 @@ BDCT is a PactFlow cloud-only feature. The provider publishes an OpenAPI spec an
 
 ## Full BDCT Workflow
 
-```
-Provider: run Drift against live API
-      ↓
-contract-testing_publish_provider_contract   ← upload OpenAPI + verification result
-      ↓
-PactFlow performs cross-contract verification automatically
-      ↓
-Consumer: publish pact
-contract-testing_publish_consumer_contracts
-      ↓
-      ↓
-BOTH SIDES independently before deploying:
-      ↓
-contract-testing_can_i_deploy                ← gate before deploy (consumer checks its version)
-contract-testing_can_i_deploy                ← gate before deploy (provider checks its version)
-      ↓
-Deploy respective service
-      ↓
-BOTH SIDES after successful deploy:
-      ↓
-contract-testing_record_deployment           ← consumer records its deployment
-contract-testing_record_deployment           ← provider records its deployment
+```mermaid
+flowchart TD
+    A[Provider: Run Drift against live API] --> B[contract-testing_publish_provider_contract<br/>upload OpenAPI + verification result]
+    B --> C[PactFlow performs cross-contract<br/>verification automatically]
+    D[Consumer: Run pact tests] --> E[contract-testing_publish_consumer_contracts<br/>upload pact]
+    E --> C
+    
+    C --> F[Consumer: contract-testing_can_i_deploy<br/>gate before deploy - consumer checks its version]
+    C --> G[Provider: contract-testing_can_i_deploy<br/>gate before deploy - provider checks its version]
+    
+    F --> H[Consumer: Deploy consumer service]
+    G --> I[Provider: Deploy provider service]
+    
+    H --> J[Consumer: contract-testing_record_deployment<br/>consumer records its deployment]
+    I --> K[Provider: contract-testing_record_deployment<br/>provider records its deployment]
+    
+    style C fill:#e1f5ff
+    style F fill:#fff4e1
+    style G fill:#fff4e1
+    style J fill:#e8f5e9
+    style K fill:#e8f5e9
 ```
 
 > **Important:** Consumer and Provider publishing steps can happen in any order — PactFlow re-triggers cross-contract verification whenever either side is updated. Each side independently runs `can-i-deploy` before their own deployment and records their deployment afterward.
