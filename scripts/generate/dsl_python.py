@@ -37,7 +37,7 @@ import tree_sitter_python as tspython
 from tree_sitter import Language, Node, Parser
 
 REPO_URL = "https://github.com/pact-foundation/pact-python.git"
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEST_PATH = (
     REPO_ROOT
     / "plugins"
