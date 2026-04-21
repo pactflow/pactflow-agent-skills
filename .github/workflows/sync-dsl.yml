@@ -1,47 +1,53 @@
-name: Generate Python DSL
+name: Sync Pact SDK DSLs
 
 on:
   schedule:
     - cron: "0 3 * * 1"  # Every Monday at 03:00 UTC
   workflow_dispatch:
     inputs:
-      ref:
-        description: "pact-python branch or tag to build from"
+      python_ref:
+        description: "pact-python branch or tag"
         default: main
         required: false
 
 jobs:
   generate:
+    name: Generate ${{ matrix.sdk }} DSL
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sdk: python
+            script: scripts/generate/dsl_python.py
+            output: plugins/swagger-contract-testing/skills/pactflow/references/dsl.python.md
+            ref_input: python_ref
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
 
-      - name: Generate dsl.python.md
-        env:
-          PACT_PYTHON_REF: ${{ inputs.ref || 'main' }}
-        run: uv run --no-project scripts/generate/dsl_python.py
+      - name: Generate dsl.${{ matrix.sdk }}.md
+        run: uv run --no-project ${{ matrix.script }} --ref "${{ inputs[matrix.ref_input] || 'main' }}"
 
-      - name: Format dsl.python.md
-        run: uvx mdformat plugins/swagger-contract-testing/skills/pactflow/references/dsl.python.md
+      - name: Format dsl.${{ matrix.sdk }}.md
+        run: uvx mdformat ${{ matrix.output }}
 
       - name: Check for changes
         id: diff
         run: |
-          git diff --quiet \
-            plugins/swagger-contract-testing/skills/pactflow/references/dsl.python.md \
+          git diff --quiet ${{ matrix.output }} \
             && echo "changed=false" >> "$GITHUB_OUTPUT" \
             || echo "changed=true" >> "$GITHUB_OUTPUT"
 
-      - name: Commit updated dsl.python.md
+      - name: Commit updated dsl.${{ matrix.sdk }}.md
         if: steps.diff.outputs.changed == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add plugins/swagger-contract-testing/skills/pactflow/references/dsl.python.md
-          git commit -m "chore: regenerate dsl.python.md from pact-python"
+          git add ${{ matrix.output }}
+          git commit -m "chore: regenerate dsl.${{ matrix.sdk }}.md from pact-${{ matrix.sdk }}"
           git push
