@@ -39,9 +39,9 @@ jobs:
       - name: Check for changes
         id: diff
         run: |
-          git diff --quiet ${{ matrix.output }} \
-            && echo "changed=false" >> "$GITHUB_OUTPUT" \
-            || echo "changed=true" >> "$GITHUB_OUTPUT"
+          git status --porcelain ${{ matrix.output }} | grep -q . \
+            && echo "changed=true" >> "$GITHUB_OUTPUT" \
+            || echo "changed=false" >> "$GITHUB_OUTPUT"
 
       - name: Commit updated dsl.${{ matrix.sdk }}.md
         if: steps.diff.outputs.changed == 'true'
