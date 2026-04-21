@@ -249,7 +249,8 @@ def _method_sig(src: bytes, node: Node) -> str | None:
     params = _text(src, params_node) if params_node else "()"
     result = (" " + _text(src, result_node)) if result_node else ""
 
-    return f"func {receiver} {name}{params}{result}"
+    recv_prefix = f"{receiver} " if receiver else ""
+    return f"func {recv_prefix}{name}{params}{result}"
 
 
 # ---------------------------------------------------------------------------
