@@ -4,7 +4,6 @@ kiro-powers/
 drift-workspace/
 pactflow-workspace/
 settings.local.json
-.github/
 demo/
 # Byte-compiled / optimized / DLL files
 __pycache__/
