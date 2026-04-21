@@ -1,0 +1,15 @@
+[project]
+name = "pact-dsl-generators"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "tree-sitter>=0.23",
+    "tree-sitter-c-sharp>=0.23",
+    "tree-sitter-go>=0.23",
+    "tree-sitter-java>=0.23",
+    "tree-sitter-kotlin>=0.23",
+    "tree-sitter-php>=0.23",
+    "tree-sitter-python>=0.23",
+    "tree-sitter-swift",
+    "tree-sitter-typescript>=0.23",
+]

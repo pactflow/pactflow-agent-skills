@@ -9,6 +9,30 @@ on:
         description: "pact-python branch or tag"
         default: main
         required: false
+      js_ref:
+        description: "pact-js branch or tag"
+        default: master
+        required: false
+      go_ref:
+        description: "pact-go branch or tag"
+        default: master
+        required: false
+      dotnet_ref:
+        description: "pact-net branch or tag"
+        default: master
+        required: false
+      php_ref:
+        description: "pact-php branch or tag"
+        default: master
+        required: false
+      jvm_ref:
+        description: "pact-jvm branch or tag"
+        default: master
+        required: false
+      swift_ref:
+        description: "PactSwift branch or tag"
+        default: main
+        required: false
 
 jobs:
   generate:
@@ -21,33 +45,73 @@ jobs:
       matrix:
         include:
           - sdk: python
+            repo: pact-python
             script: scripts/generate/dsl_python.py
-            output: plugins/swagger-contract-testing/skills/pactflow/references/dsl.python.md
+            outputs: plugins/swagger-contract-testing/skills/pactflow/references/dsl.python.md
             ref_input: python_ref
+          - sdk: javascript
+            repo: pact-js
+            script: scripts/generate/dsl_js.py
+            outputs: >-
+              plugins/swagger-contract-testing/skills/pactflow/references/dsl.typescript.md
+              plugins/swagger-contract-testing/skills/pactflow/references/dsl.javascript.md
+            ref_input: js_ref
+          - sdk: golang
+            repo: pact-go
+            script: scripts/generate/dsl_go.py
+            outputs: plugins/swagger-contract-testing/skills/pactflow/references/dsl.golang.md
+            ref_input: go_ref
+          - sdk: dotnet
+            repo: pact-net
+            script: scripts/generate/dsl_dotnet.py
+            outputs: plugins/swagger-contract-testing/skills/pactflow/references/dsl.dotnet.md
+            ref_input: dotnet_ref
+          - sdk: php
+            repo: pact-php
+            script: scripts/generate/dsl_php.py
+            outputs: plugins/swagger-contract-testing/skills/pactflow/references/dsl.php.md
+            ref_input: php_ref
+          - sdk: jvm
+            repo: pact-jvm
+            script: scripts/generate/dsl_jvm.py
+            outputs: >-
+              plugins/swagger-contract-testing/skills/pactflow/references/dsl.kotlin.md
+              plugins/swagger-contract-testing/skills/pactflow/references/dsl.java.md
+            ref_input: jvm_ref
+          - sdk: swift
+            repo: PactSwift
+            script: scripts/generate/dsl_swift.py
+            outputs: plugins/swagger-contract-testing/skills/pactflow/references/dsl.swift.md
+            ref_input: swift_ref
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
 
-      - name: Generate dsl.${{ matrix.sdk }}.md
-        run: uv run --no-project ${{ matrix.script }} --ref "${{ inputs[matrix.ref_input] || 'main' }}"
+      - name: Generate DSL(s) for ${{ matrix.sdk }}
+        run: |
+          REF="${{ inputs[matrix.ref_input] }}"
+          uv run --project scripts/generate ${{ matrix.script }} ${REF:+--ref "$REF"}
 
-      - name: Format dsl.${{ matrix.sdk }}.md
-        run: uvx mdformat ${{ matrix.output }}
+      - name: Format generated markdown
+        run: |
+          for f in ${{ matrix.outputs }}; do
+            uvx mdformat "$f"
+          done
 
       - name: Check for changes
         id: diff
         run: |
-          git status --porcelain ${{ matrix.output }} | grep -q . \
+          git status --porcelain ${{ matrix.outputs }} | grep -q . \
             && echo "changed=true" >> "$GITHUB_OUTPUT" \
             || echo "changed=false" >> "$GITHUB_OUTPUT"
 
-      - name: Commit updated dsl.${{ matrix.sdk }}.md
+      - name: Commit updated DSL file(s)
         if: steps.diff.outputs.changed == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ${{ matrix.output }}
-          git commit -m "chore: regenerate dsl.${{ matrix.sdk }}.md from pact-${{ matrix.sdk }}"
+          git add ${{ matrix.outputs }}
+          git commit -m "chore: regenerate dsl.${{ matrix.sdk }}.md from ${{ matrix.repo }}"
           git push

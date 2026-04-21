@@ -1,11 +1,4 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#   "tree-sitter>=0.23",
-#   "tree-sitter-python>=0.23",
-# ]
-# ///
+#!/usr/bin/env -S uv run --project scripts/generate
 """
 Clone pact-python and generate dsl.python.md from its source.
 
