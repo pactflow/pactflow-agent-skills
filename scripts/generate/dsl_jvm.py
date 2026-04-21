@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -25,16 +24,9 @@ import tree_sitter_kotlin as tskotlin
 import tree_sitter_java as tsjava
 from tree_sitter import Language, Node, Parser
 
+from _common import REFERENCES_DIR, clone_shallow
+
 REPO_URL = "https://github.com/pact-foundation/pact-jvm.git"
-REPO_ROOT = Path(__file__).resolve().parents[2]
-REFERENCES_DIR = (
-    REPO_ROOT
-    / "plugins"
-    / "swagger-contract-testing"
-    / "skills"
-    / "pactflow"
-    / "references"
-)
 DEST_KOTLIN = REFERENCES_DIR / "dsl.kotlin.md"
 DEST_JAVA = REFERENCES_DIR / "dsl.java.md"
 
@@ -462,20 +454,6 @@ def build_java_doc(repo: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _clone(ref: str, dest: Path) -> None:
-    subprocess.run(
-        [
-            "git",
-            "clone",
-            "--depth=1",
-            f"--branch={ref}",
-            REPO_URL,
-            str(dest),
-        ],
-        check=True,
-    )
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -516,7 +494,7 @@ def main() -> int:
     else:
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "pact-jvm"
-            _clone(args.ref, repo)
+            clone_shallow(REPO_URL, args.ref, repo)
             kotlin_doc = build_kotlin_doc(repo)
             java_doc = build_java_doc(repo)
 

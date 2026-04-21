@@ -14,27 +14,15 @@ Usage (from repo root):
 
 from __future__ import annotations
 
-import argparse
-import os
-import subprocess
-import sys
-import tempfile
 from pathlib import Path
 
 import tree_sitter_swift as tsswift
 from tree_sitter import Language, Node, Parser
 
+from _common import REFERENCES_DIR, clone_shallow, run_main
+
 REPO_URL = "https://github.com/surpher/PactSwift.git"
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEST_PATH = (
-    REPO_ROOT
-    / "plugins"
-    / "swagger-contract-testing"
-    / "skills"
-    / "pactflow"
-    / "references"
-    / "dsl.swift.md"
-)
+DEST_PATH = REFERENCES_DIR / "dsl.swift.md"
 
 _LANGUAGE = Language(tsswift.language())
 _PARSER = Parser(_LANGUAGE)
@@ -829,73 +817,5 @@ def build_doc(repo: Path) -> str:
     return "\n\n".join(s for s in sections if s).rstrip() + "\n"
 
 
-# ---------------------------------------------------------------------------
-# CLI / entrypoint
-# ---------------------------------------------------------------------------
-
-
-def _clone(ref: str, dest: Path) -> None:
-    subprocess.run(
-        [
-            "git",
-            "clone",
-            "--depth=1",
-            f"--branch={ref}",
-            REPO_URL,
-            str(dest),
-        ],
-        check=True,
-    )
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--ref",
-        default=os.environ.get("PACT_SWIFT_REF", "main"),
-        help="Branch or tag to clone (default: $PACT_SWIFT_REF or 'main')",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=DEST_PATH,
-        help=f"Output path (default: {DEST_PATH})",
-    )
-    parser.add_argument(
-        "--check",
-        action="store_true",
-        help="Exit 1 if the output file would change (CI mode)",
-    )
-    parser.add_argument(
-        "--local-repo",
-        type=Path,
-        default=None,
-        metavar="PATH",
-        help="Use a local checkout instead of cloning (for development)",
-    )
-    args = parser.parse_args()
-
-    if args.local_repo:
-        repo = args.local_repo.resolve()
-        doc = build_doc(repo)
-    else:
-        with tempfile.TemporaryDirectory() as tmp:
-            repo = Path(tmp) / "PactSwift"
-            _clone(args.ref, repo)
-            doc = build_doc(repo)
-
-    if args.check:
-        existing = args.output.read_text() if args.output.exists() else ""
-        if doc != existing:
-            print(f"[check] {args.output} is out of date — run the generator to update", file=sys.stderr)
-            sys.exit(1)
-        print(f"[check] {args.output} is up to date")
-        return
-
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(doc)
-    print(f"Wrote {args.output}")
-
-
 if __name__ == "__main__":
-    main()
+    run_main(build_doc, DEST_PATH, REPO_URL, "PactSwift", "PACT_SWIFT_REF", "main", __doc__)

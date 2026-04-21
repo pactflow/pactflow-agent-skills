@@ -29,17 +29,10 @@ if TYPE_CHECKING:
 import tree_sitter_python as tspython
 from tree_sitter import Language, Node, Parser
 
+from _common import REFERENCES_DIR
+
 REPO_URL = "https://github.com/pact-foundation/pact-python.git"
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEST_PATH = (
-    REPO_ROOT
-    / "plugins"
-    / "swagger-contract-testing"
-    / "skills"
-    / "pactflow"
-    / "references"
-    / "dsl.python.md"
-)
+DEST_PATH = REFERENCES_DIR / "dsl.python.md"
 
 _LANGUAGE = Language(tspython.language())
 _BUILTIN_PREFIX = re.compile(r"\bbuiltins\.")

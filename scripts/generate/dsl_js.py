@@ -25,16 +25,9 @@ from pathlib import Path
 import tree_sitter_typescript as tsts
 from tree_sitter import Language, Node, Parser
 
+from _common import REFERENCES_DIR
+
 REPO_URL = "https://github.com/pact-foundation/pact-js.git"
-REPO_ROOT = Path(__file__).resolve().parents[2]
-REFERENCES_DIR = (
-    REPO_ROOT
-    / "plugins"
-    / "swagger-contract-testing"
-    / "skills"
-    / "pactflow"
-    / "references"
-)
 DEST_TS = REFERENCES_DIR / "dsl.typescript.md"
 DEST_JS = REFERENCES_DIR / "dsl.javascript.md"
 
