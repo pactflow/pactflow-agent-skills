@@ -50,6 +50,7 @@ DEST_PATH = (
 
 _LANGUAGE = Language(tspython.language())
 _BUILTIN_PREFIX = re.compile(r"\bbuiltins\.")
+_SKIP_NODE_TYPES = {"newline", "indent", "dedent", "comment", "pass_statement"}
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +65,6 @@ def _clone(ref: str) -> Path:
     subprocess.run(
         ["git", "clone", "--depth=1", "--branch", ref, REPO_URL, str(tmp)],
         check=True,
-        capture_output=True,
     )
     return tmp
 
@@ -85,6 +85,11 @@ def _parse_file(path: Path) -> tuple[bytes, Node]:
 
 def _text(source: bytes, node: Node) -> str:
     return source[node.start_byte : node.end_byte].decode("utf-8")
+
+
+def _field_text(source: bytes, node: Node, field: str) -> str:
+    child = node.child_by_field_name(field)
+    return _text(source, child) if child else ""
 
 
 def _norm(text: str) -> str:
@@ -118,8 +123,7 @@ def _find_class(source: bytes, root: Node, class_name: str) -> Node | None:
         elif child.type == "class_definition":
             candidate = child
         if candidate and candidate.type == "class_definition":
-            name_node = candidate.child_by_field_name("name")
-            if name_node and _text(source, name_node) == class_name:
+            if _field_text(source, candidate, "name") == class_name:
                 return candidate
     return None
 
@@ -128,17 +132,14 @@ def _module_funcs(source: bytes, root: Node) -> dict[str, tuple[Node, list[str]]
     """Return {name: (func_node, decorators)} for top-level functions."""
     result: dict[str, tuple[Node, list[str]]] = {}
     for func_node, decorators in _iter_items(source, root):
-        name_node = func_node.child_by_field_name("name")
-        if name_node:
-            name = _text(source, name_node)
-            if name not in result:
-                result[name] = (func_node, decorators)
+        name = _field_text(source, func_node, "name")
+        if name and name not in result:
+            result[name] = (func_node, decorators)
     return result
 
 
 def _should_skip(source: bytes, func_node: Node, decorators: list[str]) -> bool:
-    name_node = func_node.child_by_field_name("name")
-    name = _text(source, name_node) if name_node else ""
+    name = _field_text(source, func_node, "name")
     if name.startswith("_") and name != "__init__":
         return True
     return any(d in ("overload", "deprecated") for d in decorators)
@@ -151,7 +152,7 @@ def _is_trivial_alias(source: bytes, func_node: Node) -> bool:
         return False
     stmts = []
     for child in body.children:
-        if child.type in ("newline", "indent", "dedent", "comment", "pass_statement"):
+        if child.type in _SKIP_NODE_TYPES:
             continue
         if (
             child.type == "expression_statement"
@@ -204,8 +205,7 @@ def _fmt_sig(
     indent: int = 0,
     name_prefix: str = "",
 ) -> str:
-    name_node = func_node.child_by_field_name("name")
-    name = _text(source, name_node) if name_node else "?"
+    name = _field_text(source, func_node, "name") or "?"
     full_name = f"{name_prefix}.{name}" if name_prefix else name
     params = _format_params(source, func_node.child_by_field_name("parameters"))
     ret_node = func_node.child_by_field_name("return_type")
@@ -296,8 +296,7 @@ def _class_block(
         return "\n".join(lines)
     seen: set[str] = set()
     for func_node, decorators in _iter_items(source, body):
-        name_node = func_node.child_by_field_name("name")
-        name = _text(source, name_node) if name_node else ""
+        name = _field_text(source, func_node, "name")
         if name in seen or _should_skip(source, func_node, decorators):
             continue
         if skip_init and name == "__init__":
@@ -556,11 +555,9 @@ def _extract_func_source(path: Path, func_names: list[str]) -> list[str]:
         elif child.type == "function_definition":
             func_node = child
         if func_node and func_node.type == "function_definition":
-            name_node = func_node.child_by_field_name("name")
-            if name_node:
-                name = _text(source, name_node)
-                if name in target and name not in found:
-                    found[name] = _text(source, outer)
+            name = _field_text(source, func_node, "name")
+            if name in target and name not in found:
+                found[name] = _text(source, outer)
     return [found[n] for n in func_names if n in found]
 
 
