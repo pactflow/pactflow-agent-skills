@@ -269,6 +269,7 @@ def _const_spec_text(src: bytes, spec_node: Node) -> str | None:
         return None
     # Return the raw spec text (e.g. "V2 SpecificationVersion = \"2.0.0\"")
     raw = _text(src, spec_node)
+    raw = re.sub(r"`[^`]*`", "", raw)  # Strip raw string literals (contain backticks)
     return "\t" + " ".join(raw.split())
 
 
@@ -297,6 +298,7 @@ def _var_spec_text(src: bytes, spec_node: Node) -> str | None:
     if not _is_exported(name):
         return None
     raw = _text(src, spec_node)
+    raw = re.sub(r"`[^`]*`", "", raw)  # Strip raw string literals (contain backticks)
     return "var " + " ".join(raw.split())
 
 
