@@ -127,6 +127,7 @@ jobs:
       - name: Open pull request if changed
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: regenerate DSL references"
           branch: chore/regenerate-dsl-references
           delete-branch: true
