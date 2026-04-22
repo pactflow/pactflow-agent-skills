@@ -491,6 +491,46 @@ describe('GET /dogs', () => {
     // We need to setup two interactions in Pact to handle this
 
     // TODO: This would be more ergonomic, if we could chain adding a new
+    // V4UnconfiguredInteraction to a V4InteractionWithResponse
+    provider
+      .addInteraction()
+      .given('I have a list of dogs with {id}', { id: 1 })
+      .uponReceiving('a request for all dogs with the builder pattern')
+      .withRequest('GET', '/dogs', (builder) => {
+        builder.query({ from: 'today' });
+        builder.headers({ Accept: 'application/json' });
+      })
+      .willRespondWith(200, (builder) => {
+        builder.headers({ 'Content-Type': 'application/json' });
+        builder.jsonBody(EXPECTED_BODY);
+      });
+
+    await provider
+      .addInteraction()
+      .given('I have a list of dogs')
+      .uponReceiving('a request for for a dog profile with the builder pattern')
+      .withRequest('GET', `/dogs/1/profile`, (builder) => {
+        builder.headers({ Accept: 'application/json' });
+      })
+      .willRespondWith(200, (builder) => {
+        builder.headers({ 'Content-Type': 'application/json' });
+        builder.jsonBody(EXPECTED_DOG_PROFILE_BODY);
+      }) // TODO: Ideally we could call addInteraction() here again
+      .executeTest(async (mockserver) => {
+        // Act: test our API client behaves correctly
+        //
+        // Note we configure the DogService API client dynamically to
+        // point to the mock service Pact created for us, instead of
+        // the real one
+        dogService = new DogService({ url: mockserver.url });
+        const response = await dogService.getDogProfile(1, 'today');
+
+        // Assert: check the result
+        expect(response.data).to.deep.eq(EXPECTED_DOG_PROFILE_BODY.value);
+        return response;
+      });
+  });
+});
 ```
 
 ______________________________________________________________________
@@ -580,4 +620,41 @@ describe('Pact Verification', () => {
         {
           matchingBranch: true,
         },
+        {
+          mainBranch: true,
+        },
+        {
+          deployedOrReleased: true,
+        },
+      ],
+      enablePending: true,
+
+      // Specific Remote pacts (doesn't need to be a broker)
+      // pactUrls: ['https://test.pactflow.io/pacts/provider/Animal%20Profile%20Service/consumer/Matching%20Service/latest'],
+      // Local pacts
+      // pactUrls: [
+      //   path.resolve(
+      //     process.cwd(),
+      //     './pacts/Matching Service V3-Animal Profile Service V3.json'
+      //   ),
+      // ],
+
+      // If you're using the open source Pact Broker, use the username/password option as per below
+      // pactBrokerUsername: process.env.PACT_BROKER_USERNAME
+      // pactBrokerPassword: process.env.PACT_BROKER_PASSWORD
+      //
+      // if you're using a PactFlow broker, you must authenticate using the bearer token option
+      // You can obtain the token from https://<your broker>.pactflow.io/settings/api-tokens
+      pactBrokerToken: process.env.PACT_BROKER_TOKEN,
+      publishVerificationResult: true,
+      providerVersion: '1.0.0',
+    })
+      .verifyProvider()
+      .then((output) => {
+        console.log('Pact Verification Complete!');
+        console.log('Result:', output);
+        app.close();
+      });
+  });
+});
 ```
