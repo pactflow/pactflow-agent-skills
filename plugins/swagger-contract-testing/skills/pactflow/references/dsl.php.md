@@ -1,219 +1,316 @@
-While you already know this, here is a reminder of the Pact-PHP classes and methods you will need to use to create a Pact test in PHP (having omitted deprecated, unadvised and less important methods):
+While you already know this, here is a reminder of the key PhpPact classes, interfaces, and methods you will need to use to create a Pact test in PHP (having omitted deprecated and implementation-detail members):
 
-File: /src/PhpPact/Standalone/MockService/MockServerConfig.php
-```
-namespace PhpPact\Standalone\MockService;
+## Config
 
-class MockServerConfig
-  public function __construct()
-  public function getConsumer(): string
-  public function setConsumer(string $consumer): self
-  public function getProvider(): string
-  public function setProvider(string $provider): self
-  public function getHost(): string
-  public function setHost(string $host): self
-  public function getPort(): int
-  public function setPort(int $port): self
-  public function getPactDir(): string
-  public function setPactDir(string $pactDir): self
-  public function getLogDir(): string
-  public function setLogDir(string $logDir): self
-  public function getLogLevel(): string
-  public function setLogLevel(string $logLevel): self
-  public function getCors(): bool
-  public function setCors(bool $cors): self
-  public function getSpec(): int
-  public function setSpec(int $spec): self
-  public function getConsumerVersion(): string
-  public function setConsumerVersion(string $consumerVersion): self
+File: ./src/PhpPact/Config/PactConfigInterface.php
+
+```php
+interface PactConfigInterface
+{
+    function getConsumer(): string;
+    function setConsumer(string $consumer): self;
+    function getProvider(): string;
+    function setProvider(string $provider): self;
+    function getPactDir(): string;
+    function setPactDir(?string $pactDir): self;
+    function getPactSpecificationVersion(): string;
+    function setPactSpecificationVersion(string $pactSpecificationVersion): self;
+    function getLog(): ?string;
+    function setLog(string $log): self;
+    function getLogLevel(): ?string;
+    function setLogLevel(string $logLevel): self;
+    function getPactFileWriteMode(): WriteMode;
+    function setPactFileWriteMode(string|WriteMode $pactFileWriteMode): self;
+}
 ```
 
-File: /src/PhpPact/Consumer/InteractionBuilder.php
-```
-namespace PhpPact\Consumer;
+File: ./src/PhpPact/Standalone/MockService/MockServerConfigInterface.php
 
-class InteractionBuilder implements BuilderInterface
-  public function __construct(MockServerEnvConfig $config);
-  public function given(string $state, array $params = [], bool $overwrite = false): BuilderInterface;
-  public function uponReceiving(string $description): BuilderInterface;
-  public function with(array $request): BuilderInterface;
-  public function willRespondWith(array $response): BuilderInterface;
-  public function build(): bool;
-  public function getInteraction(): Interaction;
-```
-
-File: /src/PhpPact/Config/Config.php
-```
-namespace PhpPact\Config;
-
-class Config implements ConfigInterface
-    public function __construct(string $consumer, string $provider);
-    public function getPactDir(): string;
-    public function setPactDir(string $pactDir): self;
-    public function getLogDir(): string;
-    public function setLogDir(string $logDir): self;
-    public function getLogLevel(): string;
-    public function setLogLevel(string $logLevel): self;
-    public function getSpecificationVersion(): string;
-    public function setSpecificationVersion(string $specificationVersion): self;
-    public function getConsumer(): string;
-    public function getProvider(): string;
+```php
+interface MockServerConfigInterface extends PactConfigInterface
+{
+    function getHost(): string;
+    function setHost(string $host): self;
+    function getPort(): int;
+    function setPort(int $port): self;
+    function isSecure(): bool;
+    function setSecure(bool $secure): self;
+    function getBaseUri(): UriInterface;
+}
 ```
 
-File: /src/PhpPact/Consumer/Matcher/Matcher.php
-```
-namespace PhpPact\Consumer\Matcher;
+## Matchers
 
+File: ./src/PhpPact/Consumer/Matcher/Matcher.php
+
+```php
 class Matcher
-  public static function regex(string $value, string $regex): array;
-  public static function like($value): array;
-  public static function eachLike($value, int $min = 1): array;
-  public static function integer(int $value): array;
-  public static function decimal(float $value): array;
-  public static function boolean(bool $value): array;
-  public static function timestamp(string $format = null, string $timestamp = null): array;
-  public static function date(string $format = null, string $date = null): array;
-  public static function time(string $format = null, string $time = null): array;
+{
+    public function __construct(private readonly bool $plugin = false);
+    public function somethingLike(mixed $value): Type;
+    public function like(mixed $value): Type;
+    public function eachLike(mixed $value): MinType;
+    public function atLeastOneLike(mixed $value): MinType;
+    public function atLeastLike(mixed $value, int $min): MinType;
+    public function atMostLike(mixed $value, int $max): MaxType;
+    public function constrainedArrayLike(mixed $value, int $min, int $max): MinMaxType;
+    public function term(string|array|null $values, string $pattern): Regex;
+    public function regex(string|array|null $values, string $pattern): Regex;
+    public function dateISO8601(string $value = '2013-02-01'): Regex;
+    public function timeISO8601(string $value = 'T22:44:30.652Z'): Regex;
+    public function dateTimeISO8601(string $value = '2015-08-06T16:53:10+01:00'): Regex;
+    public function dateTimeWithMillisISO8601(string $value = '2015-08-06T16:53:10.123+01:00'): Regex;
+    public function timestampRFC3339(string $value = 'Mon, 31 Oct 2016 15:21:41 -0400'): Regex;
+    public function boolean(?bool $value = null): Type;
+    public function integer(?int $value = null): Type;
+    public function decimal(?float $value = null): Type;
+    public function booleanV3(?bool $value = null): Boolean;
+    public function integerV3(?int $value = null): Integer;
+    public function decimalV3(?float $value = null): Decimal;
+    public function hexadecimal(?string $value = null): Regex;
+    public function uuid(?string $value = null): Regex;
+    public function ipv4Address(?string $ip = '127.0.0.13'): Regex;
+    public function ipv6Address(?string $ip = '::ffff:192.0.2.128'): Regex;
+    public function email(?string $email = 'hello@pact.io'): Regex;
+    public function nullValue(): NullValue;
+    public function date(string $format = 'yyyy-MM-dd', ?string $value = null): Date;
+    public function time(string $format = 'HH:mm:ss', ?string $value = null): Time;
+    public function datetime(string $format = "yyyy-MM-dd'T'HH:mm:ss", ?string $value = null): DateTime;
+    public function string(?string $value = null): StringValue;
+    public function fromProviderState(MatcherInterface&GeneratorAwareInterface $matcher, string $expression): MatcherInterface&GeneratorAwareInterface;
+    public function equal(mixed $value): Equality;
+    public function includes(string $value): Includes;
+    public function number(int|float|null $value = null): Number;
+    public function arrayContaining(array $variants): ArrayContains;
+    public function notEmpty(mixed $value): NotEmpty;
+    public function semver(?string $value = null): Semver;
+    public function statusCode(string|HttpStatus $status, ?int $value = null): StatusCode;
+    public function values(array $values): Values;
+    public function contentType(string $contentType): ContentType;
+    public function eachKey(array|object $values, array $rules): EachKey;
+    public function eachValue(array|object $values, array $rules): EachValue;
+    public function url(string $url, string $regex, bool $useMockServerBasePath = true): Regex;
+    public function matchingField(string $fieldName): MatchingField;
+    public function matchAll(object|array $value, array $matchers): MatchAll;
+    public function atLeast(int $min): Min;
+    public function atMost(int $max): Max;
+}
 ```
 
-File: /src/PhpPact/Consumer/Model/ConsumerRequest.php
-```
-namespace PhpPact\Consumer\Model;
+## HTTP Consumer
 
-class ConsumerRequest
-  public function setMethod(string $method): self;
-  public function getMethod(): string;
-  public function setPath(string $path): self;
-  public function getPath(): string;
-  public function setQuery(string $query): self;
-  public function getQuery(): string;
-  public function setHeaders(array $headers): self;
-  public function getHeaders(): array;
-  public function setBody($body): self;
-  public function getBody();
+File: ./src/PhpPact/Consumer/BuilderInterface.php
+
+```php
+interface BuilderInterface
+{
+    function verify(): bool;
+}
 ```
 
-File: /src/PhpPact/Consumer/Model/ProviderResponse.php
-```
-namespace PhpPact\Consumer\Model;
+File: ./src/PhpPact/Consumer/InteractionBuilder.php
 
-class ProviderResponse
-  public function setStatus(int $status): self;
-  public function getStatus(): int;
-  public function setHeaders(array $headers): self;
-  public function getHeaders(): array;
-  public function setBody($body): self;
-  public function getBody();
-```
-
-File: /src/PhpPact/Consumer/Model/Interaction.php
-```
-namespace PhpPact\Consumer\Model;
-
-class Interaction
-  public function setDescription(string $description): self;
-  public function getDescription(): string;
-  public function setProviderState(string $providerState): self;
-  public function getProviderState(): string;
-  public function setRequest(ConsumerRequest $request): self;
-  public function getRequest(): ConsumerRequest;
-  public function setResponse(ProviderResponse $response): self;
-  public function getResponse(): ProviderResponse;
+```php
+class InteractionBuilder implements BuilderInterface
+{
+    public function __construct(MockServerConfigInterface $config, ?InteractionDriverFactoryInterface $driverFactory = null);
+    public function given(string $providerState, array $params = [], bool $overwrite = false): self;
+    public function uponReceiving(string $description): self;
+    public function with(ConsumerRequest $request): self;
+    public function willRespondWith(ProviderResponse $response, bool $startMockServer = true): bool;
+    public function verify(): bool;
+    public function key(?string $key): self;
+    public function pending(?bool $pending): self;
+    public function comments(array $comments): self;
+    public function comment(string $comment): self;
+}
 ```
 
-File: /src/PhpPact/Consumer/Matcher/Enum/HttpStatus.php
-```
-namespace PhpPact\Consumer\Matcher\Enum;
+File: ./src/PhpPact/Consumer/Model/Interaction/MethodTrait.php
 
-enum HttpStatus: int
-    case INFORMATION = 'info';
-    case SUCCESS = 'success';
-    case REDIRECT = 'redirect';
-    case CLIENT_ERROR = 'clientError';
-    case SERVER_ERROR = 'serverError';
-    case NON_ERROR = 'nonError';
-    case ERROR = 'error';
-
-    public function range(): Range
+```php
+trait MethodTrait
+{
+    public function getMethod(): string;
+    public function setMethod(string $method): self;
+}
 ```
 
-I'll also include a summary of the generator and matcher classes (omitting the file location and namespace for brevity):
+File: ./src/PhpPact/Consumer/Model/Interaction/PathTrait.php
 
+```php
+trait PathTrait
+{
+    public function getPath(): string;
+    public function setPath(MatcherInterface|string $path): self;
+}
 ```
-class ExpressionFormatter
-  public function format(string $expression): string;
-class JsonFormatter
-	public function format(array $data): string;
-class Date
-  public function generate(string $format = 'Y-m-d'): string;
-class DateTime
-	public function generate(string $format = ‘Y-m-d\TH:i:sP’): string;
-class MockServerURL
-  public function generate(): string;
-class ProviderState
-	public function generate(string $state): string;
-class RandomBoolean
-  public function generate(): bool;
-class RandomDecimal
-	public function generate(): float;
-class RandomHexadecimal
-  public function generate(int $length = 8): string;
-class RandomInt
-	public function generate(int $min = 0, int $max = PHP_INT_MAX): int;
-class RandomString
-  public function generate(int $length = 8): string;
-class Regex
-	public function generate(string $pattern): string;
-class Time
-  public function generate(string $format = 'H:i:s'): string;
-class Uuid
-  public function generate(): string;
-class ArrayContains
-  public function match(array $expected, array $actual): bool;
-class Boolean
-  public function match(bool $expected, $actual): bool;
-class ContentType
-  public function match(string $expected, string $actual): bool;
-class Date
-  public function match(string $expected, string $actual): bool;
-class DateTime
-  public function match(string $expected, string $actual): bool;
-class Decimal
-  public function match(float $expected, $actual): bool;
-class EachKey
-  public function match(array $expected, array $actual): bool;
-class EachValue
-  public function match(array $expected, array $actual): bool;
-class Equality
-  public function match($expected, $actual): bool;
-class Includes
-  public function match(string $expected, string $actual): bool;
-class Integer
-  public function match(int $expected, $actual): bool;
-class MatchAll
-  public function match(array $matchers, $actual): bool;
-class MatchingField
-  public function match($expected, $actual): bool;
-class Max
-  public function match($expected, $actual): bool;
-class MaxType
-  public function match($expected, $actual): bool;
-class Min
-  public function match($expected, $actual): bool;
-class MinMaxType
-  public function match($expected, $actual): bool;
-class MinType
-  public function match($expected, $actual): bool;
-class NotEmpty
-  public function match($actual): bool;
-class NullValue
-  public function match($actual): bool;
-class Number
-  public function match($expected, $actual): bool;
-class Regex
-  public function match(string $pattern, string $actual): bool;
-class Semver
-  public function match(string $expected, string $actual): bool;
-class StatusCode
-  public function match(int $expected, int $actual): bool;
+
+File: ./src/PhpPact/Consumer/Model/Interaction/QueryTrait.php
+
+```php
+trait QueryTrait
+{
+    public function getQuery(): array;
+    public function setQuery(array $query): self;
+    public function addQueryParameter(string $key, array|string|MatcherInterface|null $value): self;
+}
+```
+
+File: ./src/PhpPact/Consumer/Model/Interaction/HeadersTrait.php
+
+```php
+trait HeadersTrait
+{
+    public function getHeaders(): array;
+    public function setHeaders(array $headers): self;
+    public function addHeader(string $header, array|string|MatcherInterface $value): self;
+}
+```
+
+File: ./src/PhpPact/Consumer/Model/Interaction/BodyTrait.php
+
+```php
+trait BodyTrait
+{
+    public function getBody(): Text|Binary|Multipart|null;
+    public function setBody(mixed $body): self;
+}
+```
+
+File: ./src/PhpPact/Consumer/Model/Interaction/StatusTrait.php
+
+```php
+trait StatusTrait
+{
+    public function getStatus(): string;
+    public function setStatus(int|MatcherInterface $status): self;
+}
+```
+
+## Message Consumer
+
+File: ./src/PhpPact/Consumer/AbstractMessageBuilder.php
+
+```php
+abstract class AbstractMessageBuilder implements BuilderInterface
+{
+    public function __construct();
+    public function given(string $name, array $params = [], bool $overwrite = false): self;
+    public function expectsToReceive(string $description): self;
+    public function withMetadata(array $metadata): self;
+    public function withContent(mixed $contents): self;
+    public function key(?string $key): self;
+    public function pending(?bool $pending): self;
+    public function comments(array $comments): self;
+    public function comment(string $comment): self;
+}
+```
+
+File: ./src/PhpPact/Consumer/MessageBuilder.php
+
+```php
+class MessageBuilder extends AbstractMessageBuilder
+{
+    public function __construct(PactConfigInterface $config, ?MessageDriverFactoryInterface $driverFactory = null);
+    public function setCallback(callable $callback, ?string $description = null): self;
+    public function reify(): string;
+    public function verifyMessage(callable $callback, ?string $description = null): bool;
+    public function verify(): bool;
+}
+```
+
+File: ./src/PhpPact/SyncMessage/SyncMessageBuilder.php
+
+```php
+class SyncMessageBuilder extends AbstractMessageBuilder
+{
+    public function __construct(MockServerConfigInterface $config, ?SyncMessageDriverFactoryInterface $driverFactory = null);
+    public function registerMessage(): void;
+    public function verify(): bool;
+}
+```
+
+## Provider Verifier
+
+File: ./src/PhpPact/Standalone/ProviderVerifier/Verifier.php
+
+```php
+class Verifier
+{
+    public function __construct(VerifierConfigInterface $config, private readonly ?LoggerInterface $logger = null, ?ClientInterface $client = null);
+    public function addFile(string $file): self;
+    public function addDirectory(string $directory): self;
+    public function addUrl(UrlInterface $url): self;
+    public function addBroker(BrokerInterface $broker): self;
+    public function verify(): bool;
+}
+```
+
+File: ./src/PhpPact/Standalone/ProviderVerifier/Model/VerifierConfigInterface.php
+
+```php
+interface VerifierConfigInterface
+{
+    function setCallingApp(CallingAppInterface $callingApp): self;
+    function getCallingApp(): CallingAppInterface;
+    function setProviderInfo(ProviderInfoInterface $providerInfo): self;
+    function getProviderInfo(): ProviderInfoInterface;
+    function setProviderTransports(array $providerTransports): self;
+    function addProviderTransport(ProviderTransportInterface $providerTransport): self;
+    function getProviderTransports(): array;
+    function setFilterInfo(FilterInfoInterface $filterInfo): self;
+    function getFilterInfo(): FilterInfoInterface;
+    function setProviderState(ProviderStateInterface $providerState): self;
+    function getProviderState(): ProviderStateInterface;
+    function setPublishOptions(?PublishOptionsInterface $publishOptions): self;
+    function getPublishOptions(): ?PublishOptionsInterface;
+    function isPublishResults(): bool;
+    function setConsumerFilters(ConsumerFiltersInterface $consumerFilters): self;
+    function getConsumerFilters(): ConsumerFiltersInterface;
+    function setVerificationOptions(VerificationOptionsInterface $verificationOptions): self;
+    function getVerificationOptions(): VerificationOptionsInterface;
+    function getLogLevel(): ?string;
+    function setLogLevel(string $logLevel): self;
+    function setCustomHeaders(CustomHeadersInterface $customHeaders): self;
+    function getCustomHeaders(): CustomHeadersInterface;
+}
+```
+
+File: ./src/PhpPact/Standalone/ProviderVerifier/Model/Source/UrlInterface.php
+
+```php
+interface UrlInterface
+{
+    function getUrl(): UriInterface;
+    function setUrl(UriInterface $url): static;
+    function getToken(): ?string;
+    function setToken(?string $token): static;
+    function getUsername(): ?string;
+    function setUsername(string $username): static;
+    function getPassword(): ?string;
+    function setPassword(string $password): static;
+}
+```
+
+File: ./src/PhpPact/Standalone/ProviderVerifier/Model/Source/BrokerInterface.php
+
+```php
+interface BrokerInterface extends UrlInterface
+{
+    function setEnablePending(bool $enablePending): self;
+    function isEnablePending(): bool;
+    function setIncludeWipPactSince(?string $date): self;
+    function getIncludeWipPactSince(): ?string;
+    function getProviderTags(): array;
+    function setProviderTags(array $providerTags): self;
+    function addProviderTag(string $providerTag): self;
+    function getProviderBranch(): ?string;
+    function setProviderBranch(?string $providerBranch): self;
+    function getConsumerVersionSelectors(): ConsumerVersionSelectors;
+    function setConsumerVersionSelectors(ConsumerVersionSelectors $selectors): self;
+    function getConsumerVersionTags(): array;
+    function setConsumerVersionTags(array $consumerVersionTags): self;
+    function addConsumerVersionTag(string $consumerVersionTag): self;
+}
 ```
