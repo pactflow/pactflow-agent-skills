@@ -752,10 +752,10 @@ File: src/dsl/verifier/verifier.ts
 ```"""
 
 
-def _read_example(path: Path, max_lines: int = 80) -> str:
+def _read_example(path: Path) -> str:
     if not path.exists():
         return ""
-    return "\n".join(path.read_text(encoding="utf-8").splitlines()[:max_lines])
+    return path.read_text(encoding="utf-8").rstrip()
 
 
 def _section_examples(repo: Path, *, ts: bool = True) -> str:
