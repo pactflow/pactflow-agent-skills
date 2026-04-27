@@ -190,12 +190,12 @@ trait StatusTrait
 
 ## Message Consumer
 
-File: ./src/PhpPact/Consumer/AbstractMessageBuilder.php
+File: ./src/PhpPact/Consumer/MessageBuilder.php
 
 ```php
-abstract class AbstractMessageBuilder implements BuilderInterface
+class MessageBuilder implements BuilderInterface
 {
-    public function __construct();
+    public function __construct(PactConfigInterface $config, ?MessageDriverFactoryInterface $driverFactory = null);
     public function given(string $name, array $params = [], bool $overwrite = false): self;
     public function expectsToReceive(string $description): self;
     public function withMetadata(array $metadata): self;
@@ -204,15 +204,6 @@ abstract class AbstractMessageBuilder implements BuilderInterface
     public function pending(?bool $pending): self;
     public function comments(array $comments): self;
     public function comment(string $comment): self;
-}
-```
-
-File: ./src/PhpPact/Consumer/MessageBuilder.php
-
-```php
-class MessageBuilder extends AbstractMessageBuilder
-{
-    public function __construct(PactConfigInterface $config, ?MessageDriverFactoryInterface $driverFactory = null);
     public function setCallback(callable $callback, ?string $description = null): self;
     public function reify(): string;
     public function verifyMessage(callable $callback, ?string $description = null): bool;
@@ -223,9 +214,24 @@ class MessageBuilder extends AbstractMessageBuilder
 File: ./src/PhpPact/SyncMessage/SyncMessageBuilder.php
 
 ```php
-class SyncMessageBuilder extends AbstractMessageBuilder
+class SyncMessageBuilder implements BuilderInterface
 {
     public function __construct(MockServerConfigInterface $config, ?SyncMessageDriverFactoryInterface $driverFactory = null);
+    public function given(string $name, array $params = [], bool $overwrite = false): self;
+    public function expectsToReceive(string $description): self;
+    public function withMetadata(array $metadata): self;
+    public function withContent(mixed $contents): self;
+    public function key(?string $key): self;
+    public function pending(?bool $pending): self;
+    public function comments(array $comments): self;
+    public function comment(string $comment): self;
+    public function withRequestContents(mixed $requestContents): self;
+    public function withResponseContentsList(array $contentsList): self;
+    public function withResponseContents(array $responseContents): self;
+    public function withRequestMatchingRules(string $requestMatchingRules): self;
+    public function withResponseMatchingRules(string $responseMatchingRules): self;
+    public function withRequestGenerators(string $requestGenerators): self;
+    public function withResponseGenerators(string $responseGenerators): self;
     public function registerMessage(): void;
     public function verify(): bool;
 }
