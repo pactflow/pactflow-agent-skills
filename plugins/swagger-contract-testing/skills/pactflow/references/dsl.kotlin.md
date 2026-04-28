@@ -897,3 +897,9 @@ class PactVerificationContext@JvmOverloads constructor(
 }
 ```
 
+Classes: Any): PactVerificationContext
+    fun addStateChangeHandlers(vararg stateClasses: Any)
+    fun addAdditionalTarget(target: TestTarget)
+    fun currentTarget(): TestTarget?
+}
+```
