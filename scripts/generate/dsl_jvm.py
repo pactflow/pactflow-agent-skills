@@ -131,6 +131,15 @@ def _kt_is_annotation_class(src: bytes, node: Node) -> bool:
     )
 
 
+def _kt_indent_kdoc(kdoc: str, indent: str = "    ") -> str:
+    """Re-indent a KDoc block to *indent*."""
+    lines = []
+    for line in kdoc.splitlines():
+        stripped = line.strip()
+        lines.append(f"{indent}{stripped}" if stripped else "")
+    return "\n".join(lines)
+
+
 def _kt_class_block(src: bytes, node: Node, include_companion: bool = False) -> str | None:
     """
     Format a Kotlin class_declaration as a code block.
@@ -160,20 +169,35 @@ def _kt_class_block(src: bytes, node: Node, include_companion: bool = False) -> 
     members: list[str] = []
 
     if body:
+        last_kdoc: str | None = None
         for child in body.children:
-            if child.type == "function_declaration":
+            if child.type == "multiline_comment":
+                text = _text(src, child)
+                last_kdoc = text if text.startswith("/**") else None
+            elif child.type == "function_declaration":
                 sig = _kt_fun_sig(src, child)
                 if sig:
+                    if last_kdoc:
+                        members.append(_kt_indent_kdoc(last_kdoc))
                     members.append(sig)
+                last_kdoc = None
             elif child.type == "companion_object" and include_companion:
+                last_kdoc = None
                 comp_body = next((c for c in child.children if c.type == "class_body"), None)
                 if comp_body:
                     comp_funs: list[str] = []
+                    comp_last_kdoc: str | None = None
                     for fn in comp_body.children:
-                        if fn.type == "function_declaration":
+                        if fn.type == "multiline_comment":
+                            text = _text(src, fn)
+                            comp_last_kdoc = text if text.startswith("/**") else None
+                        elif fn.type == "function_declaration":
                             sig = _kt_fun_sig(src, fn, indent="        ")
                             if sig:
+                                if comp_last_kdoc:
+                                    comp_funs.append(_kt_indent_kdoc(comp_last_kdoc, "        "))
                                 comp_funs.append(sig)
+                            comp_last_kdoc = None
                     if comp_funs:
                         members.append("    companion object {")
                         members.extend(comp_funs)
