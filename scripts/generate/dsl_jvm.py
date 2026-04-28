@@ -171,7 +171,7 @@ def _kt_class_block(src: bytes, node: Node, include_companion: bool = False) -> 
     if body:
         last_kdoc: str | None = None
         for child in body.children:
-            if child.type == "multiline_comment":
+            if child.type == "block_comment":
                 text = _text(src, child)
                 last_kdoc = text if text.startswith("/**") else None
             elif child.type == "function_declaration":
@@ -188,7 +188,7 @@ def _kt_class_block(src: bytes, node: Node, include_companion: bool = False) -> 
                     comp_funs: list[str] = []
                     comp_last_kdoc: str | None = None
                     for fn in comp_body.children:
-                        if fn.type == "multiline_comment":
+                        if fn.type == "block_comment":
                             text = _text(src, fn)
                             comp_last_kdoc = text if text.startswith("/**") else None
                         elif fn.type == "function_declaration":
