@@ -17,6 +17,7 @@ keywords:
   - consumer test
   - service compatibility
   - api conformance
+author: Kevin Rohan Vaz
 ---
 
 # Swagger Contract Testing
