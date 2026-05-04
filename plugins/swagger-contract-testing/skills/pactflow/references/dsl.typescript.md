@@ -14,14 +14,14 @@ class PactV3 {
     given(providerState: string, parameters?: JsonMap): PactV3;
     uponReceiving(description: string): PactV3;
     withRequest(req: V3Request): PactV3;
-    withRequestBinaryFile( req: V3Request, contentType: string, file: string ): PactV3;
+    withRequestBinaryFile( req: V3Request, contentType: string, file: string, ): PactV3;
     withRequestMatchingRules(req: V3Request, rules: Rules): PactV3;
     withResponseMatchingRules(req: V3Request, rules: Rules): PactV3;
-    withRequestMultipartFileUpload( req: V3Request, contentType: string, file: string, mimePartName: string, boundary?: string ): PactV3;
+    withRequestMultipartFileUpload( req: V3Request, contentType: string, file: string, mimePartName: string, boundary?: string, ): PactV3;
     willRespondWith(res: V3Response): PactV3;
-    withResponseBinaryFile( res: V3Response, contentType: string, file: string ): PactV3;
-    withResponseMultipartFileUpload( res: V3Response, contentType: string, file: string, mimePartName: string, boundary?: string ): PactV3;
-    executeTest<T>( testFn: (mockServer: V3MockServer) => Promise<T> ): Promise<T | undefined>;
+    withResponseBinaryFile( res: V3Response, contentType: string, file: string, ): PactV3;
+    withResponseMultipartFileUpload( res: V3Response, contentType: string, file: string, mimePartName: string, boundary?: string, ): PactV3;
+    executeTest<T>( testFn: (mockServer: V3MockServer) => Promise<T>, ): Promise<T | undefined>;
 }
 ```
 
@@ -31,13 +31,13 @@ File: src/v3/matchers.ts
 // import { MatchersV3 } from "@pact-foundation/pact";
 namespace MatchersV3 {
     const like: <T>(template: T) => Matcher<T>;
-    const eachKeyMatches: ( example: Record<string, unknown>, matchers: Matcher<string> | Matcher<string>[] = like('key') ) => RulesMatcher<unknown>;
-    const eachValueMatches: <T>( example: Record<string, T>, matchers: Matcher<T> | Matcher<T>[] ) => RulesMatcher<T>;
+    const eachKeyMatches: ( example: Record<string, unknown>, matchers: Matcher<string> | Matcher<string>[] = like('key'), ) => RulesMatcher<unknown>;
+    const eachValueMatches: <T>( example: Record<string, T>, matchers: Matcher<T> | Matcher<T>[], ) => RulesMatcher<T>;
     const eachLike: <T>(template: T, min = 1) => MinLikeMatcher<T[]>;
-    const atLeastOneLike: <T>( template: T, count = 1 ) => MinLikeMatcher<T[]>;
-    const atLeastLike: <T>( template: T, min: number, count?: number ) => MinLikeMatcher<T[]>;
-    const atMostLike: <T>( template: T, max: number, count?: number ) => MaxLikeMatcher<T[]>;
-    const constrainedArrayLike: <T>( template: T, min: number, max: number, count?: number ) => MinLikeMatcher<T[]> & MaxLikeMatcher<T[]>;
+    const atLeastOneLike: <T>( template: T, count = 1, ) => MinLikeMatcher<T[]>;
+    const atLeastLike: <T>( template: T, min: number, count?: number, ) => MinLikeMatcher<T[]>;
+    const atMostLike: <T>( template: T, max: number, count?: number, ) => MaxLikeMatcher<T[]>;
+    const constrainedArrayLike: <T>( template: T, min: number, max: number, count?: number, ) => MinLikeMatcher<T[]> & MaxLikeMatcher<T[]>;
     const boolean: (b = true) => Matcher<boolean>;
     const integer: (int?: number) => Matcher<number>;
     const decimal: (num?: number) => Matcher<number>;
@@ -52,10 +52,10 @@ namespace MatchersV3 {
     function date(format: string, example: string): DateTimeMatcher;
     function includes(value: string): Matcher<string>;
     function nullValue(): Matcher<null>;
-    function url2( basePath: string | null, pathFragments: Array<string | V3RegexMatcher | RegExp> ): V3RegexMatcher;
-    function url( pathFragments: Array<string | V3RegexMatcher | RegExp> ): V3RegexMatcher;
+    function url2( basePath: string | null, pathFragments: Array<string | V3RegexMatcher | RegExp>, ): V3RegexMatcher;
+    function url( pathFragments: Array<string | V3RegexMatcher | RegExp>, ): V3RegexMatcher;
     function arrayContaining(...variants: unknown[]): ArrayContainsMatcher;
-    function fromProviderState<V>( expression: string, exampleValue: V ): ProviderStateInjectedValue<V>;
+    function fromProviderState<V>( expression: string, exampleValue: V, ): ProviderStateInjectedValue<V>;
     function uuid(example?: string): V3RegexMatcher;
     function reify(input: unknown): AnyJson;
 }
@@ -65,7 +65,7 @@ File: src/v3/xml/xmlBuilder.ts
 
 ```typescript
 class XmlBuilder {
-    constructor( version: string, charset: string, rootElement: string );
+    constructor(_version: string, _charset: string, rootElement: string);
     build(callback: (doc: XmlElement) => void): string;
 }
 ```
@@ -77,9 +77,9 @@ class XmlElement {
     constructor(name: string);
     setName(name: string): XmlElement;
     setAttributes(attributes: XmlAttributes): XmlElement;
-    appendElement( name: string, attributes: XmlAttributes, arg?: string | XmlCallback | Matcher<string> ): XmlElement;
+    appendElement( name: string, attributes: XmlAttributes, arg?: string | XmlCallback | Matcher<string>, ): XmlElement;
     appendText(content: string | Matcher<string>): XmlElement;
-    eachLike( name: string, attributes: XmlAttributes, cb?: XmlCallback, options: EachLikeOptions = { examples: 1 } ): XmlElement;
+    eachLike( name: string, attributes: XmlAttributes, cb?: XmlCallback, options: EachLikeOptions = { examples: 1 }, ): XmlElement;
 }
 
 interface EachLikeOptions {
@@ -98,7 +98,7 @@ File: src/v4/index.ts
 class PactV4 {
     constructor(opts: PactV4Options);
     addInteraction(): V4UnconfiguredInteraction;
-    addSynchronousInteraction( description: string ): V4UnconfiguredSynchronousMessage;
+    addSynchronousInteraction( description: string, ): V4UnconfiguredSynchronousMessage;
     addAsynchronousInteraction(): V4UnconfiguredAsynchronousMessage;
     addGraphQLInteraction(): V4UnconfiguredGraphQLInteraction;
 }
@@ -152,7 +152,7 @@ interface V4UnconfiguredInteraction {
   withRequest(
     method: string,
     path: Path,
-    builder?: V4RequestBuilderFunc
+    builder?: V4RequestBuilderFunc,
   ): V4InteractionWithRequest;
   usingPlugin(config: PluginConfig): V4InteractionWithPlugin;
 }
@@ -160,13 +160,13 @@ interface V4UnconfiguredInteraction {
 interface V4InteractionWithRequest {
   willRespondWith(
     status: number,
-    builder?: V4ResponseBuilderFunc
+    builder?: V4ResponseBuilderFunc,
   ): V4InteractionWithResponse;
 }
 
 interface V4InteractionWithResponse {
   executeTest<T>(
-    testFn: (mockServer: V4MockServer) => Promise<T>
+    testFn: (mockServer: V4MockServer) => Promise<T>,
   ): Promise<T | undefined>;
 }
 
@@ -179,7 +179,7 @@ interface V4RequestBuilder {
     contentType: string,
     filename: string,
     mimePartName: string,
-    boundary?: string
+    boundary?: string,
   ): V4RequestBuilder;
   matchingRules(rules: Rules): V4RequestBuilder;
   body(contentType: string, body: Buffer): V4RequestBuilder;
@@ -193,7 +193,7 @@ interface V4ResponseBuilder {
     contentType: string,
     filename: string,
     mimePartName: string,
-    boundary?: string
+    boundary?: string,
   ): V4ResponseBuilder;
   matchingRules(rules: Rules): V4ResponseBuilder;
   body(contentType: string, body: Buffer): V4ResponseBuilder;
@@ -211,13 +211,13 @@ interface V4UnconfiguredAsynchronousMessage {
   usingPlugin(config: PluginConfig): V4AsynchronousMessageWithPlugin;
   expectsToReceive(
     description: string,
-    contents: V4AsynchronousMessageBuilderFunc
+    contents: V4AsynchronousMessageBuilderFunc,
   ): V4AsynchronousMessageWithContent;
 }
 
 interface V4AsynchronousMessageWithContent {
   executeTest<T>(
-    integrationTest: (m: AsynchronousMessage) => Promise<T>
+    integrationTest: (m: AsynchronousMessage) => Promise<T>,
   ): Promise<T | undefined>;
 }
 
@@ -325,7 +325,7 @@ interface ProviderState {
   state: string;
 }
 type StateAction = 'setup' | 'teardown';
-type StateFunc = (parameters?: AnyJson) => Promise<JsonMap | void>;
+type StateFunc = (parameters?: AnyJson) => Promise<JsonMap | undefined>;
 type StateFuncWithSetup = {
   setup?: StateFunc;
   teardown?: StateFunc;
@@ -353,7 +353,7 @@ ______________________________________________________________________
 import * as chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import sinonChai from 'sinon-chai';
-import { PactV3, Matchers, LogLevel } from '@pact-foundation/pact';
+import { PactV3, Matchers, type LogLevel } from '@pact-foundation/pact';
 import { UserService } from '../index';
 const { like } = Matchers;
 const LOG_LEVEL = process.env.LOG_LEVEL || 'TRACE';
@@ -414,13 +414,13 @@ ______________________________________________________________________
 /* tslint:disable:no-unused-expression object-literal-sort-keys max-classes-per-file no-empty */
 import * as chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import * as path from 'path';
+import * as path from 'node:path';
 import sinonChai from 'sinon-chai';
 import {
   Pact,
   Matchers,
   SpecificationVersion,
-  LogLevel,
+  type LogLevel,
 } from '@pact-foundation/pact';
 
 const expect = chai.expect;
@@ -545,7 +545,6 @@ const chai = require('chai');
 const chaiAsPromised = require('chai-as-promised');
 chai.use(chaiAsPromised);
 const { server, importData, animalRepository } = require('../provider.js');
-const path = require('path');
 const LOG_LEVEL = process.env.LOG_LEVEL || 'INFO';
 
 const app = server.listen(8081, () => {
@@ -563,14 +562,14 @@ describe('Pact Verification', () => {
       logLevel: LOG_LEVEL,
       provider: 'Animal Profile Service V3',
       providerBaseUrl: 'http://localhost:8081',
-      requestFilter: (req, res, next) => {
+      requestFilter: (req, _res, next) => {
         console.log(
-          'Middleware invoked before provider API - injecting Authorization token'
+          'Middleware invoked before provider API - injecting Authorization token',
         );
-        req.headers['MY_SPECIAL_HEADER'] = 'my special value';
+        req.headers.MY_SPECIAL_HEADER = 'my special value';
 
         // e.g. ADD Bearer token
-        req.headers['authorization'] = `Bearer ${token}`;
+        req.headers.authorization = `Bearer ${token}`;
         next();
       },
 
