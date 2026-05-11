@@ -192,576 +192,78 @@ class Verifier {
 
 ---
 
-## V3 Consumer Test (Javascript)
+## V3 Consumer Test (TypeScript)
 
-> Source: [`examples/v3/e2e/test/consumer.spec.js`](examples/v3/e2e/test/consumer.spec.js)
+> Source: [`examples/provider-state/consumer.test.ts`](examples/provider-state/consumer.test.ts)
 
-```javascript
-const path = require('node:path');
-const chai = require('chai');
-const chaiAsPromised = require('chai-as-promised');
-const expect = chai.expect;
-const {
-  PactV3,
-  Matchers,
-  XmlBuilder,
-  SpecificationVersion,
-} = require('@pact-foundation/pact');
-const LOG_LEVEL = process.env.LOG_LEVEL || 'TRACE';
+```typescript
+/** biome-ignore-all lint/suspicious/noTemplateCurlyInString: ${...} is used internally by Pact */
+import path from 'node:path';
+import { type LogLevel, Matchers, PactV3 } from '@pact-foundation/pact';
+import { describe, expect, it } from 'vitest';
+import { AccountServiceClient } from './consumer';
 
-chai.use(chaiAsPromised);
+const { integer, string, fromProviderState } = Matchers;
 
-describe('Pact V3', () => {
-  // Alias flexible matchers for simplicity
-  const {
-    eachLike,
-    atLeastLike,
-    integer,
-    datetime,
-    boolean,
-    string,
-    regex,
-    like,
-    eachKeyLike,
-  } = Matchers;
-
-  // Animal we want to match :)
-  const suitor = {
-    id: 2,
-    available_from: '2017-12-04T14:47:18.582Z',
-    first_name: 'Nanny',
-    animal: 'goat',
-    last_name: 'Doe',
-    age: 27,
-    gender: 'F',
-    location: {
-      description: 'Werribee Zoo',
-      country: 'Australia',
-      post_code: 3000,
-    },
-    eligibility: {
-      available: true,
-      previously_married: true,
-    },
-    interests: ['walks in the garden/meadow', 'parkour'],
-  };
-
-  const MIN_ANIMALS = 2;
-
-  // Define animal payload, with flexible matchers
-  //
-  // This makes the test much more resilient to changes in actual data.
-  // Here we specify the 'shape' of the object that we care about.
-  // It is also import here to not put in expectations for parts of the
-  // API we don't care about
-  const animalBodyExpectation = {
-    id: integer(1),
-    available_from: datetime(
-      "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-      '2016-02-11T09:46:56.023Z',
-    ),
-    first_name: string('Billy'),
-    last_name: string('Goat'),
-    animal: string('goat'),
-    age: integer(21),
-    gender: regex('F|M', 'M'),
-    location: {
-      description: string('Melbourne Zoo'),
-      country: string('Australia'),
-      post_code: integer(3000),
-    },
-    eligibility: {
-      available: boolean(true),
-      previously_married: boolean(false),
-    },
-    interests: eachLike('walks in the garden/meadow'),
-    // This does not when verifying on the provider
-    // reproducing issue https://github.com/pact-foundation/pact-js/issues/662
-    identifiers: eachKeyLike('004', {
-      id: regex('[0-9]+', '004'),
-      description: like('thing'),
-    }),
-  };
-
-  // Define animal list payload, reusing existing object matcher
-  const animalListExpectation = atLeastLike(animalBodyExpectation, MIN_ANIMALS);
-
-  // Configure and import consumer API
-  // Note that we update the API endpoint to point at the Mock Service
-  const {
-    createMateForDates,
-    suggestion,
-    getAnimalById,
-    getAnimalsAsXML,
-    availableAnimals,
-  } = require('../consumer');
-
-  const provider = new PactV3({
-    consumer: 'Matching Service V3',
-    provider: 'Animal Profile Service V3',
+/**
+ * Consumer Pact tests for the Account Service, demonstrating provider states.
+ *
+ * Provider states serve two purposes:
+ * 1. Simple states ("an account exists") — tell the provider to create the
+ *    precondition before verifying this interaction.
+ * 2. Parameterised states ("an account with number {accountNumber} exists") —
+ *    pass data from the consumer to the provider's state handler, enabling
+ *    the handler to set up the exact data the interaction needs.
+ *
+ * `fromProviderState()` handles response values that the provider generates
+ * during state setup (e.g. a database auto-increment ID). The consumer
+ * defines a fallback example value for the mock; the provider substitutes the
+ * real generated value during verification.
+ */
+describe('AccountServiceClient', () => {
+  const pact = new PactV3({
+    consumer: 'AccountConsumer',
+    provider: 'AccountService',
     dir: path.resolve(process.cwd(), 'pacts'),
-    spec: SpecificationVersion.SPECIFICATION_VERSION_V3,
-    logLevel: LOG_LEVEL,
-    cors: true,
+    logLevel: (process.env.LOG_LEVEL as LogLevel) ?? 'warn',
   });
 
-  // Verify service client works as expected.
-  //
-  // Note that we don't call the consumer API endpoints directly, but
-  // use unit-style tests that test the collaborating function behaviour -
-  // we want to test the function that is calling the external service.
-  describe('when a call to list all animals from the Animal Service is made', () => {
-    describe('and the user is not authenticated', () => {
-      before(() =>
-        provider
-          .given('is not authenticated')
-          .uponReceiving('a request for all animals')
-          .withRequest({
-            method: 'GET',
-            path: '/animals/available',
-          })
-          .willRespondWith({
-            status: 401,
-          }),
-      );
-
-      it('returns a 401 unauthorized', () => {
-        return provider.executeTest((mockserver) => {
-          return expect(
-            suggestion(suitor, () => mockserver.url),
-          ).to.eventually.be.rejectedWith('Unauthorized');
-        });
+  it('fetches an account by account number — parameterised state + fromProviderState()', async () => {
+    pact
+      .given(
+        // Parameterised state: the account number is passed to the provider's
+        // state handler so it can seed exactly the account this interaction needs.
+        'an account with number {accountNumber} exists',
+        { accountNumber: 'ACC-001' },
+      )
+      .uponReceiving('a GET request for account ACC-001')
+      .withRequest({
+        method: 'GET',
+        path: '/accounts/ACC-001',
+        headers: { Accept: 'application/json' },
+      })
+      .willRespondWith({
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: {
+          // fromProviderState(): the provider generates this value during state
+          // setup (e.g. a database auto-increment). The consumer provides an
+          // example value for the mock response; the real value is substituted
+          // during provider verification via the state handler's return value.
+          id: fromProviderState('${accountId}', 42),
+          accountNumber: string('ACC-001'),
+          ownerName: string('Jane Smith'),
+          balance: integer(1000),
+        },
       });
-    });
-    describe('and the user is authenticated', () => {
-      describe('and there are animals in the database', () => {
-        it('returns a list of animals', () => {
-          provider
-            .given('is authenticated')
-            .given('Has some animals')
-            .uponReceiving('a request for all animals')
-            .withRequest({
-              method: 'GET',
-              path: '/animals/available',
-              headers: {
-                Authorization: regex('Bearer\\s[a-z0-9]+', 'Bearer token'),
-              },
-            })
-            .willRespondWith({
-              status: 200,
-              headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-              },
-              body: animalListExpectation,
-            });
 
-          return provider.executeTest((mockserver) => {
-            const suggestedMates = suggestion(suitor, () => mockserver.url);
-            return Promise.all([
-              expect(suggestedMates).to.eventually.have.deep.property(
-                'suggestions[0].score',
-                94,
-              ),
-              expect(suggestedMates)
-                .to.eventually.have.property('suggestions')
-                .with.lengthOf(MIN_ANIMALS),
-            ]);
-          });
-        });
-
-        it('returns a filtered list of animals', () => {
-          provider
-            .given('is authenticated')
-            .given('Has some animals')
-            .uponReceiving('a request for all animals filtered by query')
-            .withRequest({
-              method: 'GET',
-              path: '/animals/available',
-              headers: {
-                Authorization: regex('Bearer\\s[a-z0-9]+', 'Bearer token'),
-              },
-              query: {
-                first_name: 'Billy',
-              },
-            })
-            .willRespondWith({
-              status: 200,
-              headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-              },
-              body: eachLike({
-                id: integer(1),
-                available_from: datetime(
-                  "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-                  '2016-02-11T09:46:56.023Z',
-                ),
-                first_name: string('Billy'),
-                last_name: string('Goat'),
-                animal: string('goat'),
-                age: integer(21),
-                gender: regex('F|M', 'M'),
-                location: {
-                  description: string('Melbourne Zoo'),
-                  country: string('Australia'),
-                  post_code: integer(3000),
-                },
-                eligibility: {
-                  available: boolean(true),
-                  previously_married: boolean(false),
-                },
-                interests: eachLike('walks in the garden/meadow'),
-              }),
-            });
-          return provider.executeTest((mockserver) => {
-            return availableAnimals(() => mockserver.url, {
-              first_name: 'Billy',
-            }).then((available) => {
-              expect(available[0]).to.contain({ first_name: 'Billy' });
-              expect(available).to.have.lengthOf(1);
-            });
-          });
-        });
-        it('returns a filtered list of animals (query containing chinese characters)', () => {
-          provider
-            .given('is authenticated')
-            .given('Has some animals')
-            .uponReceiving(
-              'a request for all animals filtered by a query containing chinese characters',
-            )
-            .withRequest({
-              method: 'GET',
-              path: '/animals/available',
-              headers: {
-                Authorization: regex('Bearer\\s[a-z0-9]+', 'Bearer token'),
-              },
-              query: {
-                first_name: '比利',
-              },
-            })
-            .willRespondWith({
-              status: 200,
-              headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-              },
-              body: eachLike({
-                id: integer(1),
-                available_from: datetime(
-                  "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-                  '2016-02-11T09:46:56.023Z',
-                ),
-                first_name: string('比利'),
-                last_name: string('Goat'),
-                animal: string('goat'),
-                age: integer(21),
-                gender: regex('F|M', 'M'),
-                location: {
-                  description: string('Melbourne Zoo'),
-                  country: string('Australia'),
-                  post_code: integer(3000),
-                },
-                eligibility: {
-                  available: boolean(true),
-                  previously_married: boolean(false),
-                },
-                interests: eachLike('walks in the garden/meadow'),
-              }),
-            });
-          return provider.executeTest((mockserver) => {
-            return availableAnimals(() => mockserver.url, {
-              first_name: '比利',
-            }).then((available) => {
-              expect(available[0]).to.contain({ first_name: '比利' });
-              expect(available).to.have.lengthOf(1);
-            });
-          });
-        });
-        it('returns a filtered list of animals (query containing devanagari characters)', () => {
-          provider
-            .given('is authenticated')
-            .given('Has some animals')
-            .uponReceiving(
-              'a request for all animals filtered by a query containing devanagari characters',
-            )
-            .withRequest({
-              method: 'GET',
-              path: '/animals/available',
-              headers: {
-                Authorization: regex('Bearer\\s[a-z0-9]+', 'Bearer token'),
-              },
-              query: {
-                first_name: 'बिल्ली',
-              },
-            })
-            .willRespondWith({
-              status: 200,
-              headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-              },
-              body: eachLike({
-                id: integer(1),
-                available_from: datetime(
-                  "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-                  '2016-02-11T09:46:56.023Z',
-                ),
-                first_name: string('बिल्ली'),
-                last_name: string('Goat'),
-                animal: string('goat'),
-                age: integer(21),
-                gender: regex('F|M', 'M'),
-                location: {
-                  description: string('Melbourne Zoo'),
-                  country: string('Australia'),
-                  post_code: integer(3000),
-                },
-                eligibility: {
-                  available: boolean(true),
-                  previously_married: boolean(false),
-                },
-                interests: eachLike('walks in the garden/meadow'),
-              }),
-            });
-          return provider.executeTest((mockserver) => {
-            return availableAnimals(() => mockserver.url, {
-              first_name: 'बिल्ली',
-            }).then((available) => {
-              expect(available[0]).to.contain({ first_name: 'बिल्ली' });
-              expect(available).to.have.lengthOf(1);
-            });
-          });
-        });
-      });
-    });
-  });
-
-  describe('when a call to the Animal Service is made to retrieve a single animal by ID', () => {
-    describe('and there is an animal in the DB with ID 100', () => {
-      const responseBody = animalBodyExpectation;
-      responseBody.id = 100;
-
-      before(() =>
-        provider
-          .given('is authenticated')
-          .given('Has an animal with ID', {
-            id: 100,
-          })
-          .uponReceiving('a request for an animal with an ID')
-          .withRequest({
-            method: 'GET',
-            path: regex('/animals/[0-9]+', '/animals/100'),
-            headers: {
-              Authorization: regex('Bearer\\s[a-z0-9]+', 'Bearer token'),
-            },
-          })
-          .willRespondWith({
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-            },
-            body: responseBody,
-          }),
-      );
-
-      it('returns the animal', () => {
-        return provider.executeTest((mockserver) => {
-          const animal = getAnimalById(100, () => mockserver.url);
-
-          return expect(animal).to.eventually.have.deep.property('id', 100);
-        });
-      });
-    });
-
-    describe('and there no animals in the database', () => {
-      before(() =>
-        provider
-          .given('is authenticated')
-          .given('Has no animals')
-          .uponReceiving('a request for an animal by ID')
-          .withRequest({
-            method: 'GET',
-            path: regex('/animals/[0-9]+', '/animals/100'),
-            headers: {
-              Authorization: regex('Bearer\\s[a-z0-9]+', 'Bearer token'),
-            },
-          })
-          .willRespondWith({
-            status: 404,
-          }),
-      );
-
-      it('returns a 404', () => {
-        return provider.executeTest((mockserver) => {
-          const animal = getAnimalById(123, () => mockserver.url);
-
-          return expect(animal).to.eventually.be.a('null');
-        });
-      });
-    });
-  });
-
-  describe('when a call to the Animal Service is made to retrieve a single animal in text by ID', () => {
-    describe('and there is an animal in the DB with ID 100', () => {
-      before(() =>
-        provider
-          .given('is authenticated')
-          .given('Has an animal with ID', {
-            id: 100,
-          })
-          .uponReceiving('a request for an animal as text with an ID')
-          .withRequest({
-            method: 'GET',
-            path: regex('/animals/[0-9]+', '/animals/100'),
-
-            headers: {
-              Authorization: regex('Bearer\\s[a-z0-9]+', 'Bearer token'),
-              Accept: 'text/plain',
-            },
-          })
-          .willRespondWith({
-            status: 200,
-            headers: {
-              'Content-Type': 'text/plain; charset=utf-8',
-            },
-            body: 'id=100;first_name=Nanny;last_name=Doe;animal=goat',
-          }),
-      );
-
-      it('returns the animal', async () => {
-        return provider.executeTest(async (mockserver) => {
-          const animal = await getAnimalById(
-            100,
-            () => mockserver.url,
-            'text/plain',
-          );
-          return expect(animal).to.equal(
-            'id=100;first_name=Nanny;last_name=Doe;animal=goat',
-          );
-        });
-      });
-    });
-  });
-
-  describe('when a call to the Animal Service is made to create a new mate', () => {
-    before(() =>
-      provider
-        .given('is authenticated')
-        .uponReceiving('a request to create a new mate with JSON data')
-        .withRequest({
-          method: 'POST',
-          path: '/animals',
-          body: like(suitor),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        .willRespondWith({
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-          },
-          body: like(suitor),
-        }),
-    );
-
-    it('creates a new mate with JSON data', () => {
-      return provider.executeTest((mockserver) => {
-        return expect(createMateForDates(suitor, () => mockserver.url)).to
-          .eventually.be.fulfilled;
-      });
-    });
-  });
-
-  describe('when a call to the Animal Service is made to create a new mate using form-data body', () => {
-    before(() =>
-      provider
-        .given('is authenticated')
-        .uponReceiving(
-          'a request to create a new mate with x-www-form-urlencoded data',
-        )
-        .withRequest({
-          method: 'POST',
-          path: '/animals',
-          body: 'first_name=Nanny&last_name=Doe',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          contentType: 'application/x-www-form-urlencoded',
-        })
-        .willRespondWith({
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-          },
-          body: like({
-            id: 1,
-            first_name: 'Nanny',
-            last_name: 'Doe',
-          }),
-        }),
-    );
-
-    it('creates a new mate with application/x-www-form-urlencoded data', () => {
-      return provider.executeTest((mockserver) => {
-        return expect(
-          createMateForDates(
-            'first_name=Nanny&last_name=Doe',
-            () => mockserver.url,
-            'application/x-www-form-urlencoded',
-          ),
-        ).to.eventually.be.fulfilled;
-      });
-    });
-  });
-
-  describe('when a call to the Animal Service is made to get animals in XML format', () => {
-    before(() =>
-      provider
-        .given('is authenticated')
-        .given('Has some animals')
-        .uponReceiving('a request to get animals as XML')
-        .withRequest({
-          method: 'GET',
-          path: '/animals/available/xml',
-          headers: {
-            Authorization: regex('Bearer\\s[a-z0-9]+', 'Bearer token'),
-          },
-        })
-        .willRespondWith({
-          status: 200,
-          headers: {
-            'Content-Type': 'application/xml; charset=utf-8',
-          },
-          body: new XmlBuilder('1.0', 'UTF-8', 'animals').build((el) => {
-            el.eachLike('lion', {
-              id: integer(1),
-              available_from: datetime(
-                "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-                '2016-02-11T09:46:56.023Z',
-              ),
-              first_name: string('Slinky'),
-              last_name: string('Malinky'),
-              age: integer(27),
-              gender: regex('M|F', 'F'),
-            });
-            el.eachLike('goat', {
-              id: integer(3),
-              available_from: datetime(
-                "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-                '2016-02-11T09:46:56.023Z',
-              ),
-              first_name: string('Head'),
-              last_name: string('Butts'),
-              age: integer(27),
-              gender: regex('M|F', 'F'),
-            });
-          }),
-        }),
-    );
-
-    it('gets animals in XML format', () => {
-      return provider.executeTest((mockserver) => {
-        return expect(getAnimalsAsXML(() => mockserver.url)).to.eventually.be
-          .fulfilled;
-      });
+    return pact.executeTest(async (mockserver) => {
+      const client = new AccountServiceClient(mockserver.url);
+      const account = await client.getAccountByNumber('ACC-001');
+      // The mock returns the example value (42); the provider may return
+      // a different integer (e.g. 17) — the contract only checks the type.
+      expect(typeof account.id).toBe('number');
+      expect(account.accountNumber).toBe('ACC-001');
     });
   });
 });
@@ -771,128 +273,111 @@ describe('Pact V3', () => {
 
 ## V4 Consumer Test (TypeScript)
 
-> Source: [`examples/v4/typescript/test/get-dog.spec.ts`](examples/v4/typescript/test/get-dog.spec.ts)
+> Source: [`examples/http/consumer.test.ts`](examples/http/consumer.test.ts)
 
 ```typescript
-/* tslint:disable:no-unused-expression object-literal-sort-keys max-classes-per-file no-empty */
-import * as chai from 'chai';
-import chaiAsPromised from 'chai-as-promised';
-import * as path from 'node:path';
-import sinonChai from 'sinon-chai';
+import path from 'node:path';
 import {
-  Pact,
-  Matchers,
-  SpecificationVersion,
   type LogLevel,
+  Matchers,
+  Pact,
+  SpecificationVersion,
 } from '@pact-foundation/pact';
+import { describe, expect, it } from 'vitest';
+import { UserServiceClient } from './consumer';
 
-const expect = chai.expect;
-import { DogService } from '../src/index';
-const { eachLike } = Matchers;
+const { like, integer, eachLike } = Matchers;
 
-chai.use(sinonChai);
-chai.use(chaiAsPromised);
-const LOG_LEVEL = process.env.LOG_LEVEL || 'DEBUG';
-
-describe('GET /dogs', () => {
-  let dogService: DogService;
-
-  // Create a 'pact' between the two applications in the integration we are testing
-  const provider = new Pact({
+/**
+ * Consumer-side Pact tests for the User Service.
+ *
+ * Each test defines one interaction: the HTTP request this consumer sends
+ * and the minimum response it requires. Pact writes these to a pact file
+ * that the provider verifies separately (see provider.test.ts).
+ *
+ * Key principle: only assert what this consumer actually uses. Omit fields
+ * the consumer ignores — the provider is then free to change or add them
+ * without breaking this contract.
+ */
+describe('UserServiceClient', () => {
+  const pact = new Pact({
+    consumer: 'UserConsumer',
+    provider: 'UserProvider',
+    spec: SpecificationVersion.SPECIFICATION_VERSION_V4,
     dir: path.resolve(process.cwd(), 'pacts'),
-    consumer: 'Typescript Consumer Example V4',
-    provider: 'Typescript Provider Example',
-    spec: SpecificationVersion.SPECIFICATION_VERSION_V4, // Modify this as needed for your use case,
-    logLevel: LOG_LEVEL as LogLevel,
+    logLevel: (process.env.LOG_LEVEL as LogLevel) ?? 'warn',
   });
-  it('returns an HTTP 200 and a list of dogs', async () => {
-    const dogExample = { dog: 1 };
-    const EXPECTED_BODY = eachLike(dogExample);
 
-    // Arrange: Setup our expected interactions
-    //
-    // We use Pact to mock out the backend API
-    await provider
+  it('fetches a user by ID', async () => {
+    await pact
       .addInteraction()
-      .given('I have a list of dogs')
-      .uponReceiving('a request for all dogs with the builder pattern')
-      .withRequest('GET', '/dogs', (builder) => {
-        builder.query({ from: 'today' });
+      // Provider states name a precondition the provider must satisfy before
+      // this interaction is verified. The provider maps this exact string to
+      // setup code in its stateHandlers (see provider.test.ts).
+      //
+      // Note: hardcoding the ID 1 into this magic string is bad practice.
+      // Provider states with configurable values are recommended, as
+      // demonstrated in the provider-state example. It is used here for
+      // simplicity.
+      .given('a user with ID 1 exists')
+      .uponReceiving('a GET request for user 1')
+      .withRequest('GET', '/users/1', (builder) => {
         builder.headers({ Accept: 'application/json' });
       })
       .willRespondWith(200, (builder) => {
         builder.headers({ 'Content-Type': 'application/json' });
-        builder.jsonBody(EXPECTED_BODY);
+        // like() matches the shape and types of its argument, not the exact
+        // values. The values here are example data for the mock response.
+        // The contract enforces: id is an integer, name and email are strings.
+        // The provider may return { id: 42, name: 'Bob', email: 'b@example.com' }
+        // and the contract will still pass.
+        builder.jsonBody(
+          like({
+            id: integer(1),
+            name: like('Alice'),
+            email: like('alice@example.com'),
+          }),
+        );
       })
       .executeTest(async (mockserver) => {
-        // Act: test our API client behaves correctly
-        //
-        // Note we configure the DogService API client dynamically to
-        // point to the mock service Pact created for us, instead of
-        // the real one
-        dogService = new DogService({ url: mockserver.url });
-        const response = await dogService.getMeDogs('today');
-
-        // Assert: check the result
-        expect(response.data[0]).to.deep.eq(dogExample);
-        return response;
+        // A common pitfall here is to use a standard HTTP client to call the
+        // mock server directly. This bypasses the client code that is meant
+        // to be tested, and thus may not reflect the real consumer behaviour.
+        const client = new UserServiceClient(mockserver.url);
+        const user = await client.getUser(1);
+        // These assertions run against the mock's example values.
+        expect(user.id).toBe(1);
+        expect(user.name).toBe('Alice');
+        expect(user.email).toBe('alice@example.com');
       });
   });
-  it('returns a dog profile', async () => {
-    const dogExample = { dog: 1 };
-    const EXPECTED_BODY = eachLike(dogExample);
-    const EXPECTED_DOG_PROFILE_BODY = Matchers.like({
-      id: 1,
-      name: 'Fido',
-      age: 3,
-    });
 
-    // In this test, we make two http calls, in our SUT (System Under Test)
-    // we first call GET /dogs to get the list of dogs, then we call
-    // GET /dogs/1/profile to get the profile of dog 1
-    //
-    // We need to setup two interactions in Pact to handle this
-
-    // TODO: This would be more ergonomic, if we could chain adding a new
-    // V4UnconfiguredI
-    provider
-  V4InteractionWithResponse
-    provider
+  it('fetches all users', async () => {
+    await pact
       .addInteraction()
-      .given('I have a list of dogs with {id}', { id: 1 })
-      .uponReceiving('a request for all dogs with the builder pattern')
-      .withRequest('GET', '/dogs', (builder) => {
-        builder.query({ from: 'today' });
+      .given('users exist')
+      .uponReceiving('a GET request for all users')
+      .withRequest('GET', '/users', (builder) => {
         builder.headers({ Accept: 'application/json' });
       })
       .willRespondWith(200, (builder) => {
         builder.headers({ 'Content-Type': 'application/json' });
-        builder.jsonBody(EXPECTED_BODY);
-      });
-
-    await provider
-      .addInteraction()
-      .given('I have a list of dogs')
-      .uponReceiving('a request for for a dog profile with the builder pattern')
-      .withRequest('GET', `/dogs/1/profile`, (builder) => {
-        builder.headers({ Accept: 'application/json' });
+        // eachLike() means: respond with an array where every element matches
+        // this shape. The mock returns exactly one element; the contract
+        // enforces that the array is non-empty and each element has this shape.
+        builder.jsonBody(
+          eachLike({
+            id: integer(1),
+            name: like('Alice'),
+            email: like('alice@example.com'),
+          }),
+        );
       })
-      .willRespondWith(200, (builder) => {
-        builder.headers({ 'Content-Type': 'application/json' });
-        builder.jsonBody(EXPECTED_DOG_PROFILE_BODY);
-      }) // TODO: Ideally we could call addInteraction() here again
       .executeTest(async (mockserver) => {
-        // Act: test our API client behaves correctly
-        //
-        // Note we configure the DogService API client dynamically to
-        // point to the mock service Pact created for us, instead of
-        // the real one
-        dogService = new DogService({ url: mockserver.url });
-        const response = await dogService.getDogProfile(1, 'today');
-
-        // Assert: check the result
-        expect(response.data).to.deep.eq(EXPECTED_DOG_PROFILE_BODY.value);
-        return response;
+        const client = new UserServiceClient(mockserver.url);
+        const users = await client.getUsers();
+        expect(users.length).toBeGreaterThan(0);
+        expect(users[0].id).toBe(1);
       });
   });
 });
@@ -902,105 +387,58 @@ describe('GET /dogs', () => {
 
 ## Provider Verification
 
-> Source: [`examples/v3/e2e/test/provider.spec.js`](examples/v3/e2e/test/provider.spec.js)
+> Source: [`examples/http/provider.test.ts`](examples/http/provider.test.ts)
 
-```javascript
-const { Verifier } = require('@pact-foundation/pact');
-const chai = require('chai');
-const chaiAsPromised = require('chai-as-promised');
-chai.use(chaiAsPromised);
-const { server, importData, animalRepository } = require('../provider.js');
-const LOG_LEVEL = process.env.LOG_LEVEL || 'INFO';
+```typescript
+import type { Server } from 'node:http';
+import path from 'node:path';
+import { type LogLevel, Verifier } from '@pact-foundation/pact';
+import { afterAll, beforeAll, describe, it } from 'vitest';
+import { clearUsers, createApp, seedUser } from './provider';
 
-const app = server.listen(8081, () => {
-  console.log('Animal Profile Service listening on http://localhost:8081');
+/**
+ * Provider-side Pact verification for the User Service.
+ *
+ * This test replays every interaction from the consumer's pact file against
+ * the real provider, proving it behaves exactly as the consumer expects.
+ *
+ * State handlers are the bridge between Pact's abstract provider state strings
+ * (e.g. "a user with ID 1 exists") and the actual setup work needed to satisfy
+ * them. Each handler runs before the corresponding interaction is replayed.
+ *
+ * Run `npm run test:consumer` first to generate the pact file.
+ */
+describe('UserProvider', () => {
+  let server: Server;
+
+  beforeAll(() => {
+    server = createApp().listen(3001);
+  });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  it(
+    'satisfies all UserConsumer expectations',
+    () =>
+      new Verifier({
+        providerBaseUrl: 'http://localhost:3001',
+        pactUrls: [
+          path.resolve(process.cwd(), 'pacts/UserConsumer-UserProvider.json'),
+        ],
+        stateHandlers: {
+          'a user with ID 1 exists': async () => {
+            clearUsers();
+            seedUser({ id: 1, name: 'Alice', email: 'alice@example.com' });
+          },
+          'users exist': async () => {
+            clearUsers();
+            seedUser({ id: 1, name: 'Alice', email: 'alice@example.com' });
+            seedUser({ id: 2, name: 'Bob', email: 'bob@example.com' });
+          },
+        },
+        logLevel: (process.env.LOG_LEVEL as LogLevel) ?? 'warn',
+      }).verifyProvider(),
+    30_000,
+  );
 });
-
-const pactBroker = 'https://testdemo.pactflow.io';
-
-// Verify that the provider meets all consumer expectations
-describe('Pact Verification', () => {
-  it('validates the expectations of Matching Service', () => {
-    let token = 'INVALID TOKEN';
-
-    return new Verifier({
-      logLevel: LOG_LEVEL,
-      provider: 'Animal Profile Service V3',
-      providerBaseUrl: 'http://localhost:8081',
-      requestFilter: (req, _res, next) => {
-        console.log(
-          'Middleware invoked before provider API - injecting Authorization token',
-        );
-        req.headers.MY_SPECIAL_HEADER = 'my special value';
-
-        // e.g. ADD Bearer token
-        req.headers.authorization = `Bearer ${token}`;
-        next();
-      },
-
-      stateHandlers: {
-        'Has no animals': () => {
-          animalRepository.clear();
-          return Promise.resolve({
-            description: `Animals removed from the db`,
-          });
-        },
-        'Has some animals': () => {
-          importData();
-          return Promise.resolve({
-            description: `Animals added to the db`,
-            count: animalRepository.count(),
-          });
-        },
-        'Has an animal with ID': (parameters) => {
-          importData();
-          animalRepository.first().id = parameters.id;
-          return Promise.resolve({
-            description: `Animal with ID ${parameters.id} added to the db`,
-            id: parameters.id,
-          });
-        },
-        'is not authenticated': () => {
-          token = '';
-          return Promise.resolve({
-            description: `Invalid bearer token generated`,
-          });
-        },
-        'is authenticated': () => {
-          token = 'token';
-          return Promise.resolve({ description: `Bearer token generated` });
-        },
-      },
-
-      // Fetch pacts from broker
-      pactBrokerUrl: pactBroker,
-
-      // Fetch from broker with given tags
-      providerVersionTags: ['master'],
-      providerVersionBranch: process.env.GIT_BRANCH || 'master',
-
-      // Find _all_ pacts that match the current provider branch
-      consumerVersionSelectors: [
-        {
-          matchingBranch: true,
-        },
-        {
-          mainBranch: true,
-        },
-        {
-          deployedOrReleased: true,
-        },
-      ],
-      enablePending: true,
-
-      // Specific Remote pacts (doesn't need to be a broker)
-      // pactUrls: ['https://test.pactflow.io/pacts/provider/Animal%20Profile%20Service/consumer/Matching%20Service/latest'],
-      // Local pacts
-      // pactUrls: [
-      //   path.resolve(
-      //     process.cwd(),
-      //     './pacts/Matching Service V3-Animal Profile Service V3.json'
-      //   ),
-      // ],
-
 ```

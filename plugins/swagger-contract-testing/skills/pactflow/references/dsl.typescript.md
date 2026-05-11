@@ -350,60 +350,78 @@ class Verifier {
 
 ---
 
-## V3 Consumer Test (Typescript)
+## V3 Consumer Test (TypeScript)
 
-> Source: [`examples/v3/typescript/test/user.spec.ts`](examples/v3/typescript/test/user.spec.ts)
+> Source: [`examples/provider-state/consumer.test.ts`](examples/provider-state/consumer.test.ts)
 
 ```typescript
-import * as chai from 'chai';
-import chaiAsPromised from 'chai-as-promised';
-import sinonChai from 'sinon-chai';
-import { PactV3, Matchers, type LogLevel } from '@pact-foundation/pact';
-import { UserService } from '../index';
-const { like } = Matchers;
-const LOG_LEVEL = process.env.LOG_LEVEL || 'TRACE';
+/** biome-ignore-all lint/suspicious/noTemplateCurlyInString: ${...} is used internally by Pact */
+import path from 'node:path';
+import { type LogLevel, Matchers, PactV3 } from '@pact-foundation/pact';
+import { describe, expect, it } from 'vitest';
+import { AccountServiceClient } from './consumer';
 
-const expect = chai.expect;
+const { integer, string, fromProviderState } = Matchers;
 
-chai.use(sinonChai);
-chai.use(chaiAsPromised);
-
-describe('The Users API', () => {
-  let userService: UserService;
-
-  // Setup the 'pact' between two applications
-  const provider = new PactV3({
-    consumer: 'User Web',
-    provider: 'User API',
-    logLevel: LOG_LEVEL as LogLevel,
+/**
+ * Consumer Pact tests for the Account Service, demonstrating provider states.
+ *
+ * Provider states serve two purposes:
+ * 1. Simple states ("an account exists") — tell the provider to create the
+ *    precondition before verifying this interaction.
+ * 2. Parameterised states ("an account with number {accountNumber} exists") —
+ *    pass data from the consumer to the provider's state handler, enabling
+ *    the handler to set up the exact data the interaction needs.
+ *
+ * `fromProviderState()` handles response values that the provider generates
+ * during state setup (e.g. a database auto-increment ID). The consumer
+ * defines a fallback example value for the mock; the provider substitutes the
+ * real generated value during verification.
+ */
+describe('AccountServiceClient', () => {
+  const pact = new PactV3({
+    consumer: 'AccountConsumer',
+    provider: 'AccountService',
+    dir: path.resolve(process.cwd(), 'pacts'),
+    logLevel: (process.env.LOG_LEVEL as LogLevel) ?? 'warn',
   });
-  const userExample = { id: 1, name: 'Homer Simpson' };
-  const EXPECTED_BODY = like(userExample);
 
-  describe('get /users/:id', () => {
-    it('returns the requested user', () => {
-      // Arrange
-      provider
-        .given('a user with ID 1 exists')
-        .uponReceiving('a request to get a user')
-        .withRequest({
-          method: 'GET',
-          path: '/users/1',
-        })
-        .willRespondWith({
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-          body: EXPECTED_BODY,
-        });
-
-      return provider.executeTest(async (mockserver) => {
-        // Act
-        userService = new UserService(mockserver.url);
-        const response = await userService.getUser(1);
-
-        // Assert
-        expect(response.data).to.deep.eq(userExample);
+  it('fetches an account by account number — parameterised state + fromProviderState()', async () => {
+    pact
+      .given(
+        // Parameterised state: the account number is passed to the provider's
+        // state handler so it can seed exactly the account this interaction needs.
+        'an account with number {accountNumber} exists',
+        { accountNumber: 'ACC-001' },
+      )
+      .uponReceiving('a GET request for account ACC-001')
+      .withRequest({
+        method: 'GET',
+        path: '/accounts/ACC-001',
+        headers: { Accept: 'application/json' },
+      })
+      .willRespondWith({
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: {
+          // fromProviderState(): the provider generates this value during state
+          // setup (e.g. a database auto-increment). The consumer provides an
+          // example value for the mock response; the real value is substituted
+          // during provider verification via the state handler's return value.
+          id: fromProviderState('${accountId}', 42),
+          accountNumber: string('ACC-001'),
+          ownerName: string('Jane Smith'),
+          balance: integer(1000),
+        },
       });
+
+    return pact.executeTest(async (mockserver) => {
+      const client = new AccountServiceClient(mockserver.url);
+      const account = await client.getAccountByNumber('ACC-001');
+      // The mock returns the example value (42); the provider may return
+      // a different integer (e.g. 17) — the contract only checks the type.
+      expect(typeof account.id).toBe('number');
+      expect(account.accountNumber).toBe('ACC-001');
     });
   });
 });
@@ -413,126 +431,111 @@ describe('The Users API', () => {
 
 ## V4 Consumer Test (TypeScript)
 
-> Source: [`examples/v4/typescript/test/get-dog.spec.ts`](examples/v4/typescript/test/get-dog.spec.ts)
+> Source: [`examples/http/consumer.test.ts`](examples/http/consumer.test.ts)
 
 ```typescript
-/* tslint:disable:no-unused-expression object-literal-sort-keys max-classes-per-file no-empty */
-import * as chai from 'chai';
-import chaiAsPromised from 'chai-as-promised';
-import * as path from 'node:path';
-import sinonChai from 'sinon-chai';
+import path from 'node:path';
 import {
-  Pact,
-  Matchers,
-  SpecificationVersion,
   type LogLevel,
+  Matchers,
+  Pact,
+  SpecificationVersion,
 } from '@pact-foundation/pact';
+import { describe, expect, it } from 'vitest';
+import { UserServiceClient } from './consumer';
 
-const expect = chai.expect;
-import { DogService } from '../src/index';
-const { eachLike } = Matchers;
+const { like, integer, eachLike } = Matchers;
 
-chai.use(sinonChai);
-chai.use(chaiAsPromised);
-const LOG_LEVEL = process.env.LOG_LEVEL || 'DEBUG';
-
-describe('GET /dogs', () => {
-  let dogService: DogService;
-
-  // Create a 'pact' between the two applications in the integration we are testing
-  const provider = new Pact({
+/**
+ * Consumer-side Pact tests for the User Service.
+ *
+ * Each test defines one interaction: the HTTP request this consumer sends
+ * and the minimum response it requires. Pact writes these to a pact file
+ * that the provider verifies separately (see provider.test.ts).
+ *
+ * Key principle: only assert what this consumer actually uses. Omit fields
+ * the consumer ignores — the provider is then free to change or add them
+ * without breaking this contract.
+ */
+describe('UserServiceClient', () => {
+  const pact = new Pact({
+    consumer: 'UserConsumer',
+    provider: 'UserProvider',
+    spec: SpecificationVersion.SPECIFICATION_VERSION_V4,
     dir: path.resolve(process.cwd(), 'pacts'),
-    consumer: 'Typescript Consumer Example V4',
-    provider: 'Typescript Provider Example',
-    spec: SpecificationVersion.SPECIFICATION_VERSION_V4, // Modify this as needed for your use case,
-    logLevel: LOG_LEVEL as LogLevel,
+    logLevel: (process.env.LOG_LEVEL as LogLevel) ?? 'warn',
   });
-  it('returns an HTTP 200 and a list of dogs', async () => {
-    const dogExample = { dog: 1 };
-    const EXPECTED_BODY = eachLike(dogExample);
 
-    // Arrange: Setup our expected interactions
-    //
-    // We use Pact to mock out the backend API
-    await provider
+  it('fetches a user by ID', async () => {
+    await pact
       .addInteraction()
-      .given('I have a list of dogs')
-      .uponReceiving('a request for all dogs with the builder pattern')
-      .withRequest('GET', '/dogs', (builder) => {
-        builder.query({ from: 'today' });
+      // Provider states name a precondition the provider must satisfy before
+      // this interaction is verified. The provider maps this exact string to
+      // setup code in its stateHandlers (see provider.test.ts).
+      //
+      // Note: hardcoding the ID 1 into this magic string is bad practice.
+      // Provider states with configurable values are recommended, as
+      // demonstrated in the provider-state example. It is used here for
+      // simplicity.
+      .given('a user with ID 1 exists')
+      .uponReceiving('a GET request for user 1')
+      .withRequest('GET', '/users/1', (builder) => {
         builder.headers({ Accept: 'application/json' });
       })
       .willRespondWith(200, (builder) => {
         builder.headers({ 'Content-Type': 'application/json' });
-        builder.jsonBody(EXPECTED_BODY);
+        // like() matches the shape and types of its argument, not the exact
+        // values. The values here are example data for the mock response.
+        // The contract enforces: id is an integer, name and email are strings.
+        // The provider may return { id: 42, name: 'Bob', email: 'b@example.com' }
+        // and the contract will still pass.
+        builder.jsonBody(
+          like({
+            id: integer(1),
+            name: like('Alice'),
+            email: like('alice@example.com'),
+          }),
+        );
       })
       .executeTest(async (mockserver) => {
-        // Act: test our API client behaves correctly
-        //
-        // Note we configure the DogService API client dynamically to
-        // point to the mock service Pact created for us, instead of
-        // the real one
-        dogService = new DogService({ url: mockserver.url });
-        const response = await dogService.getMeDogs('today');
-
-        // Assert: check the result
-        expect(response.data[0]).to.deep.eq(dogExample);
-        return response;
+        // A common pitfall here is to use a standard HTTP client to call the
+        // mock server directly. This bypasses the client code that is meant
+        // to be tested, and thus may not reflect the real consumer behaviour.
+        const client = new UserServiceClient(mockserver.url);
+        const user = await client.getUser(1);
+        // These assertions run against the mock's example values.
+        expect(user.id).toBe(1);
+        expect(user.name).toBe('Alice');
+        expect(user.email).toBe('alice@example.com');
       });
   });
-  it('returns a dog profile', async () => {
-    const dogExample = { dog: 1 };
-    const EXPECTED_BODY = eachLike(dogExample);
-    const EXPECTED_DOG_PROFILE_BODY = Matchers.like({
-      id: 1,
-      name: 'Fido',
-      age: 3,
-    });
 
-    // In this test, we make two http calls, in our SUT (System Under Test)
-    // we first call GET /dogs to get the list of dogs, then we call
-    // GET /dogs/1/profile to get the profile of dog 1
-    //
-    // We need to setup two interactions in Pact to handle this
-
-    // TODO: This would be more ergonomic, if we could chain adding a new
-    // V4UnconfiguredInteraction to a V4InteractionWithResponse
-    provider
+  it('fetches all users', async () => {
+    await pact
       .addInteraction()
-      .given('I have a list of dogs with {id}', { id: 1 })
-      .uponReceiving('a request for all dogs with the builder pattern')
-      .withRequest('GET', '/dogs', (builder) => {
-        builder.query({ from: 'today' });
+      .given('users exist')
+      .uponReceiving('a GET request for all users')
+      .withRequest('GET', '/users', (builder) => {
         builder.headers({ Accept: 'application/json' });
       })
       .willRespondWith(200, (builder) => {
         builder.headers({ 'Content-Type': 'application/json' });
-        builder.jsonBody(EXPECTED_BODY);
-      });
-
-    await provider
-      .addInteraction()
-      .given('I have a list of dogs')
-      .uponReceiving('a request for for a dog profile with the builder pattern')
-      .withRequest('GET', `/dogs/1/profile`, (builder) => {
-        builder.headers({ Accept: 'application/json' });
+        // eachLike() means: respond with an array where every element matches
+        // this shape. The mock returns exactly one element; the contract
+        // enforces that the array is non-empty and each element has this shape.
+        builder.jsonBody(
+          eachLike({
+            id: integer(1),
+            name: like('Alice'),
+            email: like('alice@example.com'),
+          }),
+        );
       })
-      .willRespondWith(200, (builder) => {
-        builder.headers({ 'Content-Type': 'application/json' });
-        builder.jsonBody(EXPECTED_DOG_PROFILE_BODY);
-      }) // TODO: Ideally we could call addInteraction() here again
       .executeTest(async (mockserver) => {
-        // Act: test our API client behaves correctly
-        //
-        // Note we configure the DogService API client dynamically to
-        // point to the mock service Pact created for us, instead of
-        // the real one
-        dogService = new DogService({ url: mockserver.url });
-        const response = await dogService.getDogProfile(1, 'today');
-
-        // Assert: check the result
-        expect(response.data).to.deep.eq(EXPECTED_DOG_PROFILE_BODY.value);
-        return response;
+        const client = new UserServiceClient(mockserver.url);
+        const users = await client.getUsers();
+        expect(users.length).toBeGreaterThan(0);
+        expect(users[0].id).toBe(1);
       });
   });
 });
@@ -542,123 +545,58 @@ describe('GET /dogs', () => {
 
 ## Provider Verification
 
-> Source: [`examples/v3/e2e/test/provider.spec.js`](examples/v3/e2e/test/provider.spec.js)
+> Source: [`examples/http/provider.test.ts`](examples/http/provider.test.ts)
 
-```javascript
-const { Verifier } = require('@pact-foundation/pact');
-const chai = require('chai');
-const chaiAsPromised = require('chai-as-promised');
-chai.use(chaiAsPromised);
-const { server, importData, animalRepository } = require('../provider.js');
-const LOG_LEVEL = process.env.LOG_LEVEL || 'INFO';
+```typescript
+import type { Server } from 'node:http';
+import path from 'node:path';
+import { type LogLevel, Verifier } from '@pact-foundation/pact';
+import { afterAll, beforeAll, describe, it } from 'vitest';
+import { clearUsers, createApp, seedUser } from './provider';
 
-const app = server.listen(8081, () => {
-  console.log('Animal Profile Service listening on http://localhost:8081');
-});
+/**
+ * Provider-side Pact verification for the User Service.
+ *
+ * This test replays every interaction from the consumer's pact file against
+ * the real provider, proving it behaves exactly as the consumer expects.
+ *
+ * State handlers are the bridge between Pact's abstract provider state strings
+ * (e.g. "a user with ID 1 exists") and the actual setup work needed to satisfy
+ * them. Each handler runs before the corresponding interaction is replayed.
+ *
+ * Run `npm run test:consumer` first to generate the pact file.
+ */
+describe('UserProvider', () => {
+  let server: Server;
 
-const pactBroker = 'https://testdemo.pactflow.io';
-
-// Verify that the provider meets all consumer expectations
-describe('Pact Verification', () => {
-  it('validates the expectations of Matching Service', () => {
-    let token = 'INVALID TOKEN';
-
-    return new Verifier({
-      logLevel: LOG_LEVEL,
-      provider: 'Animal Profile Service V3',
-      providerBaseUrl: 'http://localhost:8081',
-      requestFilter: (req, _res, next) => {
-        console.log(
-          'Middleware invoked before provider API - injecting Authorization token',
-        );
-        req.headers.MY_SPECIAL_HEADER = 'my special value';
-
-        // e.g. ADD Bearer token
-        req.headers.authorization = `Bearer ${token}`;
-        next();
-      },
-
-      stateHandlers: {
-        'Has no animals': () => {
-          animalRepository.clear();
-          return Promise.resolve({
-            description: `Animals removed from the db`,
-          });
-        },
-        'Has some animals': () => {
-          importData();
-          return Promise.resolve({
-            description: `Animals added to the db`,
-            count: animalRepository.count(),
-          });
-        },
-        'Has an animal with ID': (parameters) => {
-          importData();
-          animalRepository.first().id = parameters.id;
-          return Promise.resolve({
-            description: `Animal with ID ${parameters.id} added to the db`,
-            id: parameters.id,
-          });
-        },
-        'is not authenticated': () => {
-          token = '';
-          return Promise.resolve({
-            description: `Invalid bearer token generated`,
-          });
-        },
-        'is authenticated': () => {
-          token = 'token';
-          return Promise.resolve({ description: `Bearer token generated` });
-        },
-      },
-
-      // Fetch pacts from broker
-      pactBrokerUrl: pactBroker,
-
-      // Fetch from broker with given tags
-      providerVersionTags: ['master'],
-      providerVersionBranch: process.env.GIT_BRANCH || 'master',
-
-      // Find _all_ pacts that match the current provider branch
-      consumerVersionSelectors: [
-        {
-          matchingBranch: true,
-        },
-        {
-          mainBranch: true,
-        },
-        {
-          deployedOrReleased: true,
-        },
-      ],
-      enablePending: true,
-
-      // Specific Remote pacts (doesn't need to be a broker)
-      // pactUrls: ['https://test.pactflow.io/pacts/provider/Animal%20Profile%20Service/consumer/Matching%20Service/latest'],
-      // Local pacts
-      // pactUrls: [
-      //   path.resolve(
-      //     process.cwd(),
-      //     './pacts/Matching Service V3-Animal Profile Service V3.json'
-      //   ),
-      // ],
-
-      // If you're using the open source Pact Broker, use the username/password option as per below
-      // pactBrokerUsername: process.env.PACT_BROKER_USERNAME
-      // pactBrokerPassword: process.env.PACT_BROKER_PASSWORD
-      //
-      // if you're using a PactFlow broker, you must authenticate using the bearer token option
-      // You can obtain the token from https://<your broker>.pactflow.io/settings/api-tokens
-      pactBrokerToken: process.env.PACT_BROKER_TOKEN,
-      publishVerificationResult: true,
-      providerVersion: '1.0.0',
-    })
-      .verifyProvider()
-      .then((output) => {
-        console.log('Pact Verification Complete!');
-        console.log('Result:', output);
-        app.close();
-      });
+  beforeAll(() => {
+    server = createApp().listen(3001);
   });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  it(
+    'satisfies all UserConsumer expectations',
+    () =>
+      new Verifier({
+        providerBaseUrl: 'http://localhost:3001',
+        pactUrls: [
+          path.resolve(process.cwd(), 'pacts/UserConsumer-UserProvider.json'),
+        ],
+        stateHandlers: {
+          'a user with ID 1 exists': async () => {
+            clearUsers();
+            seedUser({ id: 1, name: 'Alice', email: 'alice@example.com' });
+          },
+          'users exist': async () => {
+            clearUsers();
+            seedUser({ id: 1, name: 'Alice', email: 'alice@example.com' });
+            seedUser({ id: 2, name: 'Bob', email: 'bob@example.com' });
+          },
+        },
+        logLevel: (process.env.LOG_LEVEL as LogLevel) ?? 'warn',
+      }).verifyProvider(),
+    30_000,
+  );
 });
 ```

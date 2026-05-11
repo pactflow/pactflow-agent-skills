@@ -759,23 +759,22 @@ def _read_example(path: Path) -> str:
 
 
 def _section_examples(repo: Path, *, ts: bool = True) -> str:
-    lang = "typescript" if ts else "javascript"
+    # pact-js flattened examples/ to a single TypeScript layout under
+    # examples/<category>/{consumer,provider}.test.ts — there is no separate
+    # JavaScript example directory any more, so both docs source from the same
+    # .test.ts files.
 
-    # V3 consumer example
-    if ts:
-        v3_consumer_path = repo / "examples" / "v3" / "typescript" / "test" / "user.spec.ts"
-        src_v3_consumer = "examples/v3/typescript/test/user.spec.ts"
-    else:
-        v3_consumer_path = repo / "examples" / "v3" / "e2e" / "test" / "consumer.spec.js"
-        src_v3_consumer = "examples/v3/e2e/test/consumer.spec.js"
+    # V3-style consumer example (still uses the PactV3 class).
+    v3_consumer_path = repo / "examples" / "provider-state" / "consumer.test.ts"
+    src_v3_consumer = "examples/provider-state/consumer.test.ts"
 
-    # V4 consumer example (TypeScript only in the repo, usable for both)
-    v4_consumer_path = repo / "examples" / "v4" / "typescript" / "test" / "get-dog.spec.ts"
-    src_v4_consumer = "examples/v4/typescript/test/get-dog.spec.ts"
+    # Unified `Pact` (V4) consumer example.
+    v4_consumer_path = repo / "examples" / "http" / "consumer.test.ts"
+    src_v4_consumer = "examples/http/consumer.test.ts"
 
-    # Provider example (JS)
-    provider_path = repo / "examples" / "v3" / "e2e" / "test" / "provider.spec.js"
-    src_provider = "examples/v3/e2e/test/provider.spec.js"
+    # Provider verification example.
+    provider_path = repo / "examples" / "http" / "provider.test.ts"
+    src_provider = "examples/http/provider.test.ts"
 
     v3_consumer_text = _read_example(v3_consumer_path)
     v4_consumer_text = _read_example(v4_consumer_path)
@@ -784,11 +783,11 @@ def _section_examples(repo: Path, *, ts: bool = True) -> str:
     return f"""\
 ---
 
-## V3 Consumer Test ({lang.capitalize()})
+## V3 Consumer Test (TypeScript)
 
 > Source: [`{src_v3_consumer}`]({src_v3_consumer})
 
-```{lang}
+```typescript
 {v3_consumer_text}
 ```
 
@@ -808,7 +807,7 @@ def _section_examples(repo: Path, *, ts: bool = True) -> str:
 
 > Source: [`{src_provider}`]({src_provider})
 
-```javascript
+```typescript
 {provider_text}
 ```"""
 
