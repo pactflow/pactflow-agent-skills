@@ -553,10 +553,10 @@ namespace MatchersV3 {{
 
 
 def _section_v3_xml(repo: Path, *, ts: bool = True) -> str:
-    builder_src, builder_root = _parse(repo, "v3/xml/xmlBuilder.ts")
+    builder_src, builder_root = _parse(repo, "xml/xmlBuilder.ts")
     builder_block = _class_block(builder_src, builder_root, "XmlBuilder", ts=ts)
 
-    elem_src, elem_root = _parse(repo, "v3/xml/xmlElement.ts")
+    elem_src, elem_root = _parse(repo, "xml/xmlElement.ts")
     elem_block = _class_block(elem_src, elem_root, "XmlElement", ts=ts)
 
     lang = "typescript" if ts else "javascript"
@@ -570,12 +570,12 @@ def _section_v3_xml(repo: Path, *, ts: bool = True) -> str:
             pass
 
     return f"""\
-File: src/v3/xml/xmlBuilder.ts
+File: src/xml/xmlBuilder.ts
 ```{lang}
 {builder_block}
 ```
 
-File: src/v3/xml/xmlElement.ts
+File: src/xml/xmlElement.ts
 ```{lang}
 {elem_block}{extra}
 ```"""
