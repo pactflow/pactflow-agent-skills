@@ -56,6 +56,7 @@ class Interaction:
     def set_pending(*, pending: bool) -> Self
     def set_comment(key: str, value: Any | None) -> Self
     def add_text_comment(comment: str) -> Self
+    def add_external_reference(group: str, name: str, value: str) -> Self
     def test_name(name: str) -> Self
     def with_plugin_contents(contents: dict[str, Any] | str, content_type: str, part: Literal["Request", "Response"] | None = None) -> Self
     def with_matching_rules(rules: dict[str, Any] | str, part: Literal["Request", "Response"] | None = None) -> Self
