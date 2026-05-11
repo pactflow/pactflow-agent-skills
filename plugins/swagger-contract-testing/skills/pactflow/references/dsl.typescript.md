@@ -355,7 +355,58 @@ class Verifier {
 > Source: [`examples/v3/typescript/test/user.spec.ts`](examples/v3/typescript/test/user.spec.ts)
 
 ```typescript
+import * as chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+import sinonChai from 'sinon-chai';
+import { PactV3, Matchers, type LogLevel } from '@pact-foundation/pact';
+import { UserService } from '../index';
+const { like } = Matchers;
+const LOG_LEVEL = process.env.LOG_LEVEL || 'TRACE';
 
+const expect = chai.expect;
+
+chai.use(sinonChai);
+chai.use(chaiAsPromised);
+
+describe('The Users API', () => {
+  let userService: UserService;
+
+  // Setup the 'pact' between two applications
+  const provider = new PactV3({
+    consumer: 'User Web',
+    provider: 'User API',
+    logLevel: LOG_LEVEL as LogLevel,
+  });
+  const userExample = { id: 1, name: 'Homer Simpson' };
+  const EXPECTED_BODY = like(userExample);
+
+  describe('get /users/:id', () => {
+    it('returns the requested user', () => {
+      // Arrange
+      provider
+        .given('a user with ID 1 exists')
+        .uponReceiving('a request to get a user')
+        .withRequest({
+          method: 'GET',
+          path: '/users/1',
+        })
+        .willRespondWith({
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+          body: EXPECTED_BODY,
+        });
+
+      return provider.executeTest(async (mockserver) => {
+        // Act
+        userService = new UserService(mockserver.url);
+        const response = await userService.getUser(1);
+
+        // Assert
+        expect(response.data).to.deep.eq(userExample);
+      });
+    });
+  });
+});
 ```
 
 ---
@@ -365,7 +416,126 @@ class Verifier {
 > Source: [`examples/v4/typescript/test/get-dog.spec.ts`](examples/v4/typescript/test/get-dog.spec.ts)
 
 ```typescript
+/* tslint:disable:no-unused-expression object-literal-sort-keys max-classes-per-file no-empty */
+import * as chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+import * as path from 'node:path';
+import sinonChai from 'sinon-chai';
+import {
+  Pact,
+  Matchers,
+  SpecificationVersion,
+  type LogLevel,
+} from '@pact-foundation/pact';
 
+const expect = chai.expect;
+import { DogService } from '../src/index';
+const { eachLike } = Matchers;
+
+chai.use(sinonChai);
+chai.use(chaiAsPromised);
+const LOG_LEVEL = process.env.LOG_LEVEL || 'DEBUG';
+
+describe('GET /dogs', () => {
+  let dogService: DogService;
+
+  // Create a 'pact' between the two applications in the integration we are testing
+  const provider = new Pact({
+    dir: path.resolve(process.cwd(), 'pacts'),
+    consumer: 'Typescript Consumer Example V4',
+    provider: 'Typescript Provider Example',
+    spec: SpecificationVersion.SPECIFICATION_VERSION_V4, // Modify this as needed for your use case,
+    logLevel: LOG_LEVEL as LogLevel,
+  });
+  it('returns an HTTP 200 and a list of dogs', async () => {
+    const dogExample = { dog: 1 };
+    const EXPECTED_BODY = eachLike(dogExample);
+
+    // Arrange: Setup our expected interactions
+    //
+    // We use Pact to mock out the backend API
+    await provider
+      .addInteraction()
+      .given('I have a list of dogs')
+      .uponReceiving('a request for all dogs with the builder pattern')
+      .withRequest('GET', '/dogs', (builder) => {
+        builder.query({ from: 'today' });
+        builder.headers({ Accept: 'application/json' });
+      })
+      .willRespondWith(200, (builder) => {
+        builder.headers({ 'Content-Type': 'application/json' });
+        builder.jsonBody(EXPECTED_BODY);
+      })
+      .executeTest(async (mockserver) => {
+        // Act: test our API client behaves correctly
+        //
+        // Note we configure the DogService API client dynamically to
+        // point to the mock service Pact created for us, instead of
+        // the real one
+        dogService = new DogService({ url: mockserver.url });
+        const response = await dogService.getMeDogs('today');
+
+        // Assert: check the result
+        expect(response.data[0]).to.deep.eq(dogExample);
+        return response;
+      });
+  });
+  it('returns a dog profile', async () => {
+    const dogExample = { dog: 1 };
+    const EXPECTED_BODY = eachLike(dogExample);
+    const EXPECTED_DOG_PROFILE_BODY = Matchers.like({
+      id: 1,
+      name: 'Fido',
+      age: 3,
+    });
+
+    // In this test, we make two http calls, in our SUT (System Under Test)
+    // we first call GET /dogs to get the list of dogs, then we call
+    // GET /dogs/1/profile to get the profile of dog 1
+    //
+    // We need to setup two interactions in Pact to handle this
+
+    // TODO: This would be more ergonomic, if we could chain adding a new
+    // V4UnconfiguredInteraction to a V4InteractionWithResponse
+    provider
+      .addInteraction()
+      .given('I have a list of dogs with {id}', { id: 1 })
+      .uponReceiving('a request for all dogs with the builder pattern')
+      .withRequest('GET', '/dogs', (builder) => {
+        builder.query({ from: 'today' });
+        builder.headers({ Accept: 'application/json' });
+      })
+      .willRespondWith(200, (builder) => {
+        builder.headers({ 'Content-Type': 'application/json' });
+        builder.jsonBody(EXPECTED_BODY);
+      });
+
+    await provider
+      .addInteraction()
+      .given('I have a list of dogs')
+      .uponReceiving('a request for for a dog profile with the builder pattern')
+      .withRequest('GET', `/dogs/1/profile`, (builder) => {
+        builder.headers({ Accept: 'application/json' });
+      })
+      .willRespondWith(200, (builder) => {
+        builder.headers({ 'Content-Type': 'application/json' });
+        builder.jsonBody(EXPECTED_DOG_PROFILE_BODY);
+      }) // TODO: Ideally we could call addInteraction() here again
+      .executeTest(async (mockserver) => {
+        // Act: test our API client behaves correctly
+        //
+        // Note we configure the DogService API client dynamically to
+        // point to the mock service Pact created for us, instead of
+        // the real one
+        dogService = new DogService({ url: mockserver.url });
+        const response = await dogService.getDogProfile(1, 'today');
+
+        // Assert: check the result
+        expect(response.data).to.deep.eq(EXPECTED_DOG_PROFILE_BODY.value);
+        return response;
+      });
+  });
+});
 ```
 
 ---
@@ -375,5 +545,120 @@ class Verifier {
 > Source: [`examples/v3/e2e/test/provider.spec.js`](examples/v3/e2e/test/provider.spec.js)
 
 ```javascript
+const { Verifier } = require('@pact-foundation/pact');
+const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+chai.use(chaiAsPromised);
+const { server, importData, animalRepository } = require('../provider.js');
+const LOG_LEVEL = process.env.LOG_LEVEL || 'INFO';
 
+const app = server.listen(8081, () => {
+  console.log('Animal Profile Service listening on http://localhost:8081');
+});
+
+const pactBroker = 'https://testdemo.pactflow.io';
+
+// Verify that the provider meets all consumer expectations
+describe('Pact Verification', () => {
+  it('validates the expectations of Matching Service', () => {
+    let token = 'INVALID TOKEN';
+
+    return new Verifier({
+      logLevel: LOG_LEVEL,
+      provider: 'Animal Profile Service V3',
+      providerBaseUrl: 'http://localhost:8081',
+      requestFilter: (req, _res, next) => {
+        console.log(
+          'Middleware invoked before provider API - injecting Authorization token',
+        );
+        req.headers.MY_SPECIAL_HEADER = 'my special value';
+
+        // e.g. ADD Bearer token
+        req.headers.authorization = `Bearer ${token}`;
+        next();
+      },
+
+      stateHandlers: {
+        'Has no animals': () => {
+          animalRepository.clear();
+          return Promise.resolve({
+            description: `Animals removed from the db`,
+          });
+        },
+        'Has some animals': () => {
+          importData();
+          return Promise.resolve({
+            description: `Animals added to the db`,
+            count: animalRepository.count(),
+          });
+        },
+        'Has an animal with ID': (parameters) => {
+          importData();
+          animalRepository.first().id = parameters.id;
+          return Promise.resolve({
+            description: `Animal with ID ${parameters.id} added to the db`,
+            id: parameters.id,
+          });
+        },
+        'is not authenticated': () => {
+          token = '';
+          return Promise.resolve({
+            description: `Invalid bearer token generated`,
+          });
+        },
+        'is authenticated': () => {
+          token = 'token';
+          return Promise.resolve({ description: `Bearer token generated` });
+        },
+      },
+
+      // Fetch pacts from broker
+      pactBrokerUrl: pactBroker,
+
+      // Fetch from broker with given tags
+      providerVersionTags: ['master'],
+      providerVersionBranch: process.env.GIT_BRANCH || 'master',
+
+      // Find _all_ pacts that match the current provider branch
+      consumerVersionSelectors: [
+        {
+          matchingBranch: true,
+        },
+        {
+          mainBranch: true,
+        },
+        {
+          deployedOrReleased: true,
+        },
+      ],
+      enablePending: true,
+
+      // Specific Remote pacts (doesn't need to be a broker)
+      // pactUrls: ['https://test.pactflow.io/pacts/provider/Animal%20Profile%20Service/consumer/Matching%20Service/latest'],
+      // Local pacts
+      // pactUrls: [
+      //   path.resolve(
+      //     process.cwd(),
+      //     './pacts/Matching Service V3-Animal Profile Service V3.json'
+      //   ),
+      // ],
+
+      // If you're using the open source Pact Broker, use the username/password option as per below
+      // pactBrokerUsername: process.env.PACT_BROKER_USERNAME
+      // pactBrokerPassword: process.env.PACT_BROKER_PASSWORD
+      //
+      // if you're using a PactFlow broker, you must authenticate using the bearer token option
+      // You can obtain the token from https://<your broker>.pactflow.io/settings/api-tokens
+      pactBrokerToken: process.env.PACT_BROKER_TOKEN,
+      publishVerificationResult: true,
+      providerVersion: '1.0.0',
+    })
+      .verifyProvider()
+      .then((output) => {
+        console.log('Pact Verification Complete!');
+        console.log('Result:', output);
+        app.close();
+      });
+  });
+});
 ```
