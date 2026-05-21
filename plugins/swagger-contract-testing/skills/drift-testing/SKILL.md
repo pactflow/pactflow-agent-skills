@@ -46,12 +46,8 @@ Never modify the openapi spec that you are testing.
 - `scripts/start_mock.sh` / `scripts/start_mock.ps1` — Starts a Prism mock server from an OpenAPI spec. Installs Prism if
   needed. Supports `--port` and `--dynamic` flags. Use the `.ps1` version on Windows.
 
-Full docs: https://pactflow.github.io/drift-docs/
-For anything not covered here, fetch: `https://pactflow.github.io/drift-docs/docs/<section>/<page>.md`
-
-To discover all available pages, fetch the sitemap: `https://pactflow.github.io/drift-docs/sitemap.xml`
-
-For an LLM-optimised index of all docs, fetch: `https://pactflow.github.io/drift-docs/llms.txt`
+Full docs: https://support.smartbear.com/swagger/contract-testing/docs/en/drift.html
+To discover all available pages, fetch the sitemap: `https://support.smartbear.com/swagger/contract-testing/docs/sitemap.xml`
 
 ---
 
