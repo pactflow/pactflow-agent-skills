@@ -600,3 +600,19 @@ describe('UserProvider', () => {
   );
 });
 ```
+ ID 1 exists': async () => {
+            clearUsers();
+            seedUser({ id: 1, name: 'Alice', email: 'alice@example.com' });
+          },
+          'users exist': async () => {
+            clearUsers();
+            seedUser({ id: 1, name: 'Alice', email: 'alice@example.com' });
+            seedUser({ id: 2, name: 'Bob', email: 'bob@example.com' });
+          },
+        },
+        logLevel: (process.env.LOG_LEVEL as LogLevel) ?? 'warn',
+      }).verifyProvider(),
+    30_000,
+  );
+});
+```
