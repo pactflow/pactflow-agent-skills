@@ -1,9 +1,9 @@
 While you already know this, here is a reminder of the key pact-jvm Kotlin classes and methods you will need to use to create a Pact test in Kotlin (having omitted deprecated and implementation-detail members):
 
-
 ## HTTP Consumer DSL
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/ConsumerPactBuilder.kt
+
 ```kotlin
 class ConsumerPactBuilder(
   /**
@@ -31,6 +31,7 @@ class ConsumerPactBuilder(
 ```
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/dsl/PactDslWithProvider.kt
+
 ```kotlin
 class PactDslWithProvider@JvmOverloads constructor(
   val consumerPactBuilder: ConsumerPactBuilder,
@@ -78,6 +79,7 @@ class PactDslWithProvider@JvmOverloads constructor(
 ```
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/dsl/PactDslWithState.kt
+
 ```kotlin
 class PactDslWithState@JvmOverloads constructor(
   private val consumerPactBuilder: ConsumerPactBuilder,
@@ -121,6 +123,7 @@ class PactDslWithState@JvmOverloads constructor(
 ```
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/dsl/PactDslRequestWithoutPath.kt
+
 ```kotlin
 class PactDslRequestWithoutPath@JvmOverloads constructor(
     private val consumerPactBuilder: ConsumerPactBuilder,
@@ -142,13 +145,13 @@ class PactDslRequestWithoutPath@JvmOverloads constructor(
     *
     * @param headers Key-value pairs
     */
-    fun headers(headers: Map<String, String>): PactDslRequestWithoutPath
+    fun headers(headers: Map<String, Stri): PactDslRequestWithoutPath
     /**
     * Headers to be included in the request
     *
     * @param firstHeaderName      The name of the first header
     * @param firstHeaderValue     The value of the first header
-    * @param headerNameValuePairs Additional headers in name-value pairs.
+    * @param headerNameValuePairs As Additional headers in name-value pairs.
     */
     fun headers(
     firstHeaderName: String,
@@ -415,6 +418,7 @@ class PactDslRequestWithoutPath@JvmOverloads constructor(
 ```
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/dsl/PactDslRequestWithPath.kt
+
 ```kotlin
 class PactDslRequestWithPath : PactDslRequestBase {
     /**
@@ -727,6 +731,7 @@ class PactDslRequestWithPath : PactDslRequestBase {
 ```
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/dsl/PactDslResponse.kt
+
 ```kotlin
 class PactDslResponse@JvmOverloads constructor(
     private val consumerPactBuilder: ConsumerPactBuilder,
@@ -948,10 +953,10 @@ class PactDslResponse@JvmOverloads constructor(
 }
 ```
 
-
 ## Body / Matching DSL
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/dsl/PactDslJsonBody.kt
+
 ```kotlin
 class PactDslJsonBody : DslPart {
     /**
@@ -1598,6 +1603,7 @@ class PactDslJsonBody : DslPart {
 ```
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/dsl/PactDslJsonArray.kt
+
 ```kotlin
 class PactDslJsonArray : DslPart {
     /**
@@ -2028,10 +2034,10 @@ class PactDslJsonArray : DslPart {
 }
 ```
 
-
 ## Message Consumer DSL
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/MessagePactBuilder.kt
+
 ```kotlin
 class MessagePactBuilder@JvmOverloads constructor(
   /**
@@ -2136,6 +2142,7 @@ class MessagePactBuilder@JvmOverloads constructor(
 ```
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/dsl/SynchronousMessagePactBuilder.kt
+
 ```kotlin
 class SynchronousMessagePactBuilder@JvmOverloads constructor(
   /**
@@ -2244,6 +2251,7 @@ class SynchronousMessagePactBuilder@JvmOverloads constructor(
 ```
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/dsl/SynchronousMessageInteractionBuilder.kt
+
 ```kotlin
 class SynchronousMessageInteractionBuilder(
   description: String,
@@ -2302,10 +2310,10 @@ class SynchronousMessageInteractionBuilder(
 }
 ```
 
-
 ## V4 Pact Builder
 
 File: ./consumer/src/main/kotlin/au/com/dius/pact/consumer/dsl/PactBuilder.kt
+
 ```kotlin
 interface DslBuilder {
     fun addPluginConfiguration(matcher: ContentMatcher, pactConfiguration: Map<String, JsonValue>)
@@ -2425,10 +2433,10 @@ class PactBuilder(
 }
 ```
 
-
 ## JUnit 5 Consumer Annotations
 
 File: ./consumer/junit5/src/main/kotlin/au/com/dius/pact/consumer/junit5/PactTestFor.kt
+
 ```kotlin
 annotation class PactTestFor(
         /**
@@ -2510,10 +2518,10 @@ annotation class PactTestFor(
 )
 ```
 
-
 ## Provider Annotations & Verification
 
 File: ./provider/src/main/kotlin/au/com/dius/pact/provider/junitsupport/Provider.kt
+
 ```kotlin
 annotation class Provider(
   /**
@@ -2524,6 +2532,7 @@ annotation class Provider(
 ```
 
 File: ./provider/src/main/kotlin/au/com/dius/pact/provider/junitsupport/Consumer.kt
+
 ```kotlin
 annotation class Consumer(
   /**
@@ -2534,6 +2543,7 @@ annotation class Consumer(
 ```
 
 File: ./provider/junit5/src/main/kotlin/au/com/dius/pact/provider/junit5/PactVerificationContext.kt
+
 ```kotlin
 class PactVerificationContext@JvmOverloads constructor(
   private val store: ExtensionContext.Store,
