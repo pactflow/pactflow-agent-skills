@@ -5,6 +5,7 @@ While you already know this, here is a reminder of the Pact-JS classes and metho
 ## V3 API
 
 File: src/v3/pact.ts
+
 ```typescript
 // import { PactV3 } from "@pact-foundation/pact";
 class PactV3 {
@@ -25,12 +26,14 @@ class PactV3 {
 ```
 
 File: src/v3/matchers.ts
+
 ```typescript
 // import { MatchersV3 } from "@pact-foundation/pact";
 namespace MatchersV3 {
     const like: <T>(template: T) => Matcher<T>;
     const eachKeyMatches: ( example: Record<string, unknown>, matchers: Matcher<string> | Matcher<string>[] = like('key'), ) => RulesMatcher<unknown>;
     const eachValueMatches: <T>( example: Record<string, T>, matchers: Matcher<T> | Matcher<T>[], ) => RulesMatcher<T>;
+    const matchStatus: ( example: number, status: HTTPResponseStatusClass | number[], ) => StatusCodeMatcher<number>;
     const eachLike: <T>(template: T, min = 1) => MinLikeMatcher<T[]>;
     const atLeastOneLike: <T>( template: T, count = 1, ) => MinLikeMatcher<T[]>;
     const atLeastLike: <T>( template: T, min: number, count?: number, ) => MinLikeMatcher<T[]>;
@@ -55,11 +58,13 @@ namespace MatchersV3 {
     function arrayContaining(...variants: unknown[]): ArrayContainsMatcher;
     function fromProviderState<V>( expression: string, exampleValue: V, ): ProviderStateInjectedValue<V>;
     function uuid(example?: string): V3RegexMatcher;
-    function reify(input: unknown): AnyJson;
+    const isStatusCodeMatcher: ( status: number | StatusCodeMatcher<number>, ) => status is StatusCodeMatcher<number>;
+    function reify<T extends AnyJson = AnyJson>(input: unknown): T;
 }
 ```
 
 File: src/xml/xmlBuilder.ts
+
 ```typescript
 class XmlBuilder {
     constructor(_version: string, _charset: string, rootElement: string);
@@ -68,6 +73,7 @@ class XmlBuilder {
 ```
 
 File: src/xml/xmlElement.ts
+
 ```typescript
 class XmlElement {
     constructor(name: string);
@@ -88,6 +94,7 @@ interface EachLikeOptions {
 ## V4 API
 
 File: src/v4/index.ts
+
 ```typescript
 // import { PactV4 } from "@pact-foundation/pact";
 class PactV4 {
@@ -99,7 +106,8 @@ class PactV4 {
 }
 ```
 
-File: src/v4/http/types.ts  (type-state chain for HTTP interactions)
+File: src/v4/http/types.ts (type-state chain for HTTP interactions)
+
 ```typescript
 interface PactV4Options {
   /**
@@ -162,7 +170,7 @@ interface V4UnconfiguredInteraction {
 
 interface V4InteractionWithRequest {
   willRespondWith(
-    status: number,
+    status: number | StatusCodeMatcher<number>,
     builder?: V4ResponseBuilderFunc,
   ): V4InteractionWithResponse;
 }
@@ -205,7 +213,8 @@ interface V4ResponseBuilder {
 }
 ```
 
-File: src/v4/message/types.ts  (async message interactions)
+File: src/v4/message/types.ts (async message interactions)
+
 ```typescript
 interface V4UnconfiguredAsynchronousMessage {
   given(state: string, parameters?: JsonMap): V4UnconfiguredAsynchronousMessage;
@@ -241,6 +250,7 @@ interface V4AsynchronousMessageBuilder {
 ## V2 (Legacy) DSL
 
 File: src/dsl/interaction.ts
+
 ```typescript
 interface RequestOptions {
   method: HTTPMethods | HTTPMethod;
@@ -273,6 +283,7 @@ class Interaction {
 ```
 
 File: src/dsl/options.ts
+
 ```typescript
 interface PactV2Options {
   // The name of the consumer
@@ -321,6 +332,7 @@ interface PactV2Options {
 ```
 
 File: src/dsl/verifier/proxy/types.ts
+
 ```typescript
 interface StateHandlers {
   [name: string]: StateHandler;
@@ -340,6 +352,7 @@ type StateHandler = StateFuncWithSetup | StateFunc;
 ```
 
 File: src/dsl/verifier/verifier.ts
+
 ```typescript
 // import { Verifier } from "@pact-foundation/pact";
 class Verifier {
@@ -348,7 +361,7 @@ class Verifier {
 }
 ```
 
----
+______________________________________________________________________
 
 ## V3 Consumer Test (TypeScript)
 
@@ -427,7 +440,7 @@ describe('AccountServiceClient', () => {
 });
 ```
 
----
+______________________________________________________________________
 
 ## V4 Consumer Test (TypeScript)
 
@@ -541,7 +554,7 @@ describe('UserServiceClient', () => {
 });
 ```
 
----
+______________________________________________________________________
 
 ## Provider Verification
 
