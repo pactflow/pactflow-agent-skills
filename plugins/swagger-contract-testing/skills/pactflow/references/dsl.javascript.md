@@ -5,6 +5,7 @@ While you already know this, here is a reminder of the Pact-JS classes and metho
 ## V3 API
 
 File: src/v3/pact.ts
+
 ```javascript
 // const { PactV3 } = require("@pact-foundation/pact");
 class PactV3 {
@@ -25,12 +26,14 @@ class PactV3 {
 ```
 
 File: src/v3/matchers.ts
+
 ```javascript
 // const { MatchersV3 } = require("@pact-foundation/pact");
 namespace MatchersV3 {
     function like(template);
     function eachKeyMatches(example, matchers);
     function eachValueMatches(example, matchers);
+    function matchStatus(example, status);
     function eachLike(template, min);
     function atLeastOneLike(template, count);
     function atLeastLike(template, min, count);
@@ -55,11 +58,13 @@ namespace MatchersV3 {
     function arrayContaining(...variants);
     function fromProviderState(expression, exampleValue);
     function uuid(example);
+    function isStatusCodeMatcher(status);
     function reify(input);
 }
 ```
 
 File: src/xml/xmlBuilder.ts
+
 ```javascript
 class XmlBuilder {
     constructor(_version, _charset, rootElement);
@@ -68,6 +73,7 @@ class XmlBuilder {
 ```
 
 File: src/xml/xmlElement.ts
+
 ```javascript
 class XmlElement {
     constructor(name);
@@ -82,6 +88,7 @@ class XmlElement {
 ## V4 API
 
 File: src/v4/index.ts
+
 ```javascript
 // const { PactV4 } = require("@pact-foundation/pact");
 class PactV4 {
@@ -94,6 +101,7 @@ class PactV4 {
 ```
 
 File: src/v4/http/types.ts
+
 ```javascript
 // V4 HTTP interaction builder chain:
 // pact.addInteraction()
@@ -147,6 +155,7 @@ File: src/v4/http/types.ts
 ```
 
 File: src/v4/message/types.ts
+
 ```javascript
 // V4UnconfiguredAsynchronousMessage:
 {
@@ -171,6 +180,7 @@ File: src/v4/message/types.ts
 ## V2 (Legacy) DSL
 
 File: src/dsl/interaction.ts
+
 ```javascript
 class Interaction {
     given(providerState);
@@ -182,6 +192,7 @@ class Interaction {
 ```
 
 File: src/dsl/verifier/verifier.ts
+
 ```javascript
 // const { Verifier } = require("@pact-foundation/pact");
 class Verifier {
@@ -190,7 +201,7 @@ class Verifier {
 }
 ```
 
----
+______________________________________________________________________
 
 ## V3 Consumer Test (TypeScript)
 
@@ -269,7 +280,7 @@ describe('AccountServiceClient', () => {
 });
 ```
 
----
+______________________________________________________________________
 
 ## V4 Consumer Test (TypeScript)
 
@@ -383,7 +394,7 @@ describe('UserServiceClient', () => {
 });
 ```
 
----
+______________________________________________________________________
 
 ## Provider Verification
 
