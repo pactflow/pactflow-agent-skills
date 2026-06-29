@@ -149,9 +149,9 @@ class PactDslRequestWithoutPath@JvmOverloads constructor(
     /**
     * Headers to be included in the request
     *
-    * @param firstHeaderName      The name of the first header
+    * @param firstHeaderNamName      The name of the first header
     * @param firstHeaderValue     The value of the first header
-    * @param headerNameValuePairs As Additional headers in name-value pairs.
+    * @param headerNameValuePairs Additional headers in name-value pairs.
     */
     fun headers(
     firstHeaderName: String,
