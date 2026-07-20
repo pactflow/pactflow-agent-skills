@@ -45,6 +45,15 @@ namespace MatchersV3 {
     function number(num?: number): Matcher<number>;
     function string(str = 'some string'): Matcher<string>;
     function regex(pattern: RegExp | string, str: string): V3RegexMatcher;
+    const email: (address?: string) => V3RegexMatcher;
+    const ipv4Address: (ip?: string) => V3RegexMatcher;
+    const ipv6Address: (ip?: string) => V3RegexMatcher;
+    const iso8601DateTime: (value?: string) => V3RegexMatcher;
+    const iso8601DateTimeWithMillis: (value?: string) => V3RegexMatcher;
+    const iso8601Date: (value?: string) => V3RegexMatcher;
+    const iso8601Time: (value?: string) => V3RegexMatcher;
+    const rfc1123Timestamp: (value?: string) => V3RegexMatcher;
+    const hexadecimal: (value?: string) => V3RegexMatcher;
     const contentType: (contentTypeValue: string) => Matcher<string>;
     const equal: <T>(value: T) => Matcher<T>;
     function datetime(format: string, example: string): DateTimeMatcher;
