@@ -45,6 +45,15 @@ namespace MatchersV3 {
     function number(num);
     function string(str);
     function regex(pattern, str);
+    function email(address);
+    function ipv4Address(ip);
+    function ipv6Address(ip);
+    function iso8601DateTime(value);
+    function iso8601DateTimeWithMillis(value);
+    function iso8601Date(value);
+    function iso8601Time(value);
+    function rfc1123Timestamp(value);
+    function hexadecimal(value);
     function contentType(contentTypeValue);
     function equal(value);
     function datetime(format, example);
