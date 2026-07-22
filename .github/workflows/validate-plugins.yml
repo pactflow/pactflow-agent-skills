@@ -1,0 +1,25 @@
+name: Validate plugins
+
+on:
+  push:
+    paths:
+      - "plugins/**"
+      - ".claude-plugin/**"
+      - "scripts/validate-plugins.py"
+      - ".github/workflows/validate-plugins.yml"
+  pull_request:
+    paths:
+      - "plugins/**"
+      - ".claude-plugin/**"
+      - "scripts/validate-plugins.py"
+      - ".github/workflows/validate-plugins.yml"
+
+jobs:
+  validate:
+    name: Validate plugin.json / marketplace.json / SKILL.md structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Run structural validation
+        run: python3 scripts/validate-plugins.py

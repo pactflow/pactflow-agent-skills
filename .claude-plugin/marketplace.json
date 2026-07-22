@@ -12,6 +12,11 @@
       "name": "swagger-contract-testing",
       "source": "./plugins/swagger-contract-testing",
       "description": "Expert assistant for PactFlow's OpenAPI contract testing tools — Drift CLI and OpenAPI spec parsing"
+    },
+    {
+      "name": "contract-testing-flywheel",
+      "source": "./plugins/contract-testing-flywheel",
+      "description": "Generates a scrum-tool-agnostic onboarding backlog (Jira, GitHub, or Azure DevOps) that takes a team from zero to publishing consumer + provider contract tests on PactFlow"
     }
   ]
 }
