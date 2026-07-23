@@ -1,0 +1,25 @@
+{
+  "name": "contract-testing-flywheel",
+  "description": "Generates a structured onboarding backlog that takes a team from zero to publishing verified consumer and provider contract tests on PactFlow — in Jira, GitHub Issues/Projects, or Azure DevOps, or as a manual markdown export. Modelled on the Contract Testing Flywheel: Planning → Requirements → Design → Implementation → Testing → Deployment → Lessons-Learned, plus an optional management dashboard.",
+  "version": "0.1.0",
+  "author": {
+    "name": "SmartBear Platform",
+    "email": "support@smartbear.com"
+  },
+  "category": "workflow",
+  "keywords": [
+    "workflow",
+    "contract-testing",
+    "onboarding",
+    "scrum-agnostic",
+    "jira",
+    "github",
+    "azure-devops",
+    "pact",
+    "drift",
+    "cdct",
+    "bdct",
+    "flywheel"
+  ],
+  "skills": "./skills/"
+}
