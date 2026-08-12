@@ -1,0 +1,37 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "swagger-contract-testing",
+  "version": "1.1.0",
+  "description": "Expert assistant for PactFlow and Pact contract testing — consumer-driven contracts, provider verification, can-i-deploy, BDCT, Drift CLI, and OpenAPI spec parsing. Includes specialized agents for reviewing and generating pact tests.",
+  "author": {
+    "name": "Kevin Rohan Vaz",
+    "email": "kevin.rohanvaz@smartbear.com"
+  },
+  "homepage": "https://github.com/pactflow/pactflow-agent-skills",
+  "repository": "https://github.com/pactflow/pactflow-agent-skills",
+  "extensions": {
+    "com.anthropic.claude": {
+      "agents": [
+        "./agents/pact-generator.md",
+        "./agents/pact-implementor.md",
+        "./agents/pact-reviewer.md",
+        "./agents/bdct-tester.md",
+        "./agents/pact-maintainer.md"
+      ],
+      "userConfig": {
+        "pact_broker_base_url": {
+          "title": "PactFlow Base URL",
+          "description": "Your PactFlow or Pact Broker URL (e.g. https://yourorg.pactflow.io)",
+          "type": "string",
+          "sensitive": false
+        },
+        "pact_broker_token": {
+          "title": "PactFlow API Token",
+          "description": "PactFlow API token — get it from app.pactflow.io/settings/api-tokens",
+          "type": "string",
+          "sensitive": true
+        }
+      }
+    }
+  }
+}

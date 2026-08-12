@@ -6,16 +6,16 @@ The plugin goes further: it bundles the [SmartBear MCP server](docs/ai-tools/sma
 
 There are two types of components in this repo. **Skills** are context files that activate when the task matches — the assistant reads them and applies the knowledge. **Agents** are autonomous sub-tasks the PactFlow skill delegates to: generating tests, reviewing them for best-practice violations, running a full BDCT flow end-to-end, or auditing workspace health.
 
-| Plugin name                                                                | Skills / Agents               | What it does                                                                                                                                                                                                                                                                                                                                                 |
-| -------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `swagger-contract-testing`                                                 | **Drift**                     | Expert assistant for Drift — PactFlow's OpenAPI contract testing CLI. Helps write test cases, configure lifecycle hooks, debug failures, and publish results to PactFlow.                                                                                                                                                                                    |
-|                                                                            | **OpenAPI Parser**            | Parses complex OpenAPI specs (anyOf/oneOf/allOf, discriminators, polymorphism, $ref chains, enums, regex) and generates Drift test cases covering every viable schema combination.                                                                                                                                                                           |
-|                                                                            | **PactFlow**                  | Expert assistant for PactFlow and Pact contract testing. Uses the SmartBear MCP `contract-testing_*` tools to generate and review Pact tests with AI, publish contracts, verify providers, run can-i-deploy checks, record deployments, and manage the full PactFlow workspace (environments, pacticipants, BDCT, webhooks, secrets, metrics).               |
-|                                                                            | **pact-generator**            | Agent: generates new Pact consumer tests and provider state handlers from existing code, OpenAPI specs, or example request/response pairs.                                                                                                                                                                                                                   |
-|                                                                            | **pact-reviewer**             | Agent: reviews Pact consumer tests and provider verification code for best-practice violations, false positives, and provider state naming issues.                                                                                                                                                                                                           |
-|                                                                            | **pact-implementor**          | Agent: builds a new Pact client library from scratch in any language by wrapping the Pact FFI.                                                                                                                                                                                                                                                               |
-|                                                                            | **pact-maintainer**           | Agent: audits PactFlow workspace health, fixes failing verifications, and cleans up stale pacticipants, branches, and environments.                                                                                                                                                                                                                          |
-|                                                                            | **bdct-tester**               | Agent: drives a full Bi-Directional Contract Testing flow end-to-end — consumer tests, provider contract verification, publishing, and can-i-deploy.                                                                                                                                                                                                         |
+| Plugin name                                                               | Skills / Agents               | What it does                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `swagger-contract-testing`                                                | **Drift**                     | Expert assistant for Drift — PactFlow's OpenAPI contract testing CLI. Helps write test cases, configure lifecycle hooks, debug failures, and publish results to PactFlow.                                                                                                                                                                                    |
+|                                                                           | **OpenAPI Parser**            | Parses complex OpenAPI specs (anyOf/oneOf/allOf, discriminators, polymorphism, $ref chains, enums, regex) and generates Drift test cases covering every viable schema combination.                                                                                                                                                                           |
+|                                                                           | **PactFlow**                  | Expert assistant for PactFlow and Pact contract testing. Uses the SmartBear MCP `contract-testing_*` tools to generate and review Pact tests with AI, publish contracts, verify providers, run can-i-deploy checks, record deployments, and manage the full PactFlow workspace (environments, pacticipants, BDCT, webhooks, secrets, metrics).               |
+|                                                                           | **pact-generator**            | Agent: generates new Pact consumer tests and provider state handlers from existing code, OpenAPI specs, or example request/response pairs.                                                                                                                                                                                                                   |
+|                                                                           | **pact-reviewer**             | Agent: reviews Pact consumer tests and provider verification code for best-practice violations, false positives, and provider state naming issues.                                                                                                                                                                                                           |
+|                                                                           | **pact-implementor**          | Agent: builds a new Pact client library from scratch in any language by wrapping the Pact FFI.                                                                                                                                                                                                                                                               |
+|                                                                           | **pact-maintainer**           | Agent: audits PactFlow workspace health, fixes failing verifications, and cleans up stale pacticipants, branches, and environments.                                                                                                                                                                                                                          |
+|                                                                           | **bdct-tester**               | Agent: drives a full Bi-Directional Contract Testing flow end-to-end — consumer tests, provider contract verification, publishing, and can-i-deploy.                                                                                                                                                                                                         |
 | [`contract-testing-flywheel`](docs/ai-tools/contract-testing-flywheel.md) | **contract-testing-flywheel** | Workflow skill (slash command `/contract-testing-flywheel`): generates a structured onboarding backlog that takes a team from zero to publishing consumer + provider contract tests on PactFlow, modelled on the Contract Testing Flywheel. Scrum-tool-agnostic — drives Jira, GitHub Issues/Projects, or Azure DevOps, or renders a manual markdown export. |
 
 The three `swagger-contract-testing` skills work together: **OpenAPI Parser** analyses a spec and generates Drift test scaffolding; **Drift** runs, iterates, and publishes those tests; **PactFlow** manages the full contract testing lifecycle — from generating Pact tests with AI to safely deploying services. The agents handle specialised sub-tasks autonomously within the PactFlow skill.
@@ -39,6 +39,7 @@ The three `swagger-contract-testing` skills work together: **OpenAPI Parser** an
 - [Codex](#installing-in-codex)
 - [Kiro](#installing-in-kiro)
 - [Antigravity](#installing-in-antigravity)
+- [Agent Plugins standard](#installing-via-the-agent-plugins-standard)
 
 ## Quick install with `npx skills`
 
@@ -623,3 +624,28 @@ cp -r plugins/swagger-contract-testing/skills/pactflow ~/.gemini/antigravity/ski
 ```
 
 > Antigravity also supports `.agent/skills/` (singular) for backward compatibility.
+
+---
+
+## Installing via the Agent Plugins standard
+
+Both plugins also ship a portable [Agent Plugins](https://agent-plugins.org) manifest — an open, vendor-neutral packaging format backed by Amazon, Cursor, Microsoft, OpenAI, and Vercel — alongside the Claude/Codex-specific ones:
+
+```
+plugins/swagger-contract-testing/
+├── plugin.json          # agent-plugins.org manifest (portable)
+├── mcp.json             # agent-plugins.org MCP server config (portable)
+├── skills/              # discovered by any conformant client
+├── .claude-plugin/       # Claude Code-specific manifest
+└── .codex-plugin/        # Codex-specific manifest
+
+plugins/contract-testing-flywheel/
+├── plugin.json
+├── skills/
+├── .claude-plugin/
+└── .codex-plugin/
+```
+
+Any client that implements the Agent Plugins spec discovers the plugin's identity from the root `plugin.json`, its skills from `skills/` (immediate child directories containing `SKILL.md`), and — for `swagger-contract-testing` — the bundled SmartBear MCP server from `mcp.json`. Fields the open standard doesn't define yet (Claude's `agents` list and `userConfig` schema, the Codex-specific manifest) live in `plugin.json`'s `extensions["com.anthropic.claude"]` namespace or in the client-specific manifest files, and are ignored by clients that don't recognize that namespace.
+
+Point your client at the plugin directory (e.g. `plugins/swagger-contract-testing`) per its own Agent Plugins installation flow; `scripts/validate-plugins.py` checks that both manifests stay in sync with the Claude/Codex ones.

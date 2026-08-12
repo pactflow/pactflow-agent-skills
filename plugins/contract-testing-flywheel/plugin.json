@@ -1,0 +1,31 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "contract-testing-flywheel",
+  "version": "0.1.0",
+  "description": "Generates a structured onboarding backlog that takes a team from zero to publishing verified consumer and provider contract tests on PactFlow — in Jira, GitHub Issues/Projects, or Azure DevOps, or as a manual markdown export. Modelled on the Contract Testing Flywheel: Planning → Requirements → Design → Implementation → Testing → Deployment → Lessons-Learned, plus an optional management dashboard.",
+  "author": {
+    "name": "SmartBear Platform",
+    "email": "support@smartbear.com"
+  },
+  "homepage": "https://github.com/pactflow/pactflow-agent-skills",
+  "repository": "https://github.com/pactflow/pactflow-agent-skills",
+  "keywords": [
+    "workflow",
+    "contract-testing",
+    "onboarding",
+    "scrum-agnostic",
+    "jira",
+    "github",
+    "azure-devops",
+    "pact",
+    "drift",
+    "cdct",
+    "bdct",
+    "flywheel"
+  ],
+  "extensions": {
+    "com.anthropic.claude": {
+      "category": "workflow"
+    }
+  }
+}
