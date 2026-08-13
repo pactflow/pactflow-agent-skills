@@ -15,17 +15,27 @@ uv/pip install needed. Checks:
   5. Every SKILL.md under plugins/*/skills/**/SKILL.md (or
      plugins/*/**/SKILL.md more generally) has a frontmatter block
      (--- ... ---) containing a `name:` line.
+  6. Every plugins/*/plugin.json (the portable agent-plugins.org manifest,
+     at the plugin root rather than under .claude-plugin/) is valid JSON,
+     has the exact `$schema` the standard requires, a `name` matching the
+     standard's naming pattern, and matches the .claude-plugin name. If a
+     sibling root mcp.json exists, same treatment for its `$schema` and
+     required `mcpServers`.
 
 Exits 1 with a list of every failure found (not just the first), 0 if clean.
 """
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_PLUGIN_KEYS = ("name", "description", "version")
+AGENT_PLUGINS_SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+AGENT_PLUGINS_MCP_SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
+AGENT_PLUGINS_NAME_PATTERN = re.compile(r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$")
 
 
 def fail(errors: list[str], message: str) -> None:
@@ -134,6 +144,61 @@ def check_marketplace(errors: list[str], plugin_dirs: dict[str, Path]) -> None:
             )
 
 
+def check_agent_plugins_manifest(errors: list[str], plugin_dirs: dict[str, Path]) -> None:
+    """Validate the portable plugins/*/plugin.json (agent-plugins.org standard)."""
+    for name, plugin_dir in plugin_dirs.items():
+        manifest_path = plugin_dir / "plugin.json"
+        if not manifest_path.is_file():
+            fail(errors, f"{plugin_dir.relative_to(REPO_ROOT)}: missing root plugin.json (agent-plugins.org manifest)")
+            continue
+
+        try:
+            data = json.loads(manifest_path.read_text())
+        except json.JSONDecodeError as e:
+            fail(errors, f"{manifest_path.relative_to(REPO_ROOT)}: invalid JSON ({e})")
+            continue
+
+        if data.get("$schema") != AGENT_PLUGINS_SCHEMA_URL:
+            fail(
+                errors,
+                f"{manifest_path.relative_to(REPO_ROOT)}: '$schema' must be '{AGENT_PLUGINS_SCHEMA_URL}', "
+                f"got {data.get('$schema')!r}",
+            )
+
+        manifest_name = data.get("name")
+        if not manifest_name or not AGENT_PLUGINS_NAME_PATTERN.match(manifest_name):
+            fail(
+                errors,
+                f"{manifest_path.relative_to(REPO_ROOT)}: 'name' {manifest_name!r} does not match the "
+                f"agent-plugins.org naming pattern",
+            )
+        elif manifest_name != name:
+            fail(
+                errors,
+                f"{manifest_path.relative_to(REPO_ROOT)}: 'name' {manifest_name!r} does not match "
+                f".claude-plugin/plugin.json 'name' {name!r}",
+            )
+
+        mcp_path = plugin_dir / "mcp.json"
+        if not mcp_path.is_file():
+            continue
+
+        try:
+            mcp_data = json.loads(mcp_path.read_text())
+        except json.JSONDecodeError as e:
+            fail(errors, f"{mcp_path.relative_to(REPO_ROOT)}: invalid JSON ({e})")
+            continue
+
+        if mcp_data.get("$schema") != AGENT_PLUGINS_MCP_SCHEMA_URL:
+            fail(
+                errors,
+                f"{mcp_path.relative_to(REPO_ROOT)}: '$schema' must be '{AGENT_PLUGINS_MCP_SCHEMA_URL}', "
+                f"got {mcp_data.get('$schema')!r}",
+            )
+        if not isinstance(mcp_data.get("mcpServers"), dict):
+            fail(errors, f"{mcp_path.relative_to(REPO_ROOT)}: missing or invalid 'mcpServers' object")
+
+
 def check_skill_frontmatter(errors: list[str], plugin_dirs: dict[str, Path]) -> None:
     for name, plugin_dir in plugin_dirs.items():
         for skill_md in sorted(plugin_dir.rglob("SKILL.md")):
@@ -156,6 +221,7 @@ def main() -> int:
     errors: list[str] = []
     plugin_dirs = check_plugin_jsons(errors)
     check_marketplace(errors, plugin_dirs)
+    check_agent_plugins_manifest(errors, plugin_dirs)
     check_skill_frontmatter(errors, plugin_dirs)
 
     if errors:
