@@ -2573,3 +2573,20 @@ class PactVerificationContext@JvmOverloads constructor(
     fun currentTarget(): TestTarget?
 }
 ```
+dditionalTargets: MutableList<TestTarget> = mutableListOf()
+) {
+    /**
+    * Called to verify the interaction from the test template method.
+    *
+    * @throws AssertionError Throws an assertion error if the verification fails.
+    */
+    fun verifyInteraction()
+    fun withStateChangeHandlers(vararg stateClasses: Any): PactVerificationContext
+    fun addStateChangeHandlers(vararg stateClasses: Any)
+    /**
+    * Adds additional targets to the context for the test.
+    */
+    fun addAdditionalTarget(target: TestTarget)
+    fun currentTarget(): TestTarget?
+}
+```
