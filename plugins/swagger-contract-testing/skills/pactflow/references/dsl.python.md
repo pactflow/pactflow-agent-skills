@@ -154,7 +154,7 @@ class Verifier:
     def add_custom_headers(headers: dict[str, str] | Iterable[tuple[str, str]]) -> Self
     def follow_redirects(follow: bool) -> Self
     def add_source(source: str | Path | URL, *, username: str | None = None, password: str | None = None, token: str | None = None) -> Self
-    def broker_source(url: str | URL | None | Unset = UNSET, *, username: str | None | Unset = UNSET, password: str | None | Unset = UNSET, token: str | None | Unset = UNSET, selector: bool = False, use_env: bool = True) -> BrokerSelectorBuilder | Self
+    def broker_source(url: str | URL | Unset | None = UNSET, *, username: str | Unset | None = UNSET, password: str | Unset | None = UNSET, token: str | Unset | None = UNSET, selector: bool = False, use_env: bool = True) -> BrokerSelectorBuilder | Self
     def verify() -> Self
     @property
     def logs() -> str
