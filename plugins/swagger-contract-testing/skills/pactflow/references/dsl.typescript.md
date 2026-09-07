@@ -352,7 +352,7 @@ interface ProviderState {
   state: string;
 }
 type StateAction = 'setup' | 'teardown';
-type StateFunc = (parameters?: AnyJson) => Promise<JsonMap | undefined>;
+type StateFunc = (parameters?: AnyJson) => Promise<JsonMap | void>;
 type StateFuncWithSetup = {
   setup?: StateFunc;
   teardown?: StateFunc;
