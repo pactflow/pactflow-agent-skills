@@ -1,0 +1,50 @@
+{
+  "consumer": {"name": "OrderClient"},
+  "provider": {"name": "OrderAPI"},
+  "interactions": [
+    {
+      "type": "Synchronous/HTTP",
+      "description": "get order by id - success",
+      "request": {
+        "method": "GET",
+        "path": "/orders/123",
+        "headers": {"Accept": ["application/json"]}
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "content": {"id": "123", "status": "placed"},
+          "contentType": "application/json"
+        }
+      }
+    },
+    {
+      "type": "Synchronous/HTTP",
+      "description": "create order",
+      "request": {
+        "method": "POST",
+        "path": "/orders",
+        "body": {
+          "content": {"customerId": "abc"},
+          "contentType": "application/json"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "content": {"id": "456", "status": "pending"},
+          "contentType": "application/json"
+        }
+      }
+    },
+    {
+      "type": "Asynchronous/Messages",
+      "description": "order event — must be ignored",
+      "contents": {
+        "content": {"orderId": "123"},
+        "contentType": "application/json"
+      }
+    }
+  ],
+  "metadata": {"pactSpecification": {"version": "4.0"}}
+}

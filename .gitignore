@@ -3,6 +3,7 @@ kiro-powers/
 .agents/
 drift-workspace/
 pactflow-workspace/
+.superpowers/
 settings.local.json
 demo/
 # Byte-compiled / optimized / DLL files
@@ -144,3 +145,4 @@ write_file_no_gil.c
 .vscode/
 
 *venv*
+uv.lock

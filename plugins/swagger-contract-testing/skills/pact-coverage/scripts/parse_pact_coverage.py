@@ -1,0 +1,698 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "pyyaml",
+# ]
+# ///
+"""
+parse_pact_coverage.py — Pact v4 interaction coverage checker against an OpenAPI spec.
+
+Reports which path/method operations, status codes, required request body fields, and
+required response body fields are tested vs. missing across one or more pact.json files.
+
+Usage:
+  uv run parse_pact_coverage.py --spec openapi.yaml --pacts pacts/consumer-provider.json
+  uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json"
+  uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" --json
+  uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" --exclude-codes 500 501
+
+  # Consumer-filtered: only report on HTTP operations the consumer code actually calls.
+  # Pass --consumer-root (with optional --ripwire) to auto-discover routes via ripwire,
+  # or --kg to supply a pre-built ripwire XML, or --consumer-routes to supply a JSON list.
+  uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" \\
+      --consumer-root ./consumer-src
+  uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" \\
+      --consumer-routes '[{"method":"GET","path":"/orders/{id}"}]'
+
+Exit codes:
+  0 — full coverage across all four dimensions
+  1 — gaps found (at least one dimension has missing coverage)
+  2 — error (spec or pact file could not be parsed, or consumer-filtering failed)
+"""
+
+from __future__ import annotations
+
+import argparse
+import glob
+import json
+import os
+import re
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+try:
+    import yaml
+except ImportError:
+    print("ERROR: PyYAML not installed. Run: pip install pyyaml", file=sys.stderr)
+    sys.exit(2)
+
+HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
+DEFAULT_EXCLUDE = {"500", "501", "502", "503"}
+
+
+# ─── OAS helpers ───────────────────────────────────────────────────────────────
+
+def _resolve_ref(ref: str, root: dict) -> dict:
+    """Resolve a local JSON Pointer $ref (e.g. '#/components/schemas/Foo')."""
+    if not ref.startswith("#/"):
+        return {}  # external refs not supported — return empty
+    parts = ref[2:].split("/")
+    node = root
+    for part in parts:
+        part = part.replace("~1", "/").replace("~0", "~")
+        if not isinstance(node, dict):
+            return {}
+        node = node.get(part, {})
+    return node if isinstance(node, dict) else {}
+
+
+def _extract_required_fields(schema: dict, root: dict) -> set:
+    """
+    Collect required field names from an OAS schema node (top-level only).
+
+    Handles $ref, allOf (union), anyOf/oneOf (union — conservative).
+    """
+    if not isinstance(schema, dict):
+        return set()
+
+    # Resolve $ref first
+    if "$ref" in schema:
+        schema = _resolve_ref(schema["$ref"], root)
+        if not schema:
+            return set()
+
+    fields: set = set()
+
+    # allOf — merge required from all branches
+    for branch in schema.get("allOf", []):
+        fields |= _extract_required_fields(branch, root)
+
+    # anyOf / oneOf — union across all branches (conservative)
+    for keyword in ("anyOf", "oneOf"):
+        for branch in schema.get(keyword, []):
+            fields |= _extract_required_fields(branch, root)
+
+    # Direct required list at this node level
+    for field in schema.get("required", []):
+        fields.add(str(field))
+
+    return fields
+
+
+def _get_json_schema_for_media_type(content: dict, root: dict) -> dict:
+    """
+    Given an OAS content block, find the application/json schema.
+
+    Returns the resolved schema dict, or {} if not found.
+    """
+    if not isinstance(content, dict):
+        return {}
+
+    # Prefer exact match, then first key containing 'json'
+    entry = content.get("application/json")
+    if entry is None:
+        for key in content:
+            if "json" in key:
+                entry = content[key]
+                break
+
+    if not isinstance(entry, dict):
+        return {}
+
+    schema = entry.get("schema", {})
+    if not isinstance(schema, dict):
+        return {}
+
+    if "$ref" in schema:
+        return _resolve_ref(schema["$ref"], root)
+    return schema
+
+
+# ─── Pact parsing ──────────────────────────────────────────────────────────────
+
+def load_pact(path: str) -> dict:
+    """Load and JSON-parse a pact file. Raises ValueError on bad JSON."""
+    with open(path) as f:
+        raw = f.read()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in pact file '{path}': {e}") from e
+
+
+def extract_pact_interactions(pact: dict) -> list:
+    """
+    Return a list of interaction dicts for every Synchronous/HTTP interaction.
+
+    Silently skips interactions where type is not 'Synchronous/HTTP'.
+    """
+    interactions = []
+    for ix in pact.get("interactions", []):
+        if not isinstance(ix, dict):
+            continue
+        if ix.get("type") != "Synchronous/HTTP":
+            continue
+
+        request = ix.get("request", {})
+        response = ix.get("response", {})
+
+        method = str(request.get("method", "")).upper()
+        path = str(request.get("path", ""))
+        status_raw = response.get("status", 0)
+        try:
+            status = int(status_raw)
+        except (TypeError, ValueError):
+            status = 0
+
+        # Extract top-level body content keys
+        req_body = ix.get("request", {}) or {}
+        req_body = req_body.get("body") or {}
+        req_body_content = req_body.get("content")
+        req_body_fields = set(req_body_content.keys()) if isinstance(req_body_content, dict) else set()
+
+        resp_body = ix.get("response", {}) or {}
+        resp_body = resp_body.get("body") or {}
+        resp_body_content = resp_body.get("content")
+        resp_body_fields = set(resp_body_content.keys()) if isinstance(resp_body_content, dict) else set()
+
+        interactions.append({
+            "description": ix.get("description", ""),
+            "method": method,
+            "path": path,
+            "status": status,
+            "req_body_fields": req_body_fields,
+            "resp_body_fields": resp_body_fields,
+        })
+
+    return interactions
+
+
+# ─── OAS parsing ───────────────────────────────────────────────────────────────
+
+def load_oas(path: str) -> dict:
+    """Load an OAS spec (YAML or JSON). Raises ValueError on parse failure."""
+    with open(path) as f:
+        raw = f.read()
+    try:
+        result = yaml.safe_load(raw)
+    except yaml.YAMLError as e:
+        raise ValueError(f"Could not parse spec '{path}': {e}") from e
+    if not isinstance(result, dict):
+        raise ValueError("spec did not parse to a mapping")
+    return result
+
+
+def extract_oas_operations(oas: dict, exclude_codes: set | None = None) -> dict:
+    """
+    Walk oas['paths'] and produce an operations dict keyed by 'method:path'.
+
+    Only includes 2xx and 4xx status codes, excluding exclude_codes.
+    """
+    if exclude_codes is None:
+        exclude_codes = DEFAULT_EXCLUDE
+
+    operations = {}
+
+    for path, path_item in oas.get("paths", {}).items():
+        if not isinstance(path_item, dict):
+            continue
+
+        # Resolve path item $ref
+        if "$ref" in path_item:
+            path_item = _resolve_ref(path_item["$ref"], oas)
+            if not path_item:
+                continue
+
+        for method, operation in path_item.items():
+            if method not in HTTP_METHODS:
+                continue
+            if not isinstance(operation, dict):
+                continue
+
+            # Collect 2xx and 4xx response codes only
+            status_codes: set = set()
+            for code in operation.get("responses", {}).keys():
+                code_str = str(code)
+                if code_str in exclude_codes:
+                    continue
+                if re.match(r"^[24]\d\d$", code_str):
+                    status_codes.add(code_str)
+
+            # Request body required fields
+            req_required_fields: set = set()
+            request_body = operation.get("requestBody", {})
+            if isinstance(request_body, dict):
+                if "$ref" in request_body:
+                    request_body = _resolve_ref(request_body["$ref"], oas)
+                req_content = request_body.get("content", {})
+                req_schema = _get_json_schema_for_media_type(req_content, oas)
+                req_required_fields = _extract_required_fields(req_schema, oas)
+
+            # Response body required fields per status code
+            resp_required_fields: dict = {}
+            for code in status_codes:
+                response_obj = operation.get("responses", {}).get(code, {})
+                if not isinstance(response_obj, dict):
+                    resp_required_fields[code] = set()
+                    continue
+                if "$ref" in response_obj:
+                    response_obj = _resolve_ref(response_obj["$ref"], oas)
+                resp_content = response_obj.get("content", {})
+                resp_schema = _get_json_schema_for_media_type(resp_content, oas)
+                resp_required_fields[code] = _extract_required_fields(resp_schema, oas)
+
+            op_key = f"{method}:{path}"
+            operations[op_key] = {
+                "path": path,
+                "method": method,
+                "status_codes": status_codes,
+                "req_required_fields": req_required_fields,
+                "resp_required_fields": resp_required_fields,
+            }
+
+    return operations
+
+
+# ─── Path matching ─────────────────────────────────────────────────────────────
+
+def oas_path_to_pattern(oas_path: str) -> re.Pattern:
+    """Convert an OAS path template to a compiled regex anchored at both ends."""
+    parts = re.split(r'(\{[^}]+\})', oas_path)
+    regex = ""
+    for part in parts:
+        if part.startswith('{') and part.endswith('}'):
+            regex += '[^/]+'
+        else:
+            regex += re.escape(part)
+    return re.compile(f'^{regex}$')
+
+
+def find_matching_operation(method: str, concrete_path: str, oas_operations: dict) -> str | None:
+    """
+    Find the OAS operation key matching this method + concrete path.
+
+    1. Normalize method to lowercase.
+    2. Try exact match first.
+    3. Try regex match; prefer operation with fewer {param} segments.
+    """
+    method = method.lower()
+    exact_key = f"{method}:{concrete_path}"
+    if exact_key in oas_operations:
+        return exact_key
+
+    # Regex matching — find all candidates for this method
+    candidates = []
+    prefix = f"{method}:"
+    for key in oas_operations:
+        if not key.startswith(prefix):
+            continue
+        oas_path = key[len(prefix):]
+        pattern = oas_path_to_pattern(oas_path)
+        if pattern.match(concrete_path):
+            param_count = oas_path.count("{")
+            candidates.append((param_count, key))
+
+    if not candidates:
+        return None
+
+    # Prefer the most specific match (fewest params)
+    candidates.sort(key=lambda x: x[0])
+    return candidates[0][1]
+
+
+# ─── Coverage computation ──────────────────────────────────────────────────────
+
+def compute_coverage(oas_ops: dict, pact_interactions: list, exclude_codes: set) -> dict:
+    """Compute coverage across all 4 dimensions."""
+    # Group pact interactions by their matching OAS operation key
+    matched: dict = defaultdict(list)  # op_key -> [interaction, ...]
+    for ix in pact_interactions:
+        key = find_matching_operation(ix["method"], ix["path"], oas_ops)
+        if key:
+            matched[key].append(ix)
+
+    # Dimension 1: path/method coverage
+    path_method_covered = sorted(k for k in oas_ops if k in matched)
+    path_method_missing = sorted(k for k in oas_ops if k not in matched)
+
+    # Dimension 2: status code coverage (per operation)
+    status_codes: dict = {}
+    for op_key, info in oas_ops.items():
+        spec_codes = info["status_codes"]
+        tested_codes = {str(ix["status"]) for ix in matched.get(op_key, [])}
+        missing_codes = sorted(spec_codes - tested_codes)
+        covered_codes = sorted(spec_codes & tested_codes)
+        if missing_codes or covered_codes:
+            status_codes[op_key] = {
+                "path": info["path"], "method": info["method"],
+                "covered": covered_codes, "missing": missing_codes,
+            }
+
+    # Dimension 3: request body required fields (per operation, only when spec has required fields)
+    req_body_fields: dict = {}
+    for op_key, info in oas_ops.items():
+        req_required = info["req_required_fields"]
+        if not req_required:
+            continue
+        tested_fields: set = set()
+        for ix in matched.get(op_key, []):
+            tested_fields |= ix["req_body_fields"]
+        missing = sorted(req_required - tested_fields)
+        covered = sorted(req_required & tested_fields)
+        req_body_fields[op_key] = {
+            "path": info["path"], "method": info["method"],
+            "covered": covered, "missing": missing,
+        }
+
+    # Dimension 4: response body required fields (per op+status_code, only when spec has required fields)
+    resp_body_fields: dict = {}
+    for op_key, info in oas_ops.items():
+        for status_code, resp_required in info["resp_required_fields"].items():
+            if not resp_required:
+                continue
+            key = f"{op_key}:{status_code}"
+            tested_fields = set()
+            for ix in matched.get(op_key, []):
+                if str(ix["status"]) == status_code:
+                    tested_fields |= ix["resp_body_fields"]
+            missing = sorted(resp_required - tested_fields)
+            covered = sorted(resp_required & tested_fields)
+            resp_body_fields[key] = {
+                "path": info["path"], "method": info["method"], "status": status_code,
+                "covered": covered, "missing": missing,
+            }
+
+    # has_gaps: true if any dimension has missing items
+    has_gaps = bool(
+        path_method_missing
+        or any(v["missing"] for v in status_codes.values())
+        or any(v["missing"] for v in req_body_fields.values())
+        or any(v["missing"] for v in resp_body_fields.values())
+    )
+
+    return {
+        "path_method": {"covered": path_method_covered, "missing": path_method_missing},
+        "status_codes": status_codes,
+        "req_body_fields": req_body_fields,
+        "resp_body_fields": resp_body_fields,
+        "has_gaps": has_gaps,
+        "total_interactions": len(pact_interactions),
+    }
+
+
+# ─── Output ────────────────────────────────────────────────────────────────────
+
+def _pct(covered: int, total: int) -> str:
+    """Return a 'covered/total — X%' label."""
+    if total == 0:
+        return "0/0 — N/A"
+    return f"{covered}/{total} — {covered * 100 // total}%"
+
+
+def print_report(report: dict, spec_path: str, pact_files: list, exclude_codes: set) -> None:
+    """Print a 4-section coverage report to stdout."""
+    divider = "═" * 62
+
+    total_interactions = report["total_interactions"]
+
+    print(f"Spec:        {spec_path}")
+    print(f"Pact files:  {', '.join(pact_files)} ({total_interactions} interactions)")
+    print(f"Excluding:   {', '.join(sorted(exclude_codes))}")
+    print()
+
+    # Section 1 — path/method
+    pm = report["path_method"]
+    s1_covered = len(pm["covered"])
+    s1_total = s1_covered + len(pm["missing"])
+    print(divider)
+    print(f"SECTION 1 — PATH / METHOD COVERAGE  [{_pct(s1_covered, s1_total)}]")
+    print(divider)
+
+    covered_items = [f"{k.split(':', 1)[0].upper()} {k.split(':', 1)[1]}" for k in pm["covered"]]
+    missing_items = [f"{k.split(':', 1)[0].upper()} {k.split(':', 1)[1]}" for k in pm["missing"]]
+    print(f"  COVERED     ({s1_covered}): {', '.join(covered_items) or '(none)'}")
+    print(f"  NOT COVERED ({len(pm['missing'])}): {', '.join(missing_items) or '(none)'}")
+    print()
+
+    # Section 2 — status codes
+    s2_covered = sum(len(v["covered"]) for v in report["status_codes"].values())
+    s2_total = sum(len(v["covered"]) + len(v["missing"]) for v in report["status_codes"].values())
+    print(divider)
+    print(f"SECTION 2 — STATUS CODE COVERAGE  [{_pct(s2_covered, s2_total)}]")
+    print(divider)
+    for op_key, info in report["status_codes"].items():
+        method = info["method"].upper()
+        path = info["path"]
+        if op_key in pm["missing"]:
+            print(f"  {method} {path} — no interactions (see Section 1)")
+        else:
+            op_c = len(info["covered"])
+            op_t = op_c + len(info["missing"])
+            print(f"  {method} {path}  [{_pct(op_c, op_t)}]")
+            print(f"    Covered:  {', '.join(info['covered']) or '(none)'}")
+            print(f"    Missing:  {', '.join(info['missing']) or '(none)'}")
+    print()
+
+    # Section 3 — request body required fields
+    s3_covered = sum(len(v["covered"]) for v in report["req_body_fields"].values())
+    s3_total = sum(len(v["covered"]) + len(v["missing"]) for v in report["req_body_fields"].values())
+    print(divider)
+    print(f"SECTION 3 — REQUEST BODY REQUIRED FIELDS  [{_pct(s3_covered, s3_total)}]")
+    print(divider)
+    for op_key, info in report["req_body_fields"].items():
+        method = info["method"].upper()
+        path = info["path"]
+        if op_key in pm["missing"]:
+            print(f"  {method} {path} — no interactions (see Section 1)")
+        else:
+            op_c = len(info["covered"])
+            op_t = op_c + len(info["missing"])
+            print(f"  {method} {path}  [{_pct(op_c, op_t)}]")
+            print(f"    Covered:  {', '.join(info['covered']) or '(none)'}")
+            print(f"    Missing:  {', '.join(info['missing']) or '(none)'}")
+    print()
+
+    # Section 4 — response body required fields
+    s4_covered = sum(len(v["covered"]) for v in report["resp_body_fields"].values())
+    s4_total = sum(len(v["covered"]) + len(v["missing"]) for v in report["resp_body_fields"].values())
+    print(divider)
+    print(f"SECTION 4 — RESPONSE BODY REQUIRED FIELDS  [{_pct(s4_covered, s4_total)}]")
+    print(divider)
+    for key, info in report["resp_body_fields"].items():
+        method = info["method"].upper()
+        path = info["path"]
+        status = info["status"]
+        op_c = len(info["covered"])
+        op_t = op_c + len(info["missing"])
+        print(f"  {method} {path} → {status}  [{_pct(op_c, op_t)}]")
+        print(f"    Covered:  {', '.join(info['covered']) or '(none)'}")
+        print(f"    Missing:  {', '.join(info['missing']) or '(none)'}")
+    print()
+
+    # Summary
+    print(divider)
+    if report["has_gaps"]:
+        gap_count = (
+            len(pm["missing"])
+            + sum(1 for v in report["status_codes"].values() if v["missing"])
+            + sum(1 for v in report["req_body_fields"].values() if v["missing"])
+            + sum(1 for v in report["resp_body_fields"].values() if v["missing"])
+        )
+        print(f"SUMMARY: {gap_count} gap(s) found. Exit code 1.")
+        print(f"  Paths/methods:         {_pct(s1_covered, s1_total)}")
+        print(f"  Status codes:          {_pct(s2_covered, s2_total)}")
+        print(f"  Req body fields:       {_pct(s3_covered, s3_total)}")
+        print(f"  Resp body fields:      {_pct(s4_covered, s4_total)}")
+    else:
+        print("✓  All 4 dimensions fully covered. Exit code 0.")
+        print(f"  Paths/methods:         {_pct(s1_covered, s1_total)}")
+        print(f"  Status codes:          {_pct(s2_covered, s2_total)}")
+        print(f"  Req body fields:       {_pct(s3_covered, s3_total)}")
+        print(f"  Resp body fields:      {_pct(s4_covered, s4_total)}")
+    print(divider)
+
+
+# ─── Consumer filtering ────────────────────────────────────────────────────────
+
+def _build_consumer_filtered_oas(
+    oas: dict,
+    *,
+    consumer_root: str | None,
+    kg: str | None,
+    consumer_routes: str | None,
+    ripwire: str,
+) -> dict | None:
+    """Import build_filtered_oas and return a consumer-filtered OAS, or None on failure."""
+    scripts_dir = str(Path(__file__).parent)
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+
+    try:
+        from build_filtered_oas import (  # type: ignore[import]
+            get_routes_iterative,
+            get_routes_via_response_types,
+            enrich_route_with_type,
+            parse_routes_xml,
+            routes_from_json as bfo_routes_from_json,
+            build_filtered_oas as bfo_build,
+        )
+    except ImportError as e:
+        print(f"ERROR: cannot import build_filtered_oas: {e}", file=sys.stderr)
+        return None
+
+    routes: list[dict] = []
+
+    if kg:
+        try:
+            xml = Path(kg).read_text()
+            routes, _, _ = parse_routes_xml(xml)
+        except Exception as e:
+            print(f"WARNING: could not read --kg file: {e}", file=sys.stderr)
+
+    elif consumer_root:
+        try:
+            routes = get_routes_iterative(ripwire, consumer_root, 3)
+        except Exception:
+            routes = []
+        if not routes:
+            try:
+                routes = get_routes_via_response_types(ripwire, consumer_root, oas, 3)
+            except Exception:
+                routes = []
+
+    if not routes and consumer_routes:
+        try:
+            routes = bfo_routes_from_json(consumer_routes)
+        except Exception as e:
+            print(f"ERROR: --consumer-routes is invalid: {e}", file=sys.stderr)
+            return None
+
+    if not routes:
+        return None
+
+    if consumer_root and not kg:
+        enriched: list[dict] = []
+        for route in routes:
+            if "tier" not in route:
+                try:
+                    enriched.append(enrich_route_with_type(route, ripwire, consumer_root, oas))
+                except Exception:
+                    route.setdefault("tier", 4)
+                    route.setdefault("tier_note", "enrich failed")
+                    route.setdefault("type_name", None)
+                    route.setdefault("consumer_fields", [])
+                    route.setdefault("consumer_optional_fields", [])
+                    route.setdefault("resolved_fields", None)
+                    enriched.append(route)
+            else:
+                enriched.append(route)
+        routes = enriched
+
+    filtered, _ = bfo_build(routes, oas)
+    return filtered
+
+
+# ─── Entry point ───────────────────────────────────────────────────────────────
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Check Pact interaction coverage against an OpenAPI spec.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
+    )
+    parser.add_argument("--spec", required=True, help="Path to OpenAPI spec (YAML or JSON)")
+    parser.add_argument("--pacts", nargs="+", required=True, help="Pact JSON files or glob patterns")
+    parser.add_argument(
+        "--exclude-codes", nargs="*", default=sorted(DEFAULT_EXCLUDE),
+        help="Status codes to exclude from coverage",
+    )
+    parser.add_argument("--json", action="store_true", help="Output as JSON")
+
+    # Consumer-filtering flags (optional)
+    parser.add_argument(
+        "--consumer-root", metavar="DIR",
+        help="Consumer source root; script auto-discovers routes via ripwire and filters the spec",
+    )
+    parser.add_argument(
+        "--kg", metavar="FILE",
+        help="Pre-built ripwire knowledge-graph XML (skips running ripwire)",
+    )
+    parser.add_argument(
+        "--consumer-routes", metavar="JSON",
+        help='JSON route list, e.g. \'[{"method":"GET","path":"/orders/{id}"}]\' '
+             "(Tier-4 fallback when ripwire cannot discover routes)",
+    )
+    parser.add_argument(
+        "--ripwire", metavar="BIN", default="ripwire",
+        help="Path to ripwire binary (default: ripwire on PATH)",
+    )
+    args = parser.parse_args()
+
+    # Expand globs
+    pact_files = []
+    for pattern in args.pacts:
+        matches = glob.glob(pattern)
+        pact_files.extend(matches if matches else ([pattern] if os.path.exists(pattern) else []))
+
+    if not pact_files:
+        print("ERROR: No pact files found.", file=sys.stderr)
+        sys.exit(2)
+
+    exclude_codes = set(str(c) for c in args.exclude_codes)
+
+    try:
+        oas = load_oas(args.spec)
+    except Exception as e:
+        print(f"ERROR: Could not parse spec '{args.spec}': {e}", file=sys.stderr)
+        sys.exit(2)
+
+    if args.consumer_root or args.kg or args.consumer_routes:
+        filtered = _build_consumer_filtered_oas(
+            oas,
+            consumer_root=args.consumer_root,
+            kg=args.kg,
+            consumer_routes=args.consumer_routes,
+            ripwire=args.ripwire,
+        )
+        if filtered is None:
+            print(
+                "ERROR: consumer-filtering failed — no routes found. "
+                "Provide --consumer-root, --kg, or --consumer-routes.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        oas = filtered
+
+    try:
+        oas_ops = extract_oas_operations(oas, exclude_codes)
+    except Exception as e:
+        print(f"ERROR: Could not parse spec '{args.spec}': {e}", file=sys.stderr)
+        sys.exit(2)
+    if not oas_ops:
+        print("ERROR: No operations found in spec.", file=sys.stderr)
+        sys.exit(2)
+
+    all_interactions = []
+    for pact_path in pact_files:
+        try:
+            pact = load_pact(pact_path)
+            all_interactions.extend(extract_pact_interactions(pact))
+        except Exception as e:
+            print(f"ERROR: Could not parse pact '{pact_path}': {e}", file=sys.stderr)
+            sys.exit(2)
+
+    report = compute_coverage(oas_ops, all_interactions, exclude_codes)
+
+    if args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        print_report(report, args.spec, pact_files, exclude_codes)
+
+    sys.exit(1 if report["has_gaps"] else 0)
+
+
+if __name__ == "__main__":
+    main()
