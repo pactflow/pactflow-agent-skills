@@ -7,10 +7,14 @@
 # ]
 # ///
 """
-parse_pact_coverage.py — Pact v4 interaction coverage checker against an OpenAPI spec.
+parse_pact_coverage.py — Pact v2/v3/v4 interaction coverage checker against an OpenAPI spec.
 
 Reports which path/method operations, status codes, required request body fields, and
 required response body fields are tested vs. missing across one or more pact.json files.
+
+Pact spec version detection (from metadata.pactSpecification.version):
+  v4   — interactions carry a "type" field; body is {"content": {...}, ...}
+  v3/v2 — all interactions are HTTP; body is inline JSON {"field": value, ...}
 
 Usage:
   uv run parse_pact_coverage.py --spec openapi.yaml --pacts pacts/consumer-provider.json
@@ -133,6 +137,19 @@ def _get_json_schema_for_media_type(content: dict, root: dict) -> dict:
 
 # ─── Pact parsing ──────────────────────────────────────────────────────────────
 
+def _body_fields(part: dict, *, v4: bool) -> set:
+    """Extract top-level body field keys from a request or response part dict."""
+    body = (part or {}).get("body") or {}
+    if not isinstance(body, dict):
+        return set()
+    if v4:
+        # v4: body = {"content": {field: value, ...}, "contentType": "..."}
+        content = body.get("content")
+        return set(content.keys()) if isinstance(content, dict) else set()
+    # v3/v2: body IS the inline JSON object
+    return set(body.keys())
+
+
 def load_pact(path: str) -> dict:
     """Load and JSON-parse a pact file. Raises ValueError on bad JSON."""
     with open(path) as f:
@@ -145,16 +162,22 @@ def load_pact(path: str) -> dict:
 
 def extract_pact_interactions(pact: dict) -> list:
     """
-    Return a list of interaction dicts for every Synchronous/HTTP interaction.
+    Return a list of interaction dicts for HTTP interactions.
 
-    Silently skips interactions where type is not 'Synchronous/HTTP'.
+    Supports Pact spec v2, v3, and v4. Version is detected per-interaction:
+    - Interactions with type="Synchronous/HTTP" are v4 (body wrapped in content).
+    - Interactions with no type field are v3/v2 (body is inline JSON).
+    - Interactions with any other type value are skipped (e.g. Asynchronous/Messages).
     """
     interactions = []
     for ix in pact.get("interactions", []):
         if not isinstance(ix, dict):
             continue
-        if ix.get("type") != "Synchronous/HTTP":
-            continue
+        ix_type = ix.get("type")
+        if ix_type is not None and ix_type != "Synchronous/HTTP":
+            continue  # skip non-HTTP typed interactions (v4 messages etc.)
+
+        v4_body = ix_type == "Synchronous/HTTP"
 
         request = ix.get("request", {})
         response = ix.get("response", {})
@@ -167,24 +190,13 @@ def extract_pact_interactions(pact: dict) -> list:
         except (TypeError, ValueError):
             status = 0
 
-        # Extract top-level body content keys
-        req_body = ix.get("request", {}) or {}
-        req_body = req_body.get("body") or {}
-        req_body_content = req_body.get("content")
-        req_body_fields = set(req_body_content.keys()) if isinstance(req_body_content, dict) else set()
-
-        resp_body = ix.get("response", {}) or {}
-        resp_body = resp_body.get("body") or {}
-        resp_body_content = resp_body.get("content")
-        resp_body_fields = set(resp_body_content.keys()) if isinstance(resp_body_content, dict) else set()
-
         interactions.append({
             "description": ix.get("description", ""),
             "method": method,
             "path": path,
             "status": status,
-            "req_body_fields": req_body_fields,
-            "resp_body_fields": resp_body_fields,
+            "req_body_fields": _body_fields(request, v4=v4_body),
+            "resp_body_fields": _body_fields(response, v4=v4_body),
         })
 
     return interactions

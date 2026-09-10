@@ -22,6 +22,11 @@ def sample_oas() -> dict:
 
 
 @pytest.fixture
+def sample_pact_v3() -> dict:
+    return json.loads((FIXTURES_DIR / "sample.pact.v3.json").read_text())
+
+
+@pytest.fixture
 def pact_path(tmp_path) -> pathlib.Path:
     src = FIXTURES_DIR / "sample.pact.json"
     dest = tmp_path / "consumer-provider.json"
