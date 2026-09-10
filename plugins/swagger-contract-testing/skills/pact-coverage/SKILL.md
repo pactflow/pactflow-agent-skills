@@ -30,6 +30,120 @@ and install it before continuing.
 
 ---
 
+## OpenAPI spec selection
+
+Before running the coverage check, resolve which spec file to use:
+
+**If `--spec` was not provided or is ambiguous**, search the project for OpenAPI/Swagger files:
+```bash
+find . -maxdepth 4 \( -name "openapi.yaml" -o -name "openapi.json" \
+  -o -name "swagger.yaml" -o -name "swagger.json" \
+  -o -name "*openapi*.yaml" -o -name "*openapi*.json" \
+  -o -name "*swagger*.yaml" -o -name "*swagger*.json" \) \
+  -not -path "*/node_modules/*" -not -path "*/.git/*"
+```
+
+After finding candidates, **validate each file is an actual OAS/Swagger document** — open it and
+confirm it has an `openapi`, `swagger`, or `paths` top-level key. Discard files that don't (e.g.
+MCP server descriptors, schema files, workflow configs). If discarding reduces the candidate list,
+re-apply the rules below on the validated set.
+
+Note: if no local spec exists because the consumer tests against an *external* provider (e.g. a
+SaaS API), ask the user for the provider's OAS path or URL before proceeding.
+
+- **No valid files found** — ask the user to provide the path or URL; do not proceed without a spec. **Never synthesize or generate an OAS from pact interactions, client code, or any other source — only use a real spec provided by the user or fetched from a broker.**
+- **Exactly one valid file found** — use it automatically (no need to ask).
+- **Multiple valid files found** — ask via selector:
+
+```
+AskUserQuestion({
+  question: "Found multiple OpenAPI spec files. Which would you like to use?",
+  multiSelect: false,
+  options: [
+    { label: "openapi.yaml", description: "./openapi.yaml" },
+    { label: "docs/openapi.yaml", description: "./docs/openapi.yaml" },
+    …one entry per file found…
+    { label: "Specify my own", description: "I'll provide a custom path or URL" },
+  ]
+})
+```
+
+If the user picks **Specify my own**, prompt for the path and use that.
+
+---
+
+## Pact file resolution
+
+When no pact files exist on disk yet, resolve them in this order — stop as soon as files are found:
+
+**1. MCP tools** (preferred when running inside a Claude session)
+Use `contract-testing_get_pacts_for_verification` or `contract-testing_list_pacticipant_versions`
+to retrieve the latest published pacts for the consumer. Save each response body as
+`pacts/{consumer}-{provider}.json`, then proceed with the coverage check.
+
+**2. Broker CLI / direct HTTP** (when MCP tools are unavailable)
+Pass broker credentials — the script fetches pacts automatically:
+```bash
+uv run scripts/parse_pact_coverage.py --spec openapi.yaml \
+  --consumer OrderClient \
+  --broker-url $PACT_BROKER_BASE_URL \
+  --broker-token $PACT_BROKER_TOKEN
+```
+Env vars `PACT_BROKER_BASE_URL`, `PACT_BROKER_TOKEN`, `PACT_CONSUMER` are read automatically if flags are omitted.
+
+**Class-based API clients (common pattern):** ripwire identifies HTTP routes from direct
+`fetch`/`axios`/`requests` call sites. When the consumer wraps HTTP behind a class (e.g.
+`this.http.fetch('/path', { method: 'GET' })`), the script automatically falls back to
+call-graph traversal: it finds the wrapper method and walks upward through its callers to
+extract URL paths and HTTP methods from each domain function body.
+
+If auto-detection fails (0 routes and a WARNING in the output), name the wrapper explicitly:
+
+```bash
+uv run scripts/parse_pact_coverage.py --spec openapi.yaml \
+  --pacts "pacts/*.json" \
+  --consumer-root ./src \
+  --http-client "HttpClient.fetch"
+```
+
+As a last resort, supply routes manually with `--consumer-routes '[{"method":"GET","path":"/orders/{id}"}]'`.
+
+**3. Run consumer tests** (when no broker is available)
+1. Locate pact test files — search for `*pact*` / `*contract*` in test directories, or use
+   ripwire: `ripwire . --for="pact consumer test setup"`.
+2. Determine the exact run command from the project's build config (`package.json` scripts,
+   `pyproject.toml`, `pom.xml` surefire, `build.gradle`, etc.).
+   Examples: `npm run test:pact`, `pytest tests/pact/`, `mvn test -Dtest=*PactTest`.
+3. Run the command. Generated pacts appear in `pacts/`, `target/pacts/`, or `build/pacts/`.
+4. Re-invoke this skill with `--pacts <output-dir>/*.json`.
+
+---
+
+## Pact file selection
+
+After resolving pact files (from disk, broker, or tests), if **more than one** pact file is found,
+ask the user which to include before running the coverage check:
+
+```
+AskUserQuestion({
+  question: "Found N pact files. Which would you like to measure coverage for?",
+  multiSelect: true,
+  options: [
+    { label: "consumer-A-provider.json", description: "…/pacts/consumer-A-provider.json" },
+    { label: "consumer-B-provider.json", description: "…/pacts/consumer-B-provider.json" },
+    …one entry per file…
+    { label: "All of the above", description: "Run coverage across every pact file found" },
+    { label: "Specify my own", description: "I'll provide a custom glob or file path" },
+  ]
+})
+```
+
+- If the user picks **All of the above**, pass every file to `--pacts`.
+- If the user picks **Specify my own**, ask for the glob or path, then use that.
+- If only **one** pact file is found, skip this step and proceed directly.
+
+---
+
 ## Quickstart — single command (happy path)
 
 When you have the consumer source and a pact glob, this is the only command needed:
@@ -51,7 +165,15 @@ uv run scripts/parse_pact_coverage.py \
   --spec openapi.yaml --pacts "pacts/*.json" --kg kg.xml
 ```
 
-**Fallback — unsupported HTTP client (aiohttp, net/http, HttpClient):**
+**Class-based HTTP client (auto-detected, or name it explicitly):**
+```bash
+uv run scripts/parse_pact_coverage.py \
+  --spec openapi.yaml --pacts "pacts/*.json" \
+  --consumer-root ./src \
+  --http-client "HttpClient.fetch"
+```
+
+**Last-resort fallback — manual route list:**
 ```bash
 uv run scripts/parse_pact_coverage.py \
   --spec openapi.yaml --pacts "pacts/*.json" \

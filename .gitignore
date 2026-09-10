@@ -5,6 +5,7 @@ drift-workspace/
 pactflow-workspace/
 .superpowers/
 settings.local.json
+oas-generator-workspace/
 demo/
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,6 +1,7 @@
 """Tests for build_filtered_oas.py."""
 import pathlib
 import sys
+import unittest.mock as mock
 
 import pytest
 import yaml
@@ -11,6 +12,8 @@ from build_filtered_oas import (
     extract_http_method,
     extract_return_type,
     extract_url_path,
+    find_http_wrapper_symbol,
+    get_routes_via_wrapper_callers,
     get_schema_properties,
     normalise_type_name,
     parse_body_xml,
@@ -174,6 +177,22 @@ class Order:
         assert required == {"a"}
         assert optional == {"b", "c"}
 
+    def test_nested_inline_object_not_captured_as_top_level(self):
+        xml = """<r><s t="iface" n="Order"><body>interface Order {
+  id: number;
+  metadata: {
+    createdAt: string;
+    updatedAt: string;
+  };
+}</body></s></r>"""
+        required, optional = parse_type_fields_xml(xml, "Order")
+        assert "id" in required
+        assert "metadata" in required
+        assert "createdAt" not in required
+        assert "createdAt" not in optional
+        assert "updatedAt" not in required
+        assert "updatedAt" not in optional
+
 
 # ─── 4. extract_return_type ───────────────────────────────────────────────────
 
@@ -206,6 +225,18 @@ class TestExtractReturnType:
 
     def test_typescript_const_annotation(self):
         body = "const order: Order = await fetchOrder();"
+        assert extract_return_type(body) == "Order"
+
+    def test_list_generic_container(self):
+        body = "def get_orders() -> List[Order]:\n    pass"
+        assert extract_return_type(body) == "Order"
+
+    def test_dict_generic_container(self):
+        body = "def get_map() -> Dict[str, Order]:\n    pass"
+        assert extract_return_type(body) == "Order"
+
+    def test_typescript_array_type(self):
+        body = "async getOrders(): Array<Order> { return []; }"
         assert extract_return_type(body) == "Order"
 
 
@@ -428,6 +459,25 @@ class TestBuildFilteredOas:
         assert "info" in filtered
         assert "components" in filtered
 
+    def test_empty_intersection_preserves_oas_required(self, sample_oas):
+        """When consumer fields don't overlap schema properties, OAS required[] is preserved."""
+        routes = [{
+            "method": "GET",
+            "path": "/orders/{id}",
+            "from": "getOrder",
+            "to": "get_order",
+            "type_name": "Order",
+            "consumer_fields": ["foo", "bar"],
+            "resolved_fields": ["foo", "bar"],  # no overlap with OAS Order props {id,status,total}
+            "tier": 3,
+            "tier_note": "structural → Order (75%)",
+        }]
+        filtered, _ = build_filtered_oas(routes, sample_oas)
+        response_200 = filtered["paths"]["/orders/{id}"]["get"]["responses"]["200"]
+        schema = response_200["content"]["application/json"]["schema"]
+        # Empty intersection — OAS required[] must NOT be overwritten with []
+        assert schema.get("required") != []
+
 
 # ─── 10. routes_from_json ─────────────────────────────────────────────────────
 
@@ -509,6 +559,18 @@ class TestExtractUrlPath:
         body = 'session.get("/x"); session.post("/orders/items/details")'
         path = extract_url_path(body)
         assert path == "/orders/items/details"
+
+    def test_short_path_like_v1(self):
+        body = 'requests.get("/v1")'
+        assert extract_url_path(body) == "/v1"
+
+    def test_fstring_beats_error_message_path(self):
+        """f-string API path is preferred over longer plain-string error message."""
+        body = (
+            'resp = await session.get(f"/orders/{id}")\n'
+            'if not resp: raise ValueError("no order at /orders/not-found/details/retry")'
+        )
+        assert extract_url_path(body) == "/orders/{param}"
 
 
 # ─── 12. extract_http_method ──────────────────────────────────────────────────
@@ -599,3 +661,197 @@ class TestParseDeserializationXml:
 
     def test_malformed_xml_returns_empty(self):
         assert parse_deserialization_xml("<<<bad") == []
+
+
+# ─── 14. extract_url_path — encodeURIComponent handling ───────────────────────
+
+class TestExtractUrlPathEncodeUri:
+    def test_encode_uri_component_preserves_var_name(self):
+        body = "this.http.fetch(`${this.http.baseUrl}/pacticipants/${encodeURIComponent(pacticipantName)}`);"
+        path = extract_url_path(body)
+        assert path == "/pacticipants/{pacticipantName}"
+
+    def test_encode_uri_multi_segment_preserves_names(self):
+        body = (
+            "return await this.http.fetch<T>(`${this.http.baseUrl}"
+            "/pacticipants/${encodeURIComponent(pacticipantName)}"
+            "/versions/${encodeURIComponent(versionNumber)}"
+            "/deployed-versions/environment/${encodeURIComponent(environmentId)}`);"
+        )
+        path = extract_url_path(body)
+        assert path == (
+            "/pacticipants/{pacticipantName}"
+            "/versions/{versionNumber}"
+            "/deployed-versions/environment/{environmentId}"
+        )
+
+    def test_bare_ts_var_still_becomes_param(self):
+        # ${id} without encodeURIComponent → still {param} (existing behaviour preserved)
+        body = "axios.get(`/orders/${id}`);"
+        assert extract_url_path(body) == "/orders/{param}"
+
+    def test_encode_uri_mixed_with_plain_segment(self):
+        body = "`${base}/environments/${encodeURIComponent(envId)}/deployed-versions`"
+        path = extract_url_path(body)
+        assert path == "/environments/{envId}/deployed-versions"
+
+
+# ─── 15. get_routes_via_wrapper_callers ───────────────────────────────────────
+
+def _callers_xml(caller_names: list[str]) -> str:
+    """Build a minimal <route from="..."> XML for mocking --callers output."""
+    routes = "".join(
+        f'<route from="{n}" to="HttpClient.fetch" method="" path=""/>'
+        for n in caller_names
+    )
+    return f'<r confidence="high"><routes>{routes}</routes></r>'
+
+
+def _expand_xml(body: str) -> str:
+    """Build a minimal --expand XML with a <body>."""
+    return f"<r><s><body>{body}</body></s></r>"
+
+
+class TestGetRoutesViaWrapperCallers:
+    def test_basic_single_caller(self):
+        callers_xml = _callers_xml(["listEnvironments"])
+        body_xml = _expand_xml(
+            'return await this.http.fetch(`${b}/environments`, {method: "GET"});'
+        )
+        with mock.patch("build_filtered_oas.run_ripwire") as m:
+            m.side_effect = [callers_xml, body_xml]
+            routes = get_routes_via_wrapper_callers("rw", "/src", "HttpClient.fetch")
+        assert len(routes) == 1
+        assert routes[0]["method"] == "GET"
+        assert routes[0]["path"] == "/environments"
+        assert routes[0]["from"] == "listEnvironments"
+
+    def test_encode_uri_param_preserved_in_route(self):
+        callers_xml = _callers_xml(["getPacticipant"])
+        body_xml = _expand_xml(
+            "return await this.http.fetch("
+            "`${b}/pacticipants/${encodeURIComponent(name)}`, {method: \"GET\"});"
+        )
+        with mock.patch("build_filtered_oas.run_ripwire") as m:
+            m.side_effect = [callers_xml, body_xml]
+            routes = get_routes_via_wrapper_callers("rw", "/src", "HttpClient.fetch")
+        assert routes[0]["path"] == "/pacticipants/{name}"
+
+    def test_deduplicates_same_method_path(self):
+        callers_xml = _callers_xml(["methodA", "methodB"])
+        same_body = _expand_xml('this.http.fetch(`${b}/items`, {method: "GET"});')
+        with mock.patch("build_filtered_oas.run_ripwire") as m:
+            m.side_effect = [callers_xml, same_body, same_body]
+            routes = get_routes_via_wrapper_callers("rw", "/src", "HttpClient.fetch")
+        assert len(routes) == 1
+
+    def test_empty_when_no_callers_and_grep_empty(self):
+        # Both --callers and --grep return nothing → empty list
+        empty_xml = '<r confidence="high"><routes></routes></r>'
+        with mock.patch("build_filtered_oas.run_ripwire") as m:
+            m.return_value = empty_xml
+            routes = get_routes_via_wrapper_callers("rw", "/src", "HttpClient.fetch")
+        assert routes == []
+
+    def test_grep_fallback_dynamic_dispatch(self):
+        """When --callers finds nothing, grep fallback finds call sites by name."""
+        empty_callers_xml = '<r confidence="high"><routes></routes></r>'
+        grep_xml = (
+            '<grep pattern=".fetch(" root="/src">'
+            '<f p="client/environment-api.ts">'
+            '<hit l="28" in="listEnvironments">this.http.fetch</hit>'
+            '<hit l="55" in="recordDeployment">this.http.fetch</hit>'
+            "</f>"
+            "</grep>"
+        )
+        body_list_xml = _expand_xml(
+            'return await this.http.fetch(`${b}/environments`, {method: "GET"});'
+        )
+        body_record_xml = _expand_xml(
+            'return await this.http.fetch('
+            '`${b}/pacticipants/${encodeURIComponent(name)}/deployed`, {method: "POST"});'
+        )
+        with mock.patch("build_filtered_oas.run_ripwire") as m:
+            m.side_effect = [empty_callers_xml, grep_xml, body_list_xml, body_record_xml]
+            routes = get_routes_via_wrapper_callers("rw", "/src", "HttpClient.fetch")
+        assert len(routes) == 2
+        assert {r["method"] for r in routes} == {"GET", "POST"}
+        assert "/environments" in {r["path"] for r in routes}
+        assert "/pacticipants/{name}/deployed" in {r["path"] for r in routes}
+
+    def test_grep_fallback_handles_at_sibling_elements(self):
+        """<at> sibling elements within a <hit> are also collected as callers."""
+        empty_callers_xml = '<r confidence="high"><routes></routes></r>'
+        grep_xml = (
+            '<grep pattern=".fetch(" root="/src">'
+            '<f p="client/webhook-api.ts">'
+            '<hit l="35" in="getWebhook">'
+            '<at l="52" in="createWebhook"/>'
+            "<at l=\"69\" in=\"updateWebhook\"/>"
+            "</hit>"
+            "</f>"
+            "</grep>"
+        )
+        body_get_xml = _expand_xml(
+            'return await this.http.fetch(`${b}/webhooks/${encodeURIComponent(id)}`, {method: "GET"});'
+        )
+        body_create_xml = _expand_xml(
+            'return await this.http.fetch(`${b}/webhooks`, {method: "POST"});'
+        )
+        body_update_xml = _expand_xml(
+            'return await this.http.fetch(`${b}/webhooks/${encodeURIComponent(id)}`, {method: "PUT"});'
+        )
+        with mock.patch("build_filtered_oas.run_ripwire") as m:
+            m.side_effect = [
+                empty_callers_xml,
+                grep_xml,
+                body_get_xml,
+                body_create_xml,
+                body_update_xml,
+            ]
+            routes = get_routes_via_wrapper_callers("rw", "/src", "HttpClient.fetch")
+        # GET and PUT share the same path but differ by method → both kept
+        # POST has a different path → also kept
+        assert len(routes) == 3
+        methods = {r["method"] for r in routes}
+        assert "GET" in methods
+        assert "POST" in methods
+        assert "PUT" in methods
+
+    def test_skips_caller_with_no_url(self):
+        callers_xml = _callers_xml(["helperMethod"])
+        body_xml = _expand_xml("const x = 1 + 2; return x;")
+        with mock.patch("build_filtered_oas.run_ripwire") as m:
+            m.side_effect = [callers_xml, body_xml]
+            routes = get_routes_via_wrapper_callers("rw", "/src", "HttpClient.fetch")
+        assert routes == []
+
+    def test_ripwire_error_returns_empty(self):
+        with mock.patch("build_filtered_oas.run_ripwire", side_effect=RuntimeError("fail")):
+            routes = get_routes_via_wrapper_callers("rw", "/src", "HttpClient.fetch")
+        assert routes == []
+
+
+# ─── 16. find_http_wrapper_symbol ─────────────────────────────────────────────
+
+class TestFindHttpWrapperSymbol:
+    def test_finds_from_route_element(self):
+        xml = '<r><route from="HttpClient.fetch" to="" method="" path=""/></r>'
+        with mock.patch("build_filtered_oas.run_ripwire", return_value=xml):
+            sym = find_http_wrapper_symbol("rw", "/src")
+        assert sym == "HttpClient.fetch"
+
+    def test_finds_class_method_from_s_element(self):
+        xml = '<r><s t="method" n="fetch" class="ApiClient"><body></body></s></r>'
+        with mock.patch("build_filtered_oas.run_ripwire", return_value=xml):
+            sym = find_http_wrapper_symbol("rw", "/src")
+        assert sym == "ApiClient.fetch"
+
+    def test_returns_none_when_ripwire_fails(self):
+        with mock.patch("build_filtered_oas.run_ripwire", side_effect=RuntimeError("fail")):
+            assert find_http_wrapper_symbol("rw", "/src") is None
+
+    def test_returns_none_when_nothing_matches(self):
+        xml = '<r><route from="getOrder" to="" method="GET" path="/orders/{id}"/></r>'
+        with mock.patch("build_filtered_oas.run_ripwire", return_value=xml):
+            assert find_http_wrapper_symbol("rw", "/src") is None

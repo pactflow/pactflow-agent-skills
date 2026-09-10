@@ -55,15 +55,23 @@ class TestFindMatchingOperation:
         assert find_matching_operation("DELETE", "/orders/99", ops) is None
 
     def test_specificity_wins_over_wildcard(self):
+        # Two templates both match /v1/acme/orders/123 via regex;
+        # /v1/acme/orders/{id} (1 param) must beat /v1/{tenant}/orders/{id} (2 params).
+        # The concrete path is NOT an exact key, so this actually exercises the regex
+        # sort-by-param-count disambiguation logic.
         ops = {
-            "get:/items/{id}": {"path": "/items/{id}", "method": "get",
-                                "status_codes": {"200"}, "req_required_fields": set(),
-                                "resp_required_fields": {}},
-            "get:/items/new": {"path": "/items/new", "method": "get",
-                               "status_codes": {"200"}, "req_required_fields": set(),
-                               "resp_required_fields": {}},
+            "get:/v1/{tenant}/orders/{id}": {
+                "path": "/v1/{tenant}/orders/{id}", "method": "get",
+                "status_codes": {"200"}, "req_required_fields": set(),
+                "resp_required_fields": {},
+            },
+            "get:/v1/acme/orders/{id}": {
+                "path": "/v1/acme/orders/{id}", "method": "get",
+                "status_codes": {"200"}, "req_required_fields": set(),
+                "resp_required_fields": {},
+            },
         }
-        assert find_matching_operation("GET", "/items/new", ops) == "get:/items/new"
+        assert find_matching_operation("GET", "/v1/acme/orders/123", ops) == "get:/v1/acme/orders/{id}"
 
 
 class TestComputeCoverage:

@@ -51,6 +51,7 @@ except ImportError:
 
 RIPWIRE_TASK = "HTTP API route calls and response types"
 RESPONSE_TYPE_TASK = "HTTP response body deserialization and typed object construction"
+WRAPPER_TASK = "HTTP client wrapper class method that calls fetch or sends HTTP requests"
 MAX_ITER = 3
 STRUCTURAL_THRESHOLD = 0.8
 STRIP_SUFFIXES = ["Response", "Dto", "Model", "View", "Entity", "Resource", "Payload", "Data", "Result"]
@@ -128,16 +129,42 @@ def parse_routes_xml(xml_str: str) -> tuple[list[dict], str, bool]:
 
 
 def parse_body_xml(xml_str: str) -> str:
-    """Extract function body text from --expand XML output."""
+    """Extract function body text from --expand XML output.
+
+    Handles three formats:
+    - <ctx><bodies><b ...><![CDATA[body]]></b></bodies></ctx>  — bundle mode (method body)
+    - <ctx><src ...><![CDATA[full file]]></src></ctx>          — whole-file mode (class)
+    - <r><s><body>body</body></s></r>                          — test/legacy format
+    """
     try:
         root = ET.fromstring(xml_str)
     except ET.ParseError:
         return ""
 
     parts = []
-    for elem in root.iter("body"):
+    # Real ripwire bundle format: <b> elements
+    for elem in root.iter("b"):
         if elem.text:
             parts.append(elem.text)
+    # Whole-file mode: <src> elements
+    # CDATA may be in elem.text OR in the tail of a child <s> element —
+    # collect both so whole-file expansions (where ripwire puts the file
+    # content after the <s> signature child) are not missed.
+    if not parts:
+        for elem in root.iter("src"):
+            texts: list[str] = []
+            if elem.text:
+                texts.append(elem.text)
+            for child in elem:
+                if child.tail:
+                    texts.append(child.tail)
+            if texts:
+                parts.append("".join(texts))
+    # Test/legacy format: <body> elements
+    if not parts:
+        for elem in root.iter("body"):
+            if elem.text:
+                parts.append(elem.text)
     return "\n".join(parts)
 
 
@@ -179,20 +206,29 @@ def parse_type_fields_xml(xml_str: str, type_name: str) -> tuple[set[str], set[s
                     if name:
                         required.add(name)
 
-        # <body> text: parse field declarations
+        # <body> text: parse field declarations at the shallowest indentation level only.
+        # Deeper lines belong to nested inline object types and must be skipped.
         for body_elem in elem:
             if body_elem.tag != "body" or not body_elem.text:
                 continue
             body = body_elem.text
-            # TypeScript: `  fieldName?: Type` → optional, `  fieldName: Type` → required
-            for m in re.finditer(r'^\s*(\w+)(\??)\s*:', body, re.MULTILINE):
-                name, q = m.group(1), m.group(2)
+            # Collect all field-like lines with their indentation
+            field_matches: list[tuple[int, str, str, str]] = []
+            for line in body.splitlines():
+                m = re.match(r'^(\s*)(\w+)(\??)\s*:', line)
+                if m:
+                    field_matches.append((len(m.group(1)), m.group(2), m.group(3), line))
+            if not field_matches:
+                continue
+            min_indent = min(f[0] for f in field_matches)
+            for indent, name, q, line_text in field_matches:
+                if indent != min_indent:
+                    continue  # nested inline object field — skip
                 if q:
                     optional.add(name)
                 else:
                     # Python default values mark optional: `field: T = default`
-                    line = body.splitlines()[body[:m.start()].count('\n')]
-                    if '=' in line.split(':', 1)[-1]:
+                    if '=' in line_text.split(':', 1)[-1]:
                         optional.add(name)
                     else:
                         required.add(name)
@@ -205,14 +241,17 @@ def parse_type_fields_xml(xml_str: str, type_name: str) -> tuple[set[str], set[s
 def extract_return_type(body: str) -> str | None:
     """Extract a return type name from a function body string."""
     patterns = [
-        r':\s*Promise<([A-Z][A-Za-z0-9_]*)>',          # TS: ): Promise<Order>
-        r'Promise<([A-Z][A-Za-z0-9_]*)>',               # TS: Promise<Order>
-        r'->\s*Optional\[([A-Z][A-Za-z0-9_]*)\]',       # Py: -> Optional[Order]
-        r'->\s*([A-Z][A-Za-z0-9_]*)',                    # Py/TS: -> Order
-        r'const\s+\w+\s*:\s*([A-Z][A-Za-z0-9_]*)\s*=', # TS: const o: Order =
-        r'as\s+([A-Z][A-Za-z0-9_]*)',                    # TS: resp.data as Order
-        r':\s*([A-Z][A-Za-z0-9_]*)\s*=\s*await',        # TS: order: Order = await
-        r'Response<([A-Z][A-Za-z0-9_]*)>',              # Java/Kotlin
+        r':\s*Promise<([A-Z][A-Za-z0-9_]*)>',                                          # TS: ): Promise<Order>
+        r'Promise<([A-Z][A-Za-z0-9_]*)>',                                               # TS: Promise<Order>
+        r'->\s*Optional\[([A-Z][A-Za-z0-9_]*)\]',                                      # Py: -> Optional[Order]
+        r'->\s*(?:List|Sequence|Iterable|Set|FrozenSet)\[([A-Z][A-Za-z0-9_]*)\]',      # Py: -> List[Order]
+        r'->\s*(?:Dict|Mapping|DefaultDict)\[\w[\w,\s]*,\s*([A-Z][A-Za-z0-9_]*)\]',   # Py: -> Dict[str, Order]
+        r':\s*(?:Array|List)<([A-Z][A-Za-z0-9_]*)>',                                    # TS: Array<Order>
+        r'->\s*([A-Z][A-Za-z0-9_]*)',                                                    # Py/TS: -> Order
+        r'const\s+\w+\s*:\s*([A-Z][A-Za-z0-9_]*)\s*=',                                 # TS: const o: Order =
+        r'as\s+([A-Z][A-Za-z0-9_]*)',                                                    # TS: resp.data as Order
+        r':\s*([A-Z][A-Za-z0-9_]*)\s*=\s*await',                                        # TS: order: Order = await
+        r'Response<([A-Z][A-Za-z0-9_]*)>',                                              # Java/Kotlin
         r'Call<([A-Z][A-Za-z0-9_]*)>',
     ]
     for pattern in patterns:
@@ -323,23 +362,20 @@ def resolve_response_fields(
 
 
 def get_routes_iterative(ripwire_bin: str, consumer_root: str, max_iter: int) -> list[dict]:
-    """Run ripwire --for=RIPWIRE_TASK iteratively until confidence=="high" and not over_ceiling."""
-    routes = []
-    for attempt in range(1, max_iter + 1):
-        try:
-            xml_str = run_ripwire(ripwire_bin, consumer_root, [f"--for={RIPWIRE_TASK}"])
-        except RuntimeError as e:
-            raise RuntimeError(f"ripwire failed on attempt {attempt}: {e}") from e
-        routes, confidence, over_ceiling = parse_routes_xml(xml_str)
-        print(
-            f"  ripwire attempt {attempt}: {len(routes)} route(s), "
-            f"confidence={confidence}, over_ceiling={over_ceiling}",
-            file=sys.stderr,
-        )
-        if confidence == "high" and not over_ceiling:
-            break
-        if attempt < max_iter:
-            print("  confidence low or truncated — retrying with broader task", file=sys.stderr)
+    """Run ripwire --for=RIPWIRE_TASK and return routes.
+
+    max_iter is retained for API compatibility. ripwire is deterministic so retrying
+    with identical arguments would produce the same result — only one call is made.
+    """
+    try:
+        xml_str = run_ripwire(ripwire_bin, consumer_root, [f"--for={RIPWIRE_TASK}"])
+    except RuntimeError as e:
+        raise RuntimeError(f"ripwire failed: {e}") from e
+    routes, confidence, over_ceiling = parse_routes_xml(xml_str)
+    print(
+        f"  ripwire: {len(routes)} route(s), confidence={confidence}, over_ceiling={over_ceiling}",
+        file=sys.stderr,
+    )
     return routes
 
 
@@ -369,7 +405,7 @@ def enrich_route_with_type(route: dict, ripwire_bin: str, consumer_root: str, oa
     optional_fields: set[str] = set()
     if type_name:
         try:
-            type_xml = run_ripwire(ripwire_bin, consumer_root, [f"--for={type_name}"])
+            type_xml = run_ripwire(ripwire_bin, consumer_root, [f"--expand={type_name}"])
         except RuntimeError:
             type_xml = ""
         required_fields, optional_fields = parse_type_fields_xml(type_xml, type_name)
@@ -405,10 +441,14 @@ def extract_url_path(body: str) -> str | None:
 
     Handles Python f-strings (`f"{base}/orders/{id}"`),
     TypeScript template literals (`` `${base}/orders/${id}` ``),
-    and plain string literals (`"/orders/1234"`).
+    Ruby double-quoted strings with #{} interpolation,
+    and plain string literals (`"/orders/1234"` or `"orders/1234"`).
     Returns an OAS-style path like `/orders/{param}` or None.
+
+    f-string / template-literal candidates are preferred over plain-string candidates
+    to avoid error-message strings outcompeting real API paths.
     """
-    candidates: list[str] = []
+    fstring_candidates: list[str] = []
 
     # f-strings and template literals: capture anything inside quotes/backticks
     for m in re.finditer(r'(?:f["\']|`)([^"\'`\n]+)(?:["\']|`)', body):
@@ -420,26 +460,53 @@ def extract_url_path(body: str) -> str | None:
             text,
         )
         if path_m:
-            candidates.append(path_m.group(1))
+            fstring_candidates.append(path_m.group(1))
 
-    # Plain string literals starting with / or containing a full https?:// URL
-    for m in re.finditer(r'["\']([^\'"]+)["\']', body):
-        text = m.group(1)
-        path_m = re.search(r'(?:https?://[^/\s]*)?(/[\w/-]{3,})', text)
-        if path_m:
-            candidates.append(path_m.group(1))
+    # Ruby double-quoted strings with #{} interpolation: "users/#{id}/path"
+    ruby_candidates: list[str] = []
+    if not fstring_candidates:
+        for m in re.finditer(r'"([^"\n]*#\{[^}\n]+\}[^"\n]*)"', body):
+            text = m.group(1)
+            # Match paths with or without leading slash
+            path_m = re.search(
+                r'(?:https?://[^/\s]*)?'
+                r'(/?(?:[\w%-]|\#\{[^}]+\})'
+                r'(?:[/\w%-]|\#\{[^}]+\})*)',
+                text,
+            )
+            if path_m:
+                ruby_candidates.append(path_m.group(1))
 
+    # Plain string literals — only scan when no f-string/ruby candidates were found,
+    # so error-message strings can't outcompete real template-literal API paths.
+    plain_candidates: list[str] = []
+    if not fstring_candidates and not ruby_candidates:
+        for m in re.finditer(r'["\']([^\'"]+)["\']', body):
+            text = m.group(1)
+            # Use + (min 1 char) instead of {3,} so short paths like /v1 or /me are found
+            path_m = re.search(r'(?:https?://[^/\s]*)?(/[\w/-]+)', text)
+            if path_m:
+                plain_candidates.append(path_m.group(1))
+
+    candidates = fstring_candidates or ruby_candidates or plain_candidates
     if not candidates:
         return None
 
     # Prefer the path with the most segments (most specific)
     path = max(candidates, key=lambda p: p.count('/'))
 
-    # Normalise interpolations → {param}
+    # Normalise interpolations → {param}, preserving encodeURIComponent variable names.
+    # Use a sentinel <<varName>> so later rules don't overwrite the preserved name.
+    path = re.sub(r'\$\{encodeURIComponent\((\w+)\)\}', r'<<\1>>', path)  # ${encodeURIComponent(id)} → sentinel
     path = re.sub(r'\$\{[^}]+\}', '{param}', path)   # TS: ${var}
+    path = re.sub(r'#\{[^}]+\}', '{param}', path)    # Ruby: #{var}
     path = re.sub(r'\{[^}]+\}', '{param}', path)      # Python: {var}
     path = re.sub(r'/\d+(?=/|$)', '/{param}', path)   # literal IDs: /1234 → /{param}
+    path = re.sub(r'<<(\w+)>>', r'{\1}', path)         # restore preserved names → {id}
     path = path.rstrip('/')
+    # Ensure leading slash (Ruby relative paths like "users/..." become "/users/...")
+    if path and not path.startswith('/'):
+        path = '/' + path
     return path if path.startswith('/') else None
 
 
@@ -454,10 +521,11 @@ def extract_http_method(body: str) -> str | None:
         if re.search(rf'\bmethod\s*[=:]\s*["\']?{method}["\']?\b', body, re.IGNORECASE):
             return method
 
-    # Client method call: session.delete(, client.post(, requests.get(, etc.
+    # Client method call: session.delete(, client.post(, requests.get(, connection.patch(, etc.
+    # connection/conn/faraday cover Ruby Faraday; stub/mock cover test doubles.
     for method in ('delete', 'patch', 'post', 'put', 'get'):
         if re.search(
-            rf'(?:session|client|self|requests|axios|httpx|http)\s*\.\s*{method}\s*\(',
+            rf'(?:session|client|self|requests|axios|httpx|http|connection|conn|faraday|stub|mock)\s*\.\s*{method}\s*\(',
             body, re.IGNORECASE,
         ):
             return method.upper()
@@ -523,48 +591,43 @@ def get_routes_via_response_types(
          from the same function body.
       4. Return routes with `_type_name` pre-set so enrich_route_with_type
          skips the return-type extraction step.
-    """
-    last_xml = ""
-    hits: list[dict] = []
 
-    for attempt in range(1, max_iter + 1):
-        try:
-            xml_str = run_ripwire(ripwire_bin, consumer_root, [f"--for={RESPONSE_TYPE_TASK}"])
-        except RuntimeError as e:
-            print(f"  response-type attempt {attempt}: {e}", file=sys.stderr)
-            break
-        last_xml = xml_str
-        hits = parse_deserialization_xml(xml_str)
-        try:
-            root_el = ET.fromstring(xml_str)
-            confidence = root_el.get("confidence", "low")
-            over_ceiling = root_el.get("over_ceiling", "0") == "1"
-        except ET.ParseError:
-            confidence, over_ceiling = "low", False
-        print(
-            f"  response-type attempt {attempt}: {len(hits)} deserialization site(s), "
-            f"confidence={confidence}, over_ceiling={over_ceiling}",
-            file=sys.stderr,
-        )
-        if confidence == "high" and not over_ceiling:
-            break
+    max_iter is retained for API compatibility. ripwire is deterministic so a single
+    call is made; identical args would return the same XML on a retry.
+    """
+    try:
+        xml_str = run_ripwire(ripwire_bin, consumer_root, [f"--for={RESPONSE_TYPE_TASK}"])
+    except RuntimeError as e:
+        print(f"  response-type discovery: {e}", file=sys.stderr)
+        return []
+
+    try:
+        root_el = ET.fromstring(xml_str)
+    except ET.ParseError:
+        return []
+
+    confidence = root_el.get("confidence", "low")
+    over_ceiling = root_el.get("over_ceiling", "0") == "1"
+    hits = parse_deserialization_xml(xml_str)
+    print(
+        f"  response-type discovery: {len(hits)} deserialization site(s), "
+        f"confidence={confidence}, over_ceiling={over_ceiling}",
+        file=sys.stderr,
+    )
 
     if not hits:
         return []
 
-    # Build function_name → body map from the last ripwire result (avoids re-expanding)
-    fn_bodies: dict[str, str] = {}
-    try:
-        root_el = ET.fromstring(last_xml)
-        for fn_elem in root_el.iter("s"):
-            if fn_elem.get("t") not in ("fn", "method", "func"):
-                continue
-            name = fn_elem.get("n", "")
-            for body_elem in fn_elem:
-                if body_elem.tag == "body" and body_elem.text:
-                    fn_bodies[name] = body_elem.text
-    except ET.ParseError:
-        pass
+    # Build function_name → [body, ...] map; use a list to handle duplicate method
+    # names across classes (overwriting the dict would give the wrong body for the first hit).
+    fn_bodies: dict[str, list[str]] = {}
+    for fn_elem in root_el.iter("s"):
+        if fn_elem.get("t") not in ("fn", "method", "func"):
+            continue
+        name = fn_elem.get("n", "")
+        for body_elem in fn_elem:
+            if body_elem.tag == "body" and body_elem.text:
+                fn_bodies.setdefault(name, []).append(body_elem.text)
 
     routes: list[dict] = []
     seen_paths: set[tuple[str, str]] = set()
@@ -573,16 +636,25 @@ def get_routes_via_response_types(
         func_name = hit["function_name"]
         type_name = hit["type_name"]
 
-        body = fn_bodies.get(func_name, "")
-        if not body:
+        bodies = fn_bodies.get(func_name, [])
+        if not bodies:
             try:
                 body_xml = run_ripwire(ripwire_bin, consumer_root, [f"--expand={func_name}"])
-                body = parse_body_xml(body_xml)
+                body_text = parse_body_xml(body_xml)
+                if body_text:
+                    bodies = [body_text]
             except RuntimeError:
                 continue
 
-        path = extract_url_path(body)
-        method = extract_http_method(body)
+        path: str | None = None
+        method: str | None = None
+        for body in bodies:
+            p = extract_url_path(body)
+            m = extract_http_method(body)
+            if p and m:
+                path, method = p, m
+                break
+
         if not path or not method:
             continue
 
@@ -598,6 +670,218 @@ def get_routes_via_response_types(
             "to": "",
             "_type_name": type_name,
         })
+
+    return routes
+
+
+# ─── Wrapper-caller discovery (class-based HTTP clients) ──────────────────────
+
+def find_http_wrapper_symbol(ripwire_bin: str, consumer_root: str) -> str | None:
+    """Auto-detect the HTTP wrapper class method via ripwire.
+
+    Searches for a class method named `fetch`, `request`, or similar that is the
+    consumer's HTTP entry point (e.g. HttpClient.fetch).  Returns the symbol name
+    as a string, or None when nothing likely is found.
+    """
+    try:
+        xml_str = run_ripwire(ripwire_bin, consumer_root, [f"--for={WRAPPER_TASK}"])
+    except RuntimeError:
+        return None
+
+    try:
+        root = ET.fromstring(xml_str)
+    except ET.ParseError:
+        return None
+
+    _WRAPPER_VERBS = ("fetch", "request", "send", "httpget", "httppost")
+    _WRAPPER_CLASSES = ("Client", "Http", "Api", "Service", "Base")
+
+    # 1. route elements (direct ripwire route discovery output)
+    for elem in root.iter("route"):
+        from_sym = elem.get("from", "")
+        if from_sym and any(v in from_sym.lower() for v in _WRAPPER_VERBS):
+            return from_sym
+
+    # 2. <s> elements (legacy / alternate format, carries t= and class=)
+    for elem in root.iter("s"):
+        if elem.get("t") not in ("method", "fn", "func"):
+            continue
+        name = elem.get("n") or elem.get("name") or ""
+        if not any(v in name.lower() for v in _WRAPPER_VERBS):
+            continue
+        parent = elem.get("class") or ""
+        if parent and any(x in parent for x in _WRAPPER_CLASSES):
+            return f"{parent}.{name}"
+
+    # 3. <d> elements (ranked symbols from --for output): find a wrapper class,
+    #    then derive the method name via --expand on the class body.
+    for elem in root.iter("d"):
+        name = elem.get("n") or ""
+        if not any(x in name for x in _WRAPPER_CLASSES):
+            continue
+        # Candidate wrapper class — check if it has a fetch/request method
+        try:
+            expand_xml = run_ripwire(ripwire_bin, consumer_root, [f"--expand={name}"])
+            body = parse_body_xml(expand_xml)
+            for verb in ("fetch", "request", "send", "post", "get", "patch", "delete", "put"):
+                if re.search(rf"\b{verb}\s*[(<]", body):
+                    return f"{name}.{verb}"
+        except (RuntimeError, Exception):
+            continue
+
+    return None
+
+
+def get_routes_via_wrapper_callers(
+    ripwire_bin: str,
+    consumer_root: str,
+    wrapper_sym: str,
+) -> list[dict]:
+    """Discover routes by traversing callers of an HTTP wrapper method.
+
+    Strategy A — call graph (direct calls): run --callers=wrapper_sym.
+    Strategy B — grep (dynamic dispatch / class method calls): when --callers
+      returns nothing (TypeScript `this.http.fetch(...)` is duck-typed and the
+      call graph has no edge), derive a grep pattern from the method name and
+      extract enclosing symbol + file from the grep result.
+
+    In both strategies, each caller is expanded via --expand to get its body,
+    then extract_url_path() + extract_http_method() pull the route.
+    """
+    # Derive method name: "HttpClient.fetch" → "fetch"
+    parts = wrapper_sym.split(".")
+    method_name = parts[-1] if len(parts) > 1 else wrapper_sym
+    class_name = parts[0] if len(parts) > 1 else ""
+
+    # Derive field name from class: "HttpClient" → "http", "ApiService" → "api"
+    _CLASS_SUFFIXES = ("Client", "Service", "Http", "Api", "Base", "Manager", "Adapter")
+    field_name = class_name
+    for suffix in _CLASS_SUFFIXES:
+        if field_name.endswith(suffix) and len(field_name) > len(suffix):
+            field_name = field_name[: -len(suffix)]
+            break
+    if field_name and field_name[0].isupper():
+        field_name = field_name[0].lower() + field_name[1:]
+
+    # Candidate grep patterns ordered from most-specific to most-generic:
+    # 1. "{field}.{method}" e.g. "http.fetch"  — matches this.http.fetch(...)
+    # 2. ".{method}<"       e.g. ".fetch<"     — TypeScript generic call site
+    # 3. ".{method}("       e.g. ".fetch("     — plain call site
+    #
+    # When method_name is itself a raw HTTP verb (post/get/patch/…), the wrapper
+    # is a direct-connection pattern (e.g. Ruby Faraday: connection.post/patch/…).
+    # In that case we must scan ALL HTTP verbs so no method is missed.
+    _HTTP_VERBS = ("post", "get", "patch", "delete", "put")
+    _is_direct_verb = method_name.lower() in _HTTP_VERBS
+
+    _grep_candidates: list[str] = []
+    if _is_direct_verb:
+        # Add all HTTP verbs; Strategy B will gather caller syms from each
+        for _v in _HTTP_VERBS:
+            _grep_candidates.append(f".{_v}(")
+    else:
+        if field_name and field_name != class_name.lower():
+            _grep_candidates.append(f"{field_name}.{method_name}")
+        _grep_candidates += [f".{method_name}<", f".{method_name}("]
+
+    # --- Strategy A: call-graph traversal ---
+    caller_syms: list[str] = []
+    try:
+        callers_xml = run_ripwire(ripwire_bin, consumer_root, [f"--callers={wrapper_sym}"])
+        routes_raw, _, _ = parse_routes_xml(callers_xml)
+        caller_syms = list({r["from"] for r in routes_raw if r["from"]})
+        if not caller_syms:
+            try:
+                root = ET.fromstring(callers_xml)
+                for elem in root.iter("s"):
+                    name = elem.get("n") or elem.get("name") or ""
+                    if name and name != method_name:
+                        caller_syms.append(name)
+            except ET.ParseError:
+                pass
+    except RuntimeError:
+        pass
+
+    # --- Strategy B: grep for call sites (handles dynamic dispatch) ---
+    if not caller_syms:
+        # For direct-verb wrappers (Ruby Faraday pattern), ALL patterns must be
+        # collected so no HTTP method is missed.  For a genuine wrapper method
+        # (TypeScript HttpClient.fetch), stop at the first pattern that yields hits.
+        grep_xmls: list[str] = []
+        for grep_pattern in _grep_candidates:
+            try:
+                candidate_xml = run_ripwire(
+                    ripwire_bin, consumer_root, [f"--grep={grep_pattern}", "--limit=500"]
+                )
+                try:
+                    groot = ET.fromstring(candidate_xml)
+                    has_src_hits = any(
+                        "test" not in (fe.get("p") or "") for fe in groot.findall("f")
+                    )
+                    if has_src_hits:
+                        grep_xmls.append(candidate_xml)
+                        if not _is_direct_verb:
+                            break  # non-verb wrapper: first match wins
+                except ET.ParseError:
+                    pass
+            except RuntimeError:
+                continue
+        if not grep_xmls:
+            return []
+        seen_syms: set[str] = set()
+        for grep_xml in grep_xmls:
+            try:
+                gxml_root = ET.fromstring(grep_xml)
+                for f_elem in gxml_root.findall("f"):
+                    file_path = f_elem.get("p", "")
+                    for hit in f_elem.findall("hit"):
+                        enc = hit.get("in", "")
+                        if enc and enc not in _HTTP_VERBS:
+                            key = f"{file_path}:{enc}" if file_path else enc
+                            if key not in seen_syms:
+                                seen_syms.add(key)
+                                caller_syms.append(key)
+                        # <at l="..." in="..."/> siblings fold multiple sites in same fn
+                        for at_elem in hit.findall("at"):
+                            enc2 = at_elem.get("in", "")
+                            if enc2 and enc2 not in _HTTP_VERBS:
+                                key2 = f"{file_path}:{enc2}" if file_path else enc2
+                                if key2 not in seen_syms:
+                                    seen_syms.add(key2)
+                                    caller_syms.append(key2)
+            except ET.ParseError:
+                pass
+
+    if not caller_syms:
+        return []
+
+    routes: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    for sym in caller_syms:
+        # Normalise Ruby-style "file.rb:Class::method" → "file.rb:method"
+        # ripwire --expand only accepts "file.rb:method" or bare "method".
+        expand_sym = sym
+        if "::" in sym:
+            file_part, _, rest = sym.partition(":")
+            # rest = "Class::method" or just "Class::method::nested"
+            method_part = rest.rpartition("::")[-1]
+            expand_sym = f"{file_part}:{method_part}" if file_part else method_part
+
+        try:
+            expand_xml = run_ripwire(ripwire_bin, consumer_root, [f"--expand={expand_sym}"])
+        except RuntimeError:
+            continue
+        body = parse_body_xml(expand_xml)
+        if not body:
+            continue
+        path = extract_url_path(body)
+        method = extract_http_method(body)
+        if path and method:
+            key = (method.upper(), path)
+            if key not in seen:
+                seen.add(key)
+                routes.append({"method": method.upper(), "path": path, "from": sym, "to": ""})
 
     return routes
 
@@ -706,10 +990,11 @@ def build_filtered_oas(routes: list[dict], oas: dict) -> tuple[dict, list[dict]]
                     properties = schema.get("properties", {})
                     if properties:
                         narrowed = sorted(resolved_set & set(properties.keys()))
-                    else:
-                        narrowed = sorted(resolved_fields)
-
-                    schema["required"] = narrowed
+                        if narrowed:
+                            # Only narrow when there is real overlap;
+                            # an empty intersection means field-name mismatch — keep OAS required[]
+                            schema["required"] = narrowed
+                        # else: preserve existing OAS required[] unchanged
 
         # Add x-consumer-type-match annotation
         operation["x-consumer-type-match"] = {
@@ -849,6 +1134,16 @@ def main() -> None:
             "Identify routes by reading the consumer source code."
         ),
     )
+    parser.add_argument(
+        "--http-client",
+        metavar="SYMBOL",
+        help=(
+            "Fully-qualified name of the HTTP wrapper class method that ripwire should use "
+            "as the call-graph traversal entry point (e.g. 'HttpClient.fetch'). "
+            "When omitted, the script attempts auto-detection. "
+            "Use when the consumer wraps HTTP behind a class and ripwire finds 0 routes."
+        ),
+    )
     args = parser.parse_args()
 
     if not args.kg and not args.consumer_root and not args.routes:
@@ -907,6 +1202,36 @@ def main() -> None:
                 file=sys.stderr,
             )
 
+    # Strategy 3: call-graph traversal through HTTP wrapper class
+    # Used when the consumer wraps HTTP behind a class (e.g. HttpClient.fetch)
+    # and ripwire's direct call-site strategies both return 0 routes.
+    if not routes and args.consumer_root:
+        wrapper_sym = getattr(args, "http_client", None) or find_http_wrapper_symbol(
+            args.ripwire, args.consumer_root
+        )
+        if wrapper_sym:
+            print(
+                f"INFO: trying wrapper-caller discovery via '{wrapper_sym}'",
+                file=sys.stderr,
+            )
+            try:
+                routes = get_routes_via_wrapper_callers(
+                    args.ripwire, args.consumer_root, wrapper_sym
+                )
+            except Exception as e:
+                print(f"WARNING: wrapper-caller discovery failed — {e}", file=sys.stderr)
+            if routes:
+                print(
+                    f"WARNING: ripwire direct-route search found 0 routes; "
+                    f"traversed callers of {wrapper_sym}, found {len(routes)} route(s)",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    "WARNING: wrapper-caller discovery also found nothing",
+                    file=sys.stderr,
+                )
+
     # --routes fallback: manually-supplied route list
     if not routes and args.routes:
         print("INFO: using manually-supplied --routes", file=sys.stderr)
@@ -922,9 +1247,9 @@ def main() -> None:
         msg = "ERROR: no routes found."
         if ripwire_attempted and not args.routes:
             msg += (
-                "\n  Tip: if the consumer uses an unsupported HTTP client (e.g. aiohttp),"
-                "\n  read the source code to identify which endpoints it calls, then pass:"
-                "\n  --routes '[{\"method\":\"GET\",\"path\":\"/orders/{id}\"},...]'"
+                "\n  Tip: if the consumer wraps HTTP behind a class (e.g. HttpClient.fetch),"
+                "\n  name the wrapper method: --http-client 'HttpClient.fetch'"
+                "\n  Or supply routes manually: --routes '[{\"method\":\"GET\",\"path\":\"/orders/{id}\"}]'"
             )
         print(msg, file=sys.stderr)
         sys.exit(2)

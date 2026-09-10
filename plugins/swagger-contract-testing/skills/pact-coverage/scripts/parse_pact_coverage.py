@@ -43,7 +43,11 @@ import glob
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import urllib.error
+import urllib.request
 from collections import defaultdict
 from pathlib import Path
 
@@ -505,6 +509,9 @@ def print_report(report: dict, spec_path: str, pact_files: list, exclude_codes: 
     print()
 
     # Summary
+    overall_covered = s1_covered + s2_covered + s3_covered + s4_covered
+    overall_total = s1_total + s2_total + s3_total + s4_total
+
     print(divider)
     if report["has_gaps"]:
         gap_count = (
@@ -514,16 +521,14 @@ def print_report(report: dict, spec_path: str, pact_files: list, exclude_codes: 
             + sum(1 for v in report["resp_body_fields"].values() if v["missing"])
         )
         print(f"SUMMARY: {gap_count} gap(s) found. Exit code 1.")
-        print(f"  Paths/methods:         {_pct(s1_covered, s1_total)}")
-        print(f"  Status codes:          {_pct(s2_covered, s2_total)}")
-        print(f"  Req body fields:       {_pct(s3_covered, s3_total)}")
-        print(f"  Resp body fields:      {_pct(s4_covered, s4_total)}")
     else:
         print("✓  All 4 dimensions fully covered. Exit code 0.")
-        print(f"  Paths/methods:         {_pct(s1_covered, s1_total)}")
-        print(f"  Status codes:          {_pct(s2_covered, s2_total)}")
-        print(f"  Req body fields:       {_pct(s3_covered, s3_total)}")
-        print(f"  Resp body fields:      {_pct(s4_covered, s4_total)}")
+    print()
+    print(f"  Overall coverage:      {_pct(overall_covered, overall_total)}")
+    print(f"  Paths/methods:         {_pct(s1_covered, s1_total)}")
+    print(f"  Status codes:          {_pct(s2_covered, s2_total)}")
+    print(f"  Req body fields:       {_pct(s3_covered, s3_total)}")
+    print(f"  Resp body fields:      {_pct(s4_covered, s4_total)}")
     print(divider)
 
 
@@ -536,6 +541,7 @@ def _build_consumer_filtered_oas(
     kg: str | None,
     consumer_routes: str | None,
     ripwire: str,
+    http_client: str | None = None,
 ) -> dict | None:
     """Import build_filtered_oas and return a consumer-filtered OAS, or None on failure."""
     scripts_dir = str(Path(__file__).parent)
@@ -546,6 +552,8 @@ def _build_consumer_filtered_oas(
         from build_filtered_oas import (  # type: ignore[import]
             get_routes_iterative,
             get_routes_via_response_types,
+            get_routes_via_wrapper_callers,
+            find_http_wrapper_symbol,
             enrich_route_with_type,
             parse_routes_xml,
             routes_from_json as bfo_routes_from_json,
@@ -562,18 +570,38 @@ def _build_consumer_filtered_oas(
             xml = Path(kg).read_text()
             routes, _, _ = parse_routes_xml(xml)
         except Exception as e:
-            print(f"WARNING: could not read --kg file: {e}", file=sys.stderr)
+            print(f"ERROR: could not read --kg file '{kg}': {e}", file=sys.stderr)
+            return None
 
     elif consumer_root:
         try:
             routes = get_routes_iterative(ripwire, consumer_root, 3)
-        except Exception:
+        except Exception as e:
+            print(f"WARNING: ripwire route discovery failed: {e}", file=sys.stderr)
             routes = []
         if not routes:
             try:
                 routes = get_routes_via_response_types(ripwire, consumer_root, oas, 3)
-            except Exception:
+            except Exception as e:
+                print(f"WARNING: ripwire response-type discovery failed: {e}", file=sys.stderr)
                 routes = []
+        # Strategy 3: call-graph traversal through HTTP wrapper class
+        if not routes:
+            wrapper_sym = http_client or find_http_wrapper_symbol(ripwire, consumer_root)
+            if wrapper_sym:
+                print(f"INFO: trying wrapper-caller discovery via '{wrapper_sym}'", file=sys.stderr)
+                try:
+                    routes = get_routes_via_wrapper_callers(ripwire, consumer_root, wrapper_sym)
+                    if routes:
+                        print(
+                            f"WARNING: ripwire direct-route search found 0 routes; "
+                            f"traversed callers of {wrapper_sym}, found {len(routes)} route(s)",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print("WARNING: wrapper-caller discovery also found nothing", file=sys.stderr)
+                except Exception as e:
+                    print(f"WARNING: wrapper-caller discovery failed: {e}", file=sys.stderr)
 
     if not routes and consumer_routes:
         try:
@@ -585,7 +613,7 @@ def _build_consumer_filtered_oas(
     if not routes:
         return None
 
-    if consumer_root and not kg:
+    if consumer_root:
         enriched: list[dict] = []
         for route in routes:
             if "tier" not in route:
@@ -609,6 +637,82 @@ def _build_consumer_filtered_oas(
 
 # ─── Entry point ───────────────────────────────────────────────────────────────
 
+def fetch_pacts_from_broker(
+    consumer: str,
+    broker_url: str,
+    broker_token: str | None,
+    pact_out_dir: str,
+) -> list[str]:
+    """Download the latest published pacts for a consumer from a pact broker.
+
+    Tries pact-broker CLI first, then falls back to direct HTTP HAL navigation.
+    Returns paths of written pact files; prints WARNING and returns [] on failure.
+    """
+    broker_url = broker_url.rstrip("/")
+    os.makedirs(pact_out_dir, exist_ok=True)
+
+    # Strategy 1: pact-broker CLI
+    if shutil.which("pact-broker"):
+        cmd = [
+            "pact-broker", "download-pacts",
+            "--consumer", consumer,
+            "--output-dir", pact_out_dir,
+            "--broker-base-url", broker_url,
+        ]
+        if broker_token:
+            cmd += ["--broker-token", broker_token]
+        try:
+            subprocess.run(cmd, check=True, timeout=60)
+            files = glob.glob(os.path.join(pact_out_dir, "*.json"))
+            if files:
+                return files
+        except Exception as e:
+            print(f"WARNING: pact-broker CLI failed: {e}", file=sys.stderr)
+
+    # Strategy 2: direct HTTP via urllib (HAL navigation)
+    headers: dict[str, str] = {"Accept": "application/hal+json"}
+    if broker_token:
+        headers["Authorization"] = f"Bearer {broker_token}"
+
+    def _get_json(url: str) -> dict:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode())
+
+    try:
+        pacticipant = _get_json(f"{broker_url}/pacticipants/{consumer}")
+        links = pacticipant.get("_links", {})
+        pact_version_links = (
+            links.get("pb:pact-versions")
+            or links.get("pb:latest-pact-versions")
+            or []
+        )
+        if isinstance(pact_version_links, dict):
+            pact_version_links = [pact_version_links]
+
+        written: list[str] = []
+        for link in pact_version_links:
+            href = link.get("href", "")
+            if not href:
+                continue
+            try:
+                pact_data = _get_json(href)
+                provider = (pact_data.get("provider") or {}).get("name", "unknown-provider")
+                out_path = os.path.join(pact_out_dir, f"{consumer}-{provider}-latest.json")
+                Path(out_path).write_text(json.dumps(pact_data, indent=2))
+                written.append(out_path)
+            except Exception as e:
+                print(f"WARNING: could not fetch pact from {href}: {e}", file=sys.stderr)
+        return written
+
+    except urllib.error.HTTPError as e:
+        print(f"WARNING: broker HTTP error {e.code} for consumer '{consumer}': {e}", file=sys.stderr)
+    except Exception as e:
+        print(f"WARNING: broker fetch failed: {e}", file=sys.stderr)
+
+    return []
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Check Pact interaction coverage against an OpenAPI spec.",
@@ -616,7 +720,10 @@ def main() -> None:
         epilog=__doc__,
     )
     parser.add_argument("--spec", required=True, help="Path to OpenAPI spec (YAML or JSON)")
-    parser.add_argument("--pacts", nargs="+", required=True, help="Pact JSON files or glob patterns")
+    parser.add_argument(
+        "--pacts", nargs="*", default=["pacts/*.json"],
+        help="Pact JSON files or glob patterns (default: pacts/*.json).",
+    )
     parser.add_argument(
         "--exclude-codes", nargs="*", default=sorted(DEFAULT_EXCLUDE),
         help="Status codes to exclude from coverage",
@@ -641,16 +748,56 @@ def main() -> None:
         "--ripwire", metavar="BIN", default="ripwire",
         help="Path to ripwire binary (default: ripwire on PATH)",
     )
+    parser.add_argument(
+        "--http-client", metavar="SYMBOL",
+        help=(
+            "Fully-qualified HTTP wrapper class method for call-graph traversal "
+            "(e.g. 'HttpClient.fetch'). Auto-detected when omitted. "
+            "Use when the consumer wraps HTTP in a class and ripwire finds 0 routes."
+        ),
+    )
+
+    # Broker fetch flags (optional; env vars PACT_BROKER_BASE_URL / PACT_BROKER_TOKEN / PACT_CONSUMER)
+    parser.add_argument("--consumer", metavar="NAME",
+        help="Consumer name for pact broker fetch (env: PACT_CONSUMER)")
+    parser.add_argument("--broker-url", metavar="URL",
+        help="Pact broker base URL (env: PACT_BROKER_BASE_URL)")
+    parser.add_argument("--broker-token", metavar="TOKEN",
+        help="Pact broker bearer token (env: PACT_BROKER_TOKEN)")
+    parser.add_argument("--pact-out-dir", metavar="DIR", default="pacts",
+        help="Directory to write fetched pact files (default: pacts/)")
+
     args = parser.parse_args()
 
+    # Resolve broker config from flags or env vars
+    broker_url   = args.broker_url   or os.environ.get("PACT_BROKER_BASE_URL")
+    broker_token = args.broker_token or os.environ.get("PACT_BROKER_TOKEN")
+    consumer     = args.consumer     or os.environ.get("PACT_CONSUMER")
+
     # Expand globs
-    pact_files = []
+    pact_files: list[str] = []
     for pattern in args.pacts:
         matches = glob.glob(pattern)
         pact_files.extend(matches if matches else ([pattern] if os.path.exists(pattern) else []))
 
+    # If no local pact files found, try fetching from broker
+    if not pact_files and consumer and broker_url:
+        print(
+            f"INFO: No pact files found at given patterns — fetching from broker for consumer '{consumer}'...",
+            file=sys.stderr,
+        )
+        pact_files = fetch_pacts_from_broker(consumer, broker_url, broker_token, args.pact_out_dir)
+        if pact_files:
+            print(f"INFO: Fetched {len(pact_files)} pact file(s) from broker.", file=sys.stderr)
+
     if not pact_files:
-        print("ERROR: No pact files found.", file=sys.stderr)
+        print(
+            "ERROR: No pact files found.\n"
+            "  • Run consumer tests first, then re-run this script with --pacts <output>/*.json\n"
+            "  • Fetch from broker: set PACT_BROKER_BASE_URL + PACT_BROKER_TOKEN + PACT_CONSUMER\n"
+            "  • Or specify files directly: --pacts path/to/consumer-provider.json",
+            file=sys.stderr,
+        )
         sys.exit(2)
 
     exclude_codes = set(str(c) for c in args.exclude_codes)
@@ -668,6 +815,7 @@ def main() -> None:
             kg=args.kg,
             consumer_routes=args.consumer_routes,
             ripwire=args.ripwire,
+            http_client=getattr(args, "http_client", None),
         )
         if filtered is None:
             print(

@@ -1,6 +1,13 @@
 import json
+import os
+import subprocess
+import sys
+import unittest.mock as mock
+import urllib.error
+from pathlib import Path
+
 import pytest
-from parse_pact_coverage import load_pact, extract_pact_interactions
+from parse_pact_coverage import load_pact, extract_pact_interactions, fetch_pacts_from_broker
 
 
 class TestLoadPact:
@@ -186,3 +193,117 @@ class TestExtractPactInteractionsV3:
         }
         interactions = extract_pact_interactions(pact)
         assert interactions[0]["method"] == "POST"
+
+
+class TestFetchPactsFromBroker:
+    """fetch_pacts_from_broker — all I/O mocked, no real network or subprocess calls."""
+
+    def test_cli_called_when_on_path(self, tmp_path):
+        with mock.patch("parse_pact_coverage.shutil.which", return_value="/usr/bin/pact-broker"), \
+             mock.patch("parse_pact_coverage.subprocess.run") as mock_run, \
+             mock.patch("parse_pact_coverage.glob.glob", return_value=[str(tmp_path / "c-p.json")]):
+            mock_run.return_value = mock.Mock(returncode=0)
+            result = fetch_pacts_from_broker("C", "https://broker", "tok", str(tmp_path))
+        mock_run.assert_called_once()
+        call_args = mock_run.call_args[0][0]
+        assert "download-pacts" in call_args
+        assert "--consumer" in call_args
+        assert str(tmp_path / "c-p.json") in result
+
+    def test_cli_passes_token(self, tmp_path):
+        with mock.patch("parse_pact_coverage.shutil.which", return_value="/usr/bin/pact-broker"), \
+             mock.patch("parse_pact_coverage.subprocess.run") as mock_run, \
+             mock.patch("parse_pact_coverage.glob.glob", return_value=[str(tmp_path / "c-p.json")]):
+            mock_run.return_value = mock.Mock(returncode=0)
+            fetch_pacts_from_broker("C", "https://broker", "mytoken", str(tmp_path))
+        call_args = mock_run.call_args[0][0]
+        assert "--broker-token" in call_args
+        assert "mytoken" in call_args
+
+    def test_http_fallback_when_cli_absent(self, tmp_path):
+        pacticipant_data = json.dumps({
+            "_links": {
+                "pb:pact-versions": [{"href": "https://broker/pacts/provider/P/consumer/C/latest"}]
+            }
+        }).encode()
+        pact_data = json.dumps({
+            "consumer": {"name": "C"},
+            "provider": {"name": "P"},
+            "interactions": [],
+        }).encode()
+
+        cm1 = mock.MagicMock()
+        cm1.__enter__ = lambda s: mock.Mock(read=lambda: pacticipant_data)
+        cm1.__exit__ = mock.Mock(return_value=False)
+        cm2 = mock.MagicMock()
+        cm2.__enter__ = lambda s: mock.Mock(read=lambda: pact_data)
+        cm2.__exit__ = mock.Mock(return_value=False)
+
+        with mock.patch("parse_pact_coverage.shutil.which", return_value=None), \
+             mock.patch("parse_pact_coverage.urllib.request.urlopen", side_effect=[cm1, cm2]):
+            result = fetch_pacts_from_broker("C", "https://broker", None, str(tmp_path))
+
+        assert len(result) == 1
+        assert "C-P-latest.json" in result[0]
+
+    def test_returns_empty_on_http_error(self, tmp_path, capsys):
+        with mock.patch("parse_pact_coverage.shutil.which", return_value=None), \
+             mock.patch("parse_pact_coverage.urllib.request.urlopen",
+                        side_effect=urllib.error.HTTPError(None, 401, "Unauthorized", {}, None)):
+            result = fetch_pacts_from_broker("C", "https://broker", None, str(tmp_path))
+        assert result == []
+        captured = capsys.readouterr()
+        assert "WARNING" in captured.err
+
+    def test_returns_empty_on_cli_failure(self, tmp_path, capsys):
+        with mock.patch("parse_pact_coverage.shutil.which", return_value="/usr/bin/pact-broker"), \
+             mock.patch("parse_pact_coverage.subprocess.run",
+                        side_effect=subprocess.CalledProcessError(1, "pact-broker")), \
+             mock.patch("parse_pact_coverage.urllib.request.urlopen",
+                        side_effect=Exception("no network")):
+            result = fetch_pacts_from_broker("C", "https://broker", "tok", str(tmp_path))
+        assert result == []
+
+
+class TestResolvePactsNoFiles:
+    """Integration: main() behaviour when no pact files are present."""
+
+    def test_no_pacts_no_broker_exits_with_helpful_message(self, oas_path):
+        script = str(Path(__file__).parent.parent / "parse_pact_coverage.py")
+        result = subprocess.run(
+            [sys.executable, script, "--spec", str(oas_path), "--pacts", "nonexistent/*.json"],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 2
+        assert "PACT_BROKER_BASE_URL" in result.stderr
+
+    def test_broker_env_vars_trigger_fetch(self, tmp_path, oas_path):
+        """When broker env vars set and fetch succeeds, coverage check runs (exit 0 or 1)."""
+        pact_file = tmp_path / "OrderClient-OrderAPI.json"
+        pact_file.write_text(json.dumps({
+            "consumer": {"name": "OrderClient"},
+            "provider": {"name": "OrderAPI"},
+            "interactions": [{
+                "type": "Synchronous/HTTP",
+                "description": "get order",
+                "request": {"method": "GET", "path": "/orders/123"},
+                "response": {"status": 200},
+            }],
+        }))
+
+        import parse_pact_coverage as ppc
+        saved_argv = sys.argv[:]
+        sys.argv = [
+            "parse_pact_coverage.py",
+            "--spec", str(oas_path),
+            "--pacts", "nonexistent/*.json",
+            "--consumer", "OrderClient",
+            "--broker-url", "https://broker.example.com",
+        ]
+        try:
+            with mock.patch.object(ppc, "fetch_pacts_from_broker", return_value=[str(pact_file)]):
+                with pytest.raises(SystemExit) as exc_info:
+                    ppc.main()
+                assert exc_info.value.code in (0, 1)
+        finally:
+            sys.argv = saved_argv
