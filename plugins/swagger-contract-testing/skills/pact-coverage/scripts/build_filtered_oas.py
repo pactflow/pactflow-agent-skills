@@ -450,8 +450,10 @@ def extract_url_path(body: str) -> str | None:
     """
     fstring_candidates: list[str] = []
 
-    # f-strings and template literals: capture anything inside quotes/backticks
-    for m in re.finditer(r'(?:f["\']|`)([^"\'`\n]+)(?:["\']|`)', body):
+    # f-strings and template literals: capture anything inside quotes/backticks.
+    # Allow newlines so multi-line templates like `/${encodeURIComponent(\n  id\n)}/rest`
+    # are matched in full — the path sub-regex handles the ${...} segments correctly.
+    for m in re.finditer(r'(?:f["\']|`)([^"\'`]+)(?:["\']|`)', body):
         text = m.group(1)
         path_m = re.search(
             r'(?:https?://[^/\s]*)?'                              # optional http://host
@@ -807,8 +809,14 @@ def get_routes_via_wrapper_callers(
         # For direct-verb wrappers (Ruby Faraday pattern), ALL patterns must be
         # collected so no HTTP method is missed.  For a genuine wrapper method
         # (TypeScript HttpClient.fetch), stop at the first pattern that yields hits.
-        grep_xmls: list[str] = []
+        #
+        # verb_grep_xmls tracks (verb, xml) so direct-verb wrappers can use the grep
+        # verb as the authoritative HTTP method (avoids expand-then-extract errors when
+        # a class body contains multiple verbs).
+        verb_grep_xmls: list[tuple[str, str]] = []
         for grep_pattern in _grep_candidates:
+            # derive verb from pattern: ".post(" → "post", "http.fetch" → "fetch"
+            _pat_verb = grep_pattern.lstrip(".").rstrip("(").split(".")[-1]
             try:
                 candidate_xml = run_ripwire(
                     ripwire_bin, consumer_root, [f"--grep={grep_pattern}", "--limit=500"]
@@ -819,15 +827,74 @@ def get_routes_via_wrapper_callers(
                         "test" not in (fe.get("p") or "") for fe in groot.findall("f")
                     )
                     if has_src_hits:
-                        grep_xmls.append(candidate_xml)
+                        verb_grep_xmls.append((_pat_verb, candidate_xml))
                         if not _is_direct_verb:
                             break  # non-verb wrapper: first match wins
                 except ET.ParseError:
                     pass
             except RuntimeError:
                 continue
-        if not grep_xmls:
+        if not verb_grep_xmls:
             return []
+
+        # Fast path for direct-verb wrappers (e.g. Ruby Faraday connection.get/post/…):
+        # ripwire's grep result includes hit.text = the matched source line, which contains
+        # the URL argument.  Extract (method, path) directly from each matched line using
+        # the grep verb as the authoritative HTTP method — no --expand needed.
+        # This avoids the expand-whole-class bug where a class body with both GET and POST
+        # calls causes extract_http_method to return the wrong verb.
+        if _is_direct_verb:
+            routes: list[dict] = []
+            seen: set[tuple[str, str]] = set()
+            _body_cache: dict[str, str] = {}  # cache expanded fn bodies (keyed by "file:sym")
+            for (verb, grep_xml) in verb_grep_xmls:
+                try:
+                    gxml_root = ET.fromstring(grep_xml)
+                    for f_elem in gxml_root.findall("f"):
+                        if "test" in (f_elem.get("p") or ""):
+                            continue
+                        file_path = f_elem.get("p", "")
+                        for hit in f_elem.findall("hit"):
+                            line_text = (hit.text or "").strip()
+                            if not line_text:
+                                continue
+                            path = extract_url_path(line_text)
+                            if not path:
+                                # URL may be on the next line — expand the enclosing fn
+                                enc = hit.get("in", "")
+                                if enc and enc not in _HTTP_VERBS:
+                                    cache_key = f"{file_path}:{enc}" if file_path else enc
+                                    if cache_key not in _body_cache:
+                                        try:
+                                            expand_sym = enc
+                                            if "::" in enc:
+                                                fp, _, rest = enc.partition(":")
+                                                mp = rest.rpartition("::")[-1]
+                                                expand_sym = f"{fp}:{mp}" if fp else mp
+                                            exp_xml = run_ripwire(
+                                                ripwire_bin, consumer_root, [f"--expand={expand_sym}"]
+                                            )
+                                            _body_cache[cache_key] = parse_body_xml(exp_xml)
+                                        except (RuntimeError, Exception):
+                                            _body_cache[cache_key] = ""
+                                    body = _body_cache.get(cache_key, "")
+                                    if body:
+                                        path = extract_url_path(body)
+                            if not path:
+                                continue
+                            method = verb.upper()
+                            key = (method, path)
+                            if key not in seen:
+                                seen.add(key)
+                                enc = hit.get("in", "")
+                                routes.append({"method": method, "path": path, "from": enc, "to": ""})
+                except ET.ParseError:
+                    pass
+            if routes:
+                return routes
+            # Fall through to expansion if hit.text extraction yielded nothing
+
+        grep_xmls = [xml for (_, xml) in verb_grep_xmls]
         seen_syms: set[str] = set()
         for grep_xml in grep_xmls:
             try:
@@ -882,6 +949,133 @@ def get_routes_via_wrapper_callers(
             if key not in seen:
                 seen.add(key)
                 routes.append({"method": method.upper(), "path": path, "from": sym, "to": ""})
+
+    return routes
+
+
+def get_routes_via_string_dispatch(consumer_root: str) -> list[dict]:
+    """Strategy 4: pure-Python grep for string-literal HTTP method dispatch patterns.
+
+    Handles codebases that pass the HTTP verb as a string argument rather than
+    calling a named verb method.  Common patterns detected:
+
+      Go (doCrud / doRequest):
+        c.doCrud("GET", someTemplate, ...)
+        c.doCrud("POST", urlEncodeTemplate(pathConst, id), ...)
+
+      Go (http.NewRequest):
+        http.NewRequest("GET", url, body)
+
+      Generic / any language:
+        anyFunc("POST", "/literal/path", ...)
+        anyFunc("DELETE", buildURL(pathConst, id), ...)
+
+    Resolution steps:
+      1. Collect all string constants of the form:  name = "/path/%s"
+         (covers Go const/var blocks, Ruby constants, TS/JS const)
+      2. Scan for calls where the first or second argument is a METHOD string.
+      3. Resolve the adjacent path expression — plain constant lookup, or
+         sprintf/urlEncodeTemplate wrapper that contains a constant.
+      4. Normalise the resolved path: %s → {param}, {{.Field}} → {field}.
+    """
+    from pathlib import Path as _Path
+
+    root = _Path(consumer_root)
+    SOURCE_EXTS = {".go", ".ts", ".js", ".py", ".rb", ".java", ".kt", ".cs", ".swift"}
+    files = (
+        [root] if root.is_file()
+        else [f for f in root.rglob("*") if f.is_file() and f.suffix in SOURCE_EXTS and "vendor" not in f.parts]
+    )
+
+    HTTP_VERBS = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+
+    # ── Step 1: collect path-like string constants ──────────────────────────
+    # Matches:  constName = "/some/path"  (with optional %s placeholders)
+    _const_re = re.compile(
+        r'\b([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"((?:/[^"]*|[^"]*%s[^"]*))"'
+    )
+    constants: dict[str, str] = {}
+    for fpath in files:
+        try:
+            text = fpath.read_text(errors="replace")
+        except Exception:
+            continue
+        for m in _const_re.finditer(text):
+            name, value = m.group(1), m.group(2)
+            # Only keep values that look like paths (start with /) or contain %s
+            if value.startswith("/") or "%s" in value:
+                constants.setdefault(name, value)  # first definition wins
+
+    # ── Step 2 + 3: find dispatch call sites ────────────────────────────────
+    # Pattern A: ("METHOD", plainConstOrLiteral, ...)
+    #   e.g. doCrud("GET", webhookTemplate, ...)
+    # Pattern B: ("METHOD", wrapperFn(constName, ...), ...)
+    #   e.g. doCrud("GET", urlEncodeTemplate(webhookTemplate, id), ...)
+    # Pattern C: ("METHOD", fmt.Sprintf("/path/%s", ...), ...)
+
+    _method_str = r'"(' + '|'.join(HTTP_VERBS) + r')"'
+
+    # Matches METHOD followed by comma, then one of: literal string / plain ident /
+    # wrapper-fn(ident, ...) / fmt.Sprintf("format", ...)
+    _dispatch_re = re.compile(
+        _method_str + r'\s*,\s*'
+        r'(?:'
+        r'"(/[^"]*)"'                                        # inline literal "/path"
+        r'|fmt\.Sprintf\s*\(\s*"([^"]*)"'                   # fmt.Sprintf("format", ...)
+        r'|[A-Za-z_][A-Za-z0-9_]*\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)'  # wrapFn(constName
+        r'|([A-Za-z_][A-Za-z0-9_]*)\s*[,)]'                 # plain constName, or constName)
+        r')'
+    )
+
+    def _normalise_path(raw: str) -> str:
+        """Convert printf-style and template placeholders to OAS {param}."""
+        # %s → {param}
+        result = re.sub(r'%[sdvq]', '{param}', raw)
+        # Go template: {{.Field}} → {field}
+        result = re.sub(r'\{\{\.([A-Za-z]+)\}\}', lambda m: '{' + m.group(1).lower() + '}', result)
+        # Ruby / JS: :name → {name}
+        result = re.sub(r':([a-z][a-z0-9_]*)', r'{\1}', result)
+        return result
+
+    routes: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    for fpath in files:
+        try:
+            text = fpath.read_text(errors="replace")
+        except Exception:
+            continue
+
+        for m in _dispatch_re.finditer(text):
+            method = m.group(1).upper()
+            inline_literal = m.group(2)      # "/literal/path"
+            sprintf_fmt    = m.group(3)      # fmt.Sprintf format string
+            wrapper_const  = m.group(4)      # wrapFn(constName, ...)
+            plain_const    = m.group(5)      # constName,
+
+            raw_path: str | None = None
+            if inline_literal:
+                raw_path = inline_literal
+            elif sprintf_fmt and sprintf_fmt.startswith("/"):
+                raw_path = sprintf_fmt
+            elif wrapper_const and wrapper_const in constants:
+                raw_path = constants[wrapper_const]
+            elif plain_const and plain_const in constants:
+                raw_path = constants[plain_const]
+
+            if not raw_path:
+                continue
+
+            path = _normalise_path(raw_path)
+            key = (method, path)
+            if key not in seen:
+                seen.add(key)
+                routes.append({
+                    "method": method,
+                    "path": path,
+                    "from": fpath.name,
+                    "to": "",
+                })
 
     return routes
 
@@ -1231,6 +1425,26 @@ def main() -> None:
                     "WARNING: wrapper-caller discovery also found nothing",
                     file=sys.stderr,
                 )
+
+    # Strategy 4: string-dispatch pattern (doCrud("METHOD", path), http.NewRequest, etc.)
+    # Handles languages/patterns where the HTTP verb is a string literal argument
+    # rather than a named method — common in Go, some TypeScript clients.
+    if not routes and args.consumer_root:
+        try:
+            routes = get_routes_via_string_dispatch(args.consumer_root)
+        except Exception as e:
+            print(f"WARNING: string-dispatch discovery failed — {e}", file=sys.stderr)
+        if routes:
+            print(
+                f"WARNING: ripwire strategies found 0 routes; "
+                f"string-dispatch pattern found {len(routes)} route(s)",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "WARNING: string-dispatch discovery also found nothing",
+                file=sys.stderr,
+            )
 
     # --routes fallback: manually-supplied route list
     if not routes and args.routes:
