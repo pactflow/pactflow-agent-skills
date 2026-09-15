@@ -1,0 +1,24 @@
+name: Test pact-coverage
+
+on:
+  push:
+    paths:
+      - "plugins/swagger-contract-testing/skills/pact-coverage/**"
+      - ".github/workflows/test-pact-coverage.yml"
+  pull_request:
+    paths:
+      - "plugins/swagger-contract-testing/skills/pact-coverage/**"
+      - ".github/workflows/test-pact-coverage.yml"
+
+jobs:
+  test:
+    name: Run pact-coverage unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+
+      - name: Run pytest
+        working-directory: plugins/swagger-contract-testing/skills/pact-coverage/scripts/tests
+        run: uv run --with pytest --with pyyaml pytest -v

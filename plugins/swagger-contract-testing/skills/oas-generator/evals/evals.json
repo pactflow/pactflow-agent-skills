@@ -1,0 +1,17 @@
+{
+  "skill_name": "oas-generator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need an OpenAPI spec for the Express product service at /Users/kevin.rohanvaz/Projects/pactflow-example-provider-bot-repo — there's no spec maintained in that repo. Generate one from the code and save it to /Users/kevin.rohanvaz/Projects/pact-agent-skills/plugins/swagger-contract-testing/skills/oas-generator-workspace/iteration-1/express-product-service/with_skill/outputs/openapi-generated.yaml",
+      "expected_output": "A valid OpenAPI 3.x YAML with at least GET /products and GET /product/{id}. Ideally also captures the Product schema fields (id, name, price, type). All paths include at least a 200 response.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Generate an OpenAPI spec from the Ruby Grape API at /Users/kevin.rohanvaz/Projects/pactflow-application/app_saas/lib/pactflow_saas/api — there's no existing spec for this API. Save the result to /Users/kevin.rohanvaz/Projects/pact-agent-skills/plugins/swagger-contract-testing/skills/oas-generator-workspace/iteration-1/ruby-grape-api/with_skill/outputs/openapi-generated.yaml",
+      "expected_output": "A valid OpenAPI 3.x YAML with multiple POST/GET/PUT/DELETE routes discovered from the Grape resources directory. Routes should include at least the invite_user endpoint. Stub schemas acceptable.",
+      "files": []
+    }
+  ]
+}

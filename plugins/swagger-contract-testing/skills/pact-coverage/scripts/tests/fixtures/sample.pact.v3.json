@@ -1,0 +1,36 @@
+{
+  "consumer": {"name": "OrderClient"},
+  "provider": {"name": "OrderAPI"},
+  "interactions": [
+    {
+      "description": "get order by id - success",
+      "providerState": "order 123 exists",
+      "request": {
+        "method": "GET",
+        "path": "/orders/123",
+        "headers": {"Accept": "application/json"}
+      },
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": {"id": "123", "status": "placed"}
+      }
+    },
+    {
+      "description": "create order",
+      "providerState": "no order exists",
+      "request": {
+        "method": "POST",
+        "path": "/orders",
+        "headers": {"Content-Type": "application/json"},
+        "body": {"customerId": "abc"}
+      },
+      "response": {
+        "status": 201,
+        "headers": {"Content-Type": "application/json"},
+        "body": {"id": "456", "status": "pending"}
+      }
+    }
+  ],
+  "metadata": {"pactSpecification": {"version": "3.0.0"}}
+}

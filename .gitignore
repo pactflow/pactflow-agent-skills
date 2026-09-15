@@ -3,7 +3,9 @@ kiro-powers/
 .agents/
 drift-workspace/
 pactflow-workspace/
+.superpowers/
 settings.local.json
+oas-generator-workspace/
 demo/
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -144,3 +146,4 @@ write_file_no_gil.c
 .vscode/
 
 *venv*
+uv.lock

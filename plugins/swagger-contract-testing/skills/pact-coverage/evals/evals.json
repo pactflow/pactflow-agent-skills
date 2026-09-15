@@ -1,0 +1,107 @@
+{
+  "skill_name": "pact-coverage",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have an OpenAPI spec at `evals/fixtures/openapi.yaml` and a pact file at `evals/fixtures/consumer-provider.json`. Which operations and status codes are not covered by my pact tests?",
+      "expected_output": "The agent runs parse_pact_coverage.py against the spec and pact file, then reports which operations, status codes, request body fields, and response body fields are missing coverage.",
+      "files": [
+        "evals/fixtures/openapi.yaml",
+        "evals/fixtures/consumer-provider.json"
+      ],
+      "assertions": [
+        {
+          "name": "runs_coverage_script",
+          "description": "Response invokes parse_pact_coverage.py rather than manually reasoning",
+          "type": "llm_judge",
+          "value": "The response invokes the parse_pact_coverage.py script (via uv run or equivalent) rather than attempting to manually compute coverage by reading the files"
+        },
+        {
+          "name": "reports_missing_status_codes",
+          "description": "Response identifies specific missing status codes",
+          "type": "llm_judge",
+          "value": "The response identifies specific status codes (such as 401 or 404) that are documented in the spec but missing from the pact interactions"
+        },
+        {
+          "name": "reports_missing_resp_fields",
+          "description": "Response reports missing required response body fields",
+          "type": "llm_judge",
+          "value": "The response identifies at least one required response body field that is documented in the spec but absent from the pact interaction response body"
+        },
+        {
+          "name": "actionable_next_steps",
+          "description": "Response suggests concrete steps to fill the gaps",
+          "type": "llm_judge",
+          "value": "The response gives concrete next steps to address the coverage gaps, such as adding pact interactions, enriching request/response bodies, or invoking the pact-generator agent"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "My team says we have good pact coverage but I want to check. I have pacts in `pacts/` and my spec is `api.yaml`. Check all four coverage dimensions and tell me exactly what's missing, if anything.",
+      "expected_output": "The agent runs the script across all four dimensions, lists specific missing items (not just percentages), and interprets the exit code.",
+      "files": [
+        "evals/fixtures/openapi.yaml",
+        "evals/fixtures/consumer-provider.json"
+      ],
+      "assertions": [
+        {
+          "name": "covers_all_four_dimensions",
+          "description": "Response addresses all four coverage dimensions",
+          "type": "llm_judge",
+          "value": "The response explicitly addresses all four coverage dimensions: (1) path/method coverage, (2) status code coverage, (3) required request body fields, (4) required response body fields — not just one or two"
+        },
+        {
+          "name": "uses_glob_for_pacts_dir",
+          "description": "Response uses a glob pattern for the pacts directory",
+          "type": "llm_judge",
+          "value": "The response passes a glob pattern like 'pacts/*.json' to --pacts rather than guessing a single filename"
+        },
+        {
+          "name": "reports_specific_missing_items",
+          "description": "Response lists specific NOT COVERED items, not just percentages",
+          "type": "llm_judge",
+          "value": "When gaps exist, the response lists the specific operations, status codes, or fields that are missing — it does not only report a coverage percentage"
+        },
+        {
+          "name": "interprets_exit_code",
+          "description": "Response interprets the script exit code",
+          "type": "llm_judge",
+          "value": "The response interprets the exit code of the script (0 = full coverage, 1 = gaps) and explains what it means"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Hypothetically, suppose I have already run pact-coverage and the report shows these gaps: POST /payments is not covered at all, GET /payments/{id} is missing the 404 status code, and the 200 response for GET /payments/{id} is missing the `amount` required field. Based on these stated gaps, what pact interactions do I need to add or modify?",
+      "expected_output": "The agent gives concrete guidance for all three gaps: a POST /payments interaction, a GET 404 interaction, and enriching the GET 200 response body to include amount.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "addresses_all_three_gaps",
+          "description": "Response addresses all three identified gaps",
+          "type": "llm_judge",
+          "value": "The response gives concrete guidance for all three gaps: the missing POST /payments path, the missing 404 status code for GET /payments/{id}, and the missing amount field in the 200 response"
+        },
+        {
+          "name": "post_interaction_guidance",
+          "description": "Response explains what the POST /payments interaction needs",
+          "type": "llm_judge",
+          "value": "The response explains what the POST /payments pact interaction needs to include (at minimum a 2xx response to cover path/method and status code dimensions)"
+        },
+        {
+          "name": "refers_to_pact_generator",
+          "description": "Response mentions the pact-generator agent or pactflow skill",
+          "type": "llm_judge",
+          "value": "The response references the pact-generator agent or the pactflow skill as the tool to use for actually writing the new Pact test interactions"
+        },
+        {
+          "name": "response_field_guidance",
+          "description": "Response explains how to fix the missing amount response field",
+          "type": "llm_judge",
+          "value": "The response explains that the existing GET /payments/{id} 200 interaction needs to have the amount field added to its response body content"
+        }
+      ]
+    }
+  ]
+}
