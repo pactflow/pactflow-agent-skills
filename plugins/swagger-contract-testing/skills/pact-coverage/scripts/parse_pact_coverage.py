@@ -22,11 +22,8 @@ Usage:
   uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" --json
   uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" --exclude-codes 500 501
 
-  # Consumer-filtered: only report on HTTP operations the consumer code actually calls.
-  # Pass --consumer-root (with optional --ripwire) to auto-discover routes via ripwire,
-  # or --kg to supply a pre-built ripwire XML, or --consumer-routes to supply a JSON list.
-  uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" \\
-      --consumer-root ./consumer-src
+  # Consumer-filtered: only report on HTTP operations the consumer actually calls.
+  # Pass --consumer-routes to supply a pre-built JSON routes list.
   uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" \\
       --consumer-routes '[{"method":"GET","path":"/orders/{id}"}]'
 
@@ -257,6 +254,28 @@ def load_oas(path: str) -> dict:
     if not isinstance(result, dict):
         raise ValueError("spec did not parse to a mapping")
     return result
+
+
+def _filter_oas_to_routes(oas: dict, routes: list[dict]) -> dict:
+    """Filter OAS to only the paths/methods listed in routes (no type enrichment)."""
+    import copy
+    filtered = copy.deepcopy(oas)
+    oas_paths = oas.get("paths", {})
+    filtered_paths: dict = {}
+    for route in routes:
+        method = route.get("method", "").lower()
+        path = route.get("path", "")
+        if path in oas_paths and method in oas_paths[path]:
+            if path not in filtered_paths:
+                filtered_paths[path] = {}
+            filtered_paths[path][method] = oas_paths[path][method]
+        else:
+            print(
+                f"WARNING: route {method.upper()} {path} did not match any OAS path/method — skipped",
+                file=sys.stderr,
+            )
+    filtered["paths"] = filtered_paths
+    return filtered
 
 
 def extract_oas_operations(oas: dict, exclude_codes: set | None = None) -> dict:
@@ -707,116 +726,22 @@ def print_report(
 def _build_consumer_filtered_oas(
     oas: dict,
     *,
-    consumer_root: str | None,
-    kg: str | None,
-    consumer_routes: str | None,
-    ripwire: str,
+    consumer_root: str | None = None,
+    kg: str | None = None,
+    consumer_routes: str | None = None,
+    ripwire: str = "ripwire",
     http_client: str | None = None,
 ) -> dict | None:
-    """Import build_filtered_oas and return a consumer-filtered OAS, or None on failure."""
-    scripts_dir = str(Path(__file__).parent)
-    if scripts_dir not in sys.path:
-        sys.path.insert(0, scripts_dir)
-
-    try:
-        from build_filtered_oas import (  # type: ignore[import]
-            get_routes_iterative,
-            get_routes_via_response_types,
-            get_routes_via_wrapper_callers,
-            get_routes_via_string_dispatch,
-            find_http_wrapper_symbol,
-            enrich_route_with_type,
-            parse_routes_xml,
-            routes_from_json as bfo_routes_from_json,
-            build_filtered_oas as bfo_build,
-        )
-    except ImportError as e:
-        print(f"ERROR: cannot import build_filtered_oas: {e}", file=sys.stderr)
+    """Filter OAS to consumer-routes only. Returns None when no valid routes given."""
+    if not consumer_routes:
         return None
-
-    routes: list[dict] = []
-
-    if kg:
-        try:
-            xml = Path(kg).read_text()
-            routes, _, _ = parse_routes_xml(xml)
-        except Exception as e:
-            print(f"ERROR: could not read --kg file '{kg}': {e}", file=sys.stderr)
-            return None
-
-    elif consumer_root:
-        try:
-            routes = get_routes_iterative(ripwire, consumer_root, 3)
-        except Exception as e:
-            print(f"WARNING: ripwire route discovery failed: {e}", file=sys.stderr)
-            routes = []
-        if not routes:
-            try:
-                routes = get_routes_via_response_types(ripwire, consumer_root, oas, 3)
-            except Exception as e:
-                print(f"WARNING: ripwire response-type discovery failed: {e}", file=sys.stderr)
-                routes = []
-        # Strategy 3: call-graph traversal through HTTP wrapper class
-        if not routes:
-            wrapper_sym = http_client or find_http_wrapper_symbol(ripwire, consumer_root)
-            if wrapper_sym:
-                print(f"INFO: trying wrapper-caller discovery via '{wrapper_sym}'", file=sys.stderr)
-                try:
-                    routes = get_routes_via_wrapper_callers(ripwire, consumer_root, wrapper_sym)
-                    if routes:
-                        print(
-                            f"WARNING: ripwire direct-route search found 0 routes; "
-                            f"traversed callers of {wrapper_sym}, found {len(routes)} route(s)",
-                            file=sys.stderr,
-                        )
-                    else:
-                        print("WARNING: wrapper-caller discovery also found nothing", file=sys.stderr)
-                except Exception as e:
-                    print(f"WARNING: wrapper-caller discovery failed: {e}", file=sys.stderr)
-
-        # Strategy 4: string-dispatch pattern (doCrud("METHOD", path), http.NewRequest, etc.)
-        if not routes:
-            try:
-                routes = get_routes_via_string_dispatch(consumer_root)
-                if routes:
-                    print(
-                        f"WARNING: ripwire strategies found 0 routes; "
-                        f"string-dispatch pattern found {len(routes)} route(s)",
-                        file=sys.stderr,
-                    )
-            except Exception as e:
-                print(f"WARNING: string-dispatch discovery failed: {e}", file=sys.stderr)
-
-    if not routes and consumer_routes:
-        try:
-            routes = bfo_routes_from_json(consumer_routes)
-        except Exception as e:
-            print(f"ERROR: --consumer-routes is invalid: {e}", file=sys.stderr)
-            return None
-
+    try:
+        routes = json.loads(consumer_routes)
+    except json.JSONDecodeError:
+        return None
     if not routes:
         return None
-
-    if consumer_root:
-        enriched: list[dict] = []
-        for route in routes:
-            if "tier" not in route:
-                try:
-                    enriched.append(enrich_route_with_type(route, ripwire, consumer_root, oas))
-                except Exception:
-                    route.setdefault("tier", 4)
-                    route.setdefault("tier_note", "enrich failed")
-                    route.setdefault("type_name", None)
-                    route.setdefault("consumer_fields", [])
-                    route.setdefault("consumer_optional_fields", [])
-                    route.setdefault("resolved_fields", None)
-                    enriched.append(route)
-            else:
-                enriched.append(route)
-        routes = enriched
-
-    filtered, _ = bfo_build(routes, oas)
-    return filtered
+    return _filter_oas_to_routes(oas, routes)
 
 
 # ─── Entry point ───────────────────────────────────────────────────────────────
@@ -916,29 +841,9 @@ def main() -> None:
 
     # Consumer-filtering flags (optional)
     parser.add_argument(
-        "--consumer-root", metavar="DIR",
-        help="Consumer source root; script auto-discovers routes via ripwire and filters the spec",
-    )
-    parser.add_argument(
-        "--kg", metavar="FILE",
-        help="Pre-built ripwire knowledge-graph XML (skips running ripwire)",
-    )
-    parser.add_argument(
         "--consumer-routes", metavar="JSON",
-        help='JSON route list, e.g. \'[{"method":"GET","path":"/orders/{id}"}]\' '
-             "(Tier-4 fallback when ripwire cannot discover routes)",
-    )
-    parser.add_argument(
-        "--ripwire", metavar="BIN", default="ripwire",
-        help="Path to ripwire binary (default: ripwire on PATH)",
-    )
-    parser.add_argument(
-        "--http-client", metavar="SYMBOL",
-        help=(
-            "Fully-qualified HTTP wrapper class method for call-graph traversal "
-            "(e.g. 'HttpClient.fetch'). Auto-detected when omitted. "
-            "Use when the consumer wraps HTTP in a class and ripwire finds 0 routes."
-        ),
+        help='Pre-built JSON route list, e.g. \'[{"method":"GET","path":"/orders/{id}"}]\'. '
+             "Filters the OAS to only the listed routes before computing coverage.",
     )
 
     # Broker fetch flags (optional; env vars PACT_BROKER_BASE_URL / PACT_BROKER_TOKEN / PACT_CONSUMER)
@@ -992,23 +897,13 @@ def main() -> None:
         print(f"ERROR: Could not parse spec '{args.spec}': {e}", file=sys.stderr)
         sys.exit(2)
 
-    if args.consumer_root or args.kg or args.consumer_routes:
-        filtered = _build_consumer_filtered_oas(
-            oas,
-            consumer_root=args.consumer_root,
-            kg=args.kg,
-            consumer_routes=args.consumer_routes,
-            ripwire=args.ripwire,
-            http_client=getattr(args, "http_client", None),
-        )
-        if filtered is None:
-            print(
-                "ERROR: consumer-filtering failed — no routes found. "
-                "Provide --consumer-root, --kg, or --consumer-routes.",
-                file=sys.stderr,
-            )
+    if args.consumer_routes:
+        try:
+            routes = json.loads(args.consumer_routes)
+        except json.JSONDecodeError as e:
+            print(f"ERROR: --consumer-routes is not valid JSON: {e}", file=sys.stderr)
             sys.exit(2)
-        oas = filtered
+        oas = _filter_oas_to_routes(oas, routes)
 
     try:
         oas_ops = extract_oas_operations(oas, exclude_codes)
@@ -1028,13 +923,12 @@ def main() -> None:
             print(f"ERROR: Could not parse pact '{pact_path}': {e}", file=sys.stderr)
             sys.exit(2)
 
-    consumer_root = args.consumer_root or None
-    report = compute_coverage(oas_ops, all_interactions, exclude_codes, consumer_root=consumer_root)
+    report = compute_coverage(oas_ops, all_interactions, exclude_codes)
 
     if args.json:
         print(json.dumps(report, indent=2))
     else:
-        print_report(report, args.spec, pact_files, exclude_codes, consumer_root=consumer_root)
+        print_report(report, args.spec, pact_files, exclude_codes)
 
     sys.exit(1 if report["has_gaps"] else 0)
 

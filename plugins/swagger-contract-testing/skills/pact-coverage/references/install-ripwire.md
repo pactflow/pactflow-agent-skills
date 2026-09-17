@@ -1,6 +1,10 @@
 # Install ripwire
 
-Steps 1 and 2 of the pact-coverage skill depend on `ripwire`.
+The pact-coverage skill uses ripwire in two ways:
+- **Interactive (Claude Code agent):** via ripwire MCP tools — the `swagger-contract-testing:pact-coverage`
+  agent calls ripwire through MCP for adaptive route discovery. Requires MCP setup (see below).
+- **CI / headless:** via the ripwire CLI binary — `build_filtered_oas.py` runs `ripwire` as a
+  subprocess for Strategy 1 route discovery. Requires only the binary on PATH.
 
 ## Check if already installed
 
@@ -36,10 +40,12 @@ Requires cmake and a C++23-capable compiler (clang 17+ or GCC 13+).
 
 ---
 
-## Wire ripwire into Claude Code (MCP server — optional but recommended)
+## Wire ripwire into Claude Code (MCP server — required for the interactive agent)
 
-The release installer already activates the ripwire skills. To also expose ripwire's
+The release installer already activates the ripwire skills. To expose ripwire's
 31 MCP verbs mid-session (warm in-memory graph, no shell round-trip after first parse):
+
+### Via command line (easiest)
 
 ```bash
 # Register the MCP server
@@ -51,6 +57,30 @@ bash "$(brew --prefix 2>/dev/null || echo "$HOME/.local")/share/ripwire/skills/i
 # Optional: advisory hooks that nudge toward ripwire before Grep/Read
 bash "$(brew --prefix 2>/dev/null || echo "$HOME/.local")/share/ripwire/skills/install.sh" --hook
 ```
+
+### Alternative: add to `mcp.json` (for projects that configure MCP in a file)
+
+```json
+{
+  "mcpServers": {
+    "ripwire": { "command": "ripwire", "args": ["--mcp"] }
+  }
+}
+```
+
+### Verify it's connected
+
+After registering, the `swagger-contract-testing:pact-coverage` agent will check for
+`mcp__ripwire__for` availability at startup. If not connected, it will show an error
+with the setup link above.
+
+### Quick registration via ripwire's built-in helper
+
+```bash
+ripwire wrap claude   # prints: claude mcp add ripwire -- ripwire --mcp
+```
+
+### Add ripwire guidance to CLAUDE.md
 
 Then add the following block to your `CLAUDE.md` so every session knows when to reach
 for ripwire:

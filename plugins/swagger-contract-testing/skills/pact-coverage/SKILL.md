@@ -24,9 +24,41 @@ Analyses Pact v4 `Synchronous/HTTP` interactions against an OpenAPI spec and rep
 gaps across four dimensions: path/method, status codes, request body required fields,
 and response body required fields. Never modifies files.
 
-**Prerequisites:** `ripwire` must be on `PATH` for Steps 1 and 2.
-If `command -v ripwire` fails, read [`references/install-ripwire.md`](references/install-ripwire.md)
-and install it before continuing.
+**Prerequisites:** `ripwire` is required — as an MCP server for interactive use (see [ripwire MCP setup](#ripwire-mcp-setup) above), or as a CLI binary for CI scripts (see [Scripts (CI / advanced)](#scripts-ci--advanced) below). Run `command -v ripwire` to check; see [`references/install-ripwire.md`](references/install-ripwire.md) for install instructions.
+
+---
+
+## What this measures
+
+Pact coverage answers one question: **do the consumer's pact files exercise everything the consumer actually uses from the provider?**
+
+The provider's OAS describes its full surface — but the consumer only calls a subset of it. Measuring coverage against the full OAS produces false gaps (unused provider endpoints appearing as uncovered). The correct denominator is the *consumer-filtered provider OAS*: the slice of the provider's OAS that the consumer actually calls.
+
+Flow:
+1. **ripwire scans the consumer codebase** → discovers which provider paths/methods the consumer calls
+2. **The provider OAS is filtered** to only those routes (removing unused endpoints)
+3. **Pact files are compared** against the filtered OAS → gaps = operations/codes/fields the consumer calls but hasn't exercised in any pact interaction
+
+---
+
+## ripwire MCP setup
+
+The `swagger-contract-testing:pact-coverage` agent uses ripwire via MCP tools for adaptive route discovery. The ripwire MCP server must be connected before running coverage interactively.
+
+**Register in one command:**
+```bash
+ripwire wrap claude   # prints the command to run
+# → claude mcp add ripwire -- ripwire --mcp
+```
+
+Or add to `mcp.json`:
+```json
+{ "mcpServers": { "ripwire": { "command": "ripwire", "args": ["--mcp"] } } }
+```
+
+For full install instructions → [`references/install-ripwire.md`](references/install-ripwire.md)
+
+For CI usage (no agent, no MCP), see the Scripts section below.
 
 ---
 
@@ -91,23 +123,6 @@ uv run scripts/parse_pact_coverage.py --spec openapi.yaml \
 ```
 Env vars `PACT_BROKER_BASE_URL`, `PACT_BROKER_TOKEN`, `PACT_CONSUMER` are read automatically if flags are omitted.
 
-**Class-based API clients (common pattern):** ripwire identifies HTTP routes from direct
-`fetch`/`axios`/`requests` call sites. When the consumer wraps HTTP behind a class (e.g.
-`this.http.fetch('/path', { method: 'GET' })`), the script automatically falls back to
-call-graph traversal: it finds the wrapper method and walks upward through its callers to
-extract URL paths and HTTP methods from each domain function body.
-
-If auto-detection fails (0 routes and a WARNING in the output), name the wrapper explicitly:
-
-```bash
-uv run scripts/parse_pact_coverage.py --spec openapi.yaml \
-  --pacts "pacts/*.json" \
-  --consumer-root ./src \
-  --http-client "HttpClient.fetch"
-```
-
-As a last resort, supply routes manually with `--consumer-routes '[{"method":"GET","path":"/orders/{id}"}]'`.
-
 **3. Run consumer tests** (when no broker is available)
 1. Locate pact test files — search for `*pact*` / `*contract*` in test directories, or use
    ripwire: `ripwire . --for="pact consumer test setup"`.
@@ -144,51 +159,15 @@ AskUserQuestion({
 
 ---
 
-## Quickstart — single command (happy path)
+## Running coverage
 
-When you have the consumer source and a pact glob, this is the only command needed:
+Invoke the `swagger-contract-testing:pact-coverage` agent. It will:
+1. Resolve the provider OAS spec and pact files (prompting if ambiguous)
+2. Use ripwire MCP tools to discover which provider routes the consumer calls
+3. Build a consumer-filtered provider OAS
+4. Run `parse_pact_coverage.py` and report the gaps
 
-```bash
-uv run scripts/parse_pact_coverage.py \
-  --spec openapi.yaml \
-  --pacts "pacts/*.json" \
-  --consumer-root ./consumer-src
-```
-
-`--consumer-root` runs ripwire internally to discover which endpoints the consumer
-calls and narrows the OAS to those paths before measuring coverage. Unused provider
-endpoints never appear as gaps.
-
-**Fallback — pre-built KG:**
-```bash
-uv run scripts/parse_pact_coverage.py \
-  --spec openapi.yaml --pacts "pacts/*.json" --kg kg.xml
-```
-
-**Class-based HTTP client (auto-detected, or name it explicitly):**
-```bash
-uv run scripts/parse_pact_coverage.py \
-  --spec openapi.yaml --pacts "pacts/*.json" \
-  --consumer-root ./src \
-  --http-client "HttpClient.fetch"
-```
-
-**Last-resort fallback — manual route list:**
-```bash
-uv run scripts/parse_pact_coverage.py \
-  --spec openapi.yaml --pacts "pacts/*.json" \
-  --consumer-routes '[{"method":"GET","path":"/orders/{id}"},{"method":"POST","path":"/orders"}]'
-```
-
-**Machine-readable output + exclude status codes:**
-```bash
-uv run scripts/parse_pact_coverage.py \
-  --spec openapi.yaml --pacts "pacts/*.json" \
-  --consumer-root ./consumer-src \
-  --json --exclude-codes 500 501 502 503
-```
-
-**Exit codes:** `0` = full coverage · `1` = gaps found · `2` = error or filtering failed
+The agent handles all framework-specific patterns (direct HTTP clients, class-based wrappers, deserialization sites, string-dispatch) automatically.
 
 ---
 
@@ -220,26 +199,26 @@ After adding or modifying interactions, re-run to verify exit code 0.
 
 ---
 
-## Two-step workflow (advanced)
+## Scripts (CI / advanced)
 
-When you need the filtered OAS as a standalone file (e.g. to inspect it or reuse it
-in CI), run `build_filtered_oas.py` first to produce `filtered-oas.yaml`, then pass
-`--spec filtered-oas.yaml` directly (omit `--consumer-root`).
+For headless CI usage without the agent:
 
-Full instructions, ripwire iteration guidance, type resolution tiers, and the
-`--routes` fallback for unsupported HTTP clients →
-[`references/advanced-workflow.md`](references/advanced-workflow.md).
+```bash
+# Step 1: discover consumer routes (Strategy 1 only — simple consumers)
+uv run scripts/build_filtered_oas.py \
+  --consumer-root ./consumer-src \
+  --output consumer-routes.json
 
-**Critical:** never pass the original `openapi.yaml` without a filtering flag or
-`--consumer-root`. Every unused provider endpoint appears as a false gap.
-
----
-
-## Scripts
+# Step 2: filter provider OAS + measure coverage
+uv run scripts/parse_pact_coverage.py \
+  --spec provider-openapi.yaml \
+  --pacts "pacts/*.json" \
+  --consumer-routes "$(cat consumer-routes.json)"
+```
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/parse_pact_coverage.py` | Coverage checker — single command happy path (use this first) |
-| `scripts/build_filtered_oas.py` | Advanced: build consumer-filtered OAS as a standalone file |
+| `scripts/parse_pact_coverage.py` | Coverage checker — accepts `--consumer-routes` JSON for filtered OAS |
+| `scripts/build_filtered_oas.py` | CI tool: Strategy 1 route discovery only (outputs `--consumer-routes` JSON) |
 
-Both are `uv` inline scripts (`uv run scripts/<name>.py`); dependencies install automatically.
+**Note:** `build_filtered_oas.py` runs Strategy 1 only. For consumers with class-based HTTP clients or unusual patterns, use the interactive agent which tries all strategies.
