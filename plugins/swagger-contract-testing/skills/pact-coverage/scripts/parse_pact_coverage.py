@@ -725,6 +725,29 @@ def print_report(
     print(divider)
 
 
+# ─── Consumer filtering ────────────────────────────────────────────────────────
+
+def _build_consumer_filtered_oas(
+    oas: dict,
+    *,
+    consumer_root: str | None = None,
+    kg: str | None = None,
+    consumer_routes: str | None = None,
+    ripwire: str = "ripwire",
+    http_client: str | None = None,
+) -> dict | None:
+    """Filter OAS to consumer-routes only. Returns None when no valid routes given."""
+    if not consumer_routes:
+        return None
+    try:
+        routes = json.loads(consumer_routes)
+    except json.JSONDecodeError:
+        return None
+    if not routes:
+        return None
+    return _filter_oas_to_routes(oas, routes)
+
+
 # ─── Entry point ───────────────────────────────────────────────────────────────
 
 def fetch_pacts_from_broker(
@@ -883,12 +906,11 @@ def main() -> None:
         sys.exit(2)
 
     if args.consumer_routes:
-        try:
-            routes = json.loads(args.consumer_routes)
-        except json.JSONDecodeError as e:
-            print(f"ERROR: --consumer-routes is not valid JSON: {e}", file=sys.stderr)
+        filtered = _build_consumer_filtered_oas(oas, consumer_routes=args.consumer_routes)
+        if filtered is None:
+            print("ERROR: --consumer-routes is not valid JSON or is empty.", file=sys.stderr)
             sys.exit(2)
-        oas = _filter_oas_to_routes(oas, routes)
+        oas = filtered
 
     try:
         oas_ops = extract_oas_operations(oas, exclude_codes)
