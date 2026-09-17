@@ -64,6 +64,8 @@ For CI usage (no agent, no MCP), see the Scripts section below.
 
 ## OpenAPI spec selection
 
+> **NEVER synthesize or hallucinate an OAS. Only use a real spec from disk, a URL, PactFlow, or the `oas-generator` skill — which performs static analysis of real source code, not hallucination.**
+
 Before running the coverage check, resolve which spec file to use:
 
 **If `--spec` was not provided or is ambiguous**, search the project for OpenAPI/Swagger files:
@@ -83,9 +85,32 @@ re-apply the rules below on the validated set.
 Note: if no local spec exists because the consumer tests against an *external* provider (e.g. a
 SaaS API), ask the user for the provider's OAS path or URL before proceeding.
 
-- **No valid files found** — ask the user to provide the path or URL; do not proceed without a spec. **Never synthesize or generate an OAS from pact interactions, client code, or any other source — only use a real spec provided by the user or fetched from a broker.**
+### After validation — you MUST follow one of these three paths and no others:
+
+- **No valid files found** — **STOP. Do not proceed. Do not generate or synthesize anything.** Use `AskUserQuestion` immediately:
+
+```
+AskUserQuestion({
+  question: "No OpenAPI/Swagger spec found in this project. How would you like to provide one?",
+  multiSelect: false,
+  options: [
+    { label: "I'll provide a file path", description: "Enter the local path to the spec" },
+    { label: "I'll provide a URL", description: "Enter a URL to fetch the spec from" },
+    { label: "Provider has a BDCT contract on PactFlow", description: "Fetch the provider OAS from PactFlow using contract-testing_get_bdct_provider_contract" },
+    { label: "Generate from provider codebase", description: "Use the oas-generator skill to produce a spec from the provider's source code (requires ripwire)" },
+  ]
+})
+```
+
+  Then follow the path the user selects:
+
+  - **Provide a file path / URL** — follow up with a free-text prompt for the specific path or URL. If the user cannot or does not provide one, stop with an error — do not proceed.
+  - **Provider has a BDCT contract on PactFlow** — call `contract-testing_get_bdct_provider_contract` with the provider name and version to retrieve the OAS. Write the response body to a temp file and use that as `spec_path`.
+  - **Generate from provider codebase** — **invoke the `swagger-contract-testing:oas-generator` skill** with the provider codebase path. Once the skill produces a spec file, use that path as `spec_path` and continue. Note: the generated spec may be incomplete for complex schemas but is always valid OAS and usable for path-coverage testing.
+
 - **Exactly one valid file found** — use it automatically (no need to ask).
-- **Multiple valid files found** — ask via selector:
+
+- **Multiple valid files found** — **STOP. Do not pick automatically.** You MUST use `AskUserQuestion` before proceeding:
 
 ```
 AskUserQuestion({
@@ -100,20 +125,45 @@ AskUserQuestion({
 })
 ```
 
-If the user picks **Specify my own**, prompt for the path and use that.
+  If the user picks **Specify my own**, follow up with a free-text prompt for the path and use that.
 
 ---
 
 ## Pact file resolution
 
-When no pact files exist on disk yet, resolve them in this order — stop as soon as files are found:
+> **NEVER synthesize or generate pact JSON from scratch. Only use real pact files from disk, fetched from a broker, or produced by running the actual consumer test suite.**
 
-**1. MCP tools** (preferred when running inside a Claude session)
+**First, search for pact files on disk** in the standard locations:
+```bash
+find . -maxdepth 5 \( -path "*/pacts/*.json" -o -path "*/target/pacts/*.json" -o -path "*/build/pacts/*.json" \) \
+  -not -path "*/node_modules/*" -not -path "*/.git/*"
+```
+
+**If pact files are found on disk**, proceed directly to the [Pact file selection](#pact-file-selection) step.
+
+**If no pact files are found on disk**, **STOP. Do not proceed automatically.** You MUST use `AskUserQuestion` to ask the user how to obtain them:
+
+```
+AskUserQuestion({
+  question: "No pact files found on disk. How would you like to obtain them?",
+  multiSelect: false,
+  options: [
+    { label: "Fetch from PactFlow/broker (MCP)", description: "Use the connected PactFlow MCP tools to fetch the latest published pacts" },
+    { label: "Provide broker URL + credentials", description: "I'll supply PACT_BROKER_BASE_URL and PACT_BROKER_TOKEN to fetch pacts via CLI" },
+    { label: "Run consumer tests now", description: "Run the consumer test suite to generate fresh pact files" },
+    { label: "Specify a path or glob", description: "I'll provide the path or glob pattern to the pact files" },
+  ]
+})
+```
+
+Then follow the path the user selects:
+
+**Fetch from PactFlow/broker (MCP)**
 Use `contract-testing_get_pacts_for_verification` or `contract-testing_list_pacticipant_versions`
 to retrieve the latest published pacts for the consumer. Save each response body as
 `pacts/{consumer}-{provider}.json`, then proceed with the coverage check.
 
-**2. Broker CLI / direct HTTP** (when MCP tools are unavailable)
+**Provide broker URL + credentials**
 Pass broker credentials — the script fetches pacts automatically:
 ```bash
 uv run scripts/parse_pact_coverage.py --spec openapi.yaml \
@@ -123,21 +173,25 @@ uv run scripts/parse_pact_coverage.py --spec openapi.yaml \
 ```
 Env vars `PACT_BROKER_BASE_URL`, `PACT_BROKER_TOKEN`, `PACT_CONSUMER` are read automatically if flags are omitted.
 
-**3. Run consumer tests** (when no broker is available)
+**Run consumer tests now**
 1. Locate pact test files — search for `*pact*` / `*contract*` in test directories, or use
    ripwire: `ripwire . --for="pact consumer test setup"`.
 2. Determine the exact run command from the project's build config (`package.json` scripts,
    `pyproject.toml`, `pom.xml` surefire, `build.gradle`, etc.).
    Examples: `npm run test:pact`, `pytest tests/pact/`, `mvn test -Dtest=*PactTest`.
 3. Run the command. Generated pacts appear in `pacts/`, `target/pacts/`, or `build/pacts/`.
-4. Re-invoke this skill with `--pacts <output-dir>/*.json`.
+
+**Specify a path or glob**
+Use the path or glob the user provides.
 
 ---
 
 ## Pact file selection
 
-After resolving pact files (from disk, broker, or tests), if **more than one** pact file is found,
-ask the user which to include before running the coverage check:
+After resolving pact files (from disk, broker, or tests):
+
+- If only **one** pact file is found, use it automatically (no need to ask).
+- If **more than one** pact file is found, **STOP. Do not pick automatically.** You MUST use `AskUserQuestion` before proceeding:
 
 ```
 AskUserQuestion({
@@ -154,18 +208,46 @@ AskUserQuestion({
 ```
 
 - If the user picks **All of the above**, pass every file to `--pacts`.
-- If the user picks **Specify my own**, ask for the glob or path, then use that.
-- If only **one** pact file is found, skip this step and proceed directly.
+- If the user picks **Specify my own**, follow up with a free-text prompt for the glob or path, then use that.
+
+---
+
+## Consumer codebase path
+
+Before invoking the agent, resolve the consumer codebase root (`consumer_root`).
+
+If the user provided it as an argument (e.g. `./consumer-src`), use that directly.
+
+Otherwise, **ask**:
+
+```
+AskUserQuestion({
+  question: "Where is the consumer codebase? Provide the path to the source root.",
+  multiSelect: false,
+  options: [
+    { label: "Current directory (.)", description: "Use the current working directory" },
+    { label: "I'll specify a path", description: "Enter the path to the consumer source root" },
+  ]
+})
+```
+
+If the user picks **I'll specify a path**, follow up with a free-text prompt. Do not proceed without a valid `consumer_root`.
 
 ---
 
 ## Running coverage
 
-Invoke the `swagger-contract-testing:pact-coverage` agent. It will:
-1. Resolve the provider OAS spec and pact files (prompting if ambiguous)
-2. Use ripwire MCP tools to discover which provider routes the consumer calls
-3. Build a consumer-filtered provider OAS
-4. Run `parse_pact_coverage.py` and report the gaps
+Pass the three resolved inputs to the `swagger-contract-testing:pact-coverage` agent:
+- `consumer_root` — path to the consumer codebase (resolved above)
+- `spec_path` — path to the provider OAS (resolved in OpenAPI spec selection)
+- `pact_glob` — glob or list of pact files (resolved in Pact file selection)
+
+The agent will:
+1. Use ripwire MCP tools to discover which provider routes the consumer calls
+2. Build a consumer-filtered provider OAS
+3. Run `parse_pact_coverage.py` and report the gaps
+
+The agent **does not** prompt for missing inputs — it will hard-stop with an error if any of the three are absent. Ensure all three are resolved before invoking.
 
 The agent handles all framework-specific patterns (direct HTTP clients, class-based wrappers, deserialization sites, string-dispatch) automatically.
 

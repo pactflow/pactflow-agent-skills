@@ -10,6 +10,7 @@ tools:
   - Read
   - Write
   - Bash
+  - AskUserQuestion
   - mcp__ripwire__for
   - mcp__ripwire__find_symbol
   - mcp__ripwire__fetch_body

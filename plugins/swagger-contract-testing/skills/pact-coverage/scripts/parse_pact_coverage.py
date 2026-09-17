@@ -27,6 +27,10 @@ Usage:
   uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" \\
       --consumer-routes '[{"method":"GET","path":"/orders/{id}"}]'
 
+  # Section 5 (consumer code status branch analysis): pass --consumer-root
+  uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" \\
+      --consumer-root ./consumer-src
+
 Exit codes:
   0 — full coverage across all four dimensions
   1 — gaps found (at least one dimension has missing coverage)
@@ -721,29 +725,6 @@ def print_report(
     print(divider)
 
 
-# ─── Consumer filtering ────────────────────────────────────────────────────────
-
-def _build_consumer_filtered_oas(
-    oas: dict,
-    *,
-    consumer_root: str | None = None,
-    kg: str | None = None,
-    consumer_routes: str | None = None,
-    ripwire: str = "ripwire",
-    http_client: str | None = None,
-) -> dict | None:
-    """Filter OAS to consumer-routes only. Returns None when no valid routes given."""
-    if not consumer_routes:
-        return None
-    try:
-        routes = json.loads(consumer_routes)
-    except json.JSONDecodeError:
-        return None
-    if not routes:
-        return None
-    return _filter_oas_to_routes(oas, routes)
-
-
 # ─── Entry point ───────────────────────────────────────────────────────────────
 
 def fetch_pacts_from_broker(
@@ -845,6 +826,10 @@ def main() -> None:
         help='Pre-built JSON route list, e.g. \'[{"method":"GET","path":"/orders/{id}"}]\'. '
              "Filters the OAS to only the listed routes before computing coverage.",
     )
+    parser.add_argument(
+        "--consumer-root", metavar="PATH",
+        help="Path to the consumer codebase. Enables Section 5: consumer code status branch analysis.",
+    )
 
     # Broker fetch flags (optional; env vars PACT_BROKER_BASE_URL / PACT_BROKER_TOKEN / PACT_CONSUMER)
     parser.add_argument("--consumer", metavar="NAME",
@@ -923,12 +908,14 @@ def main() -> None:
             print(f"ERROR: Could not parse pact '{pact_path}': {e}", file=sys.stderr)
             sys.exit(2)
 
-    report = compute_coverage(oas_ops, all_interactions, exclude_codes)
+    consumer_root = args.consumer_root or None
+
+    report = compute_coverage(oas_ops, all_interactions, exclude_codes, consumer_root=consumer_root)
 
     if args.json:
         print(json.dumps(report, indent=2))
     else:
-        print_report(report, args.spec, pact_files, exclude_codes)
+        print_report(report, args.spec, pact_files, exclude_codes, consumer_root=consumer_root)
 
     sys.exit(1 if report["has_gaps"] else 0)
 
