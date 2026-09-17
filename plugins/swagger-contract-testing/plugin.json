@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "swagger-contract-testing",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Expert assistant for PactFlow and Pact contract testing — consumer-driven contracts, provider verification, can-i-deploy, BDCT, Drift CLI, and OpenAPI spec parsing. Includes specialized agents for reviewing and generating pact tests.",
   "author": {
     "name": "Kevin Rohan Vaz",
@@ -16,7 +16,8 @@
         "./agents/pact-implementor.md",
         "./agents/pact-reviewer.md",
         "./agents/bdct-tester.md",
-        "./agents/pact-maintainer.md"
+        "./agents/pact-maintainer.md",
+        "./agents/pact-coverage.md"
       ],
       "userConfig": {
         "pact_broker_base_url": {

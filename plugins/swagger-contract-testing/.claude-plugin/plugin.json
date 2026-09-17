@@ -1,13 +1,13 @@
 {
   "name": "swagger-contract-testing",
   "description": "Expert assistant for PactFlow and Pact contract testing — consumer-driven contracts, provider verification, can-i-deploy, BDCT, Drift CLI, and OpenAPI spec parsing. Includes specialized agents for reviewing and generating pact tests.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": {
     "name": "Kevin Rohan Vaz",
     "email": "kevin.rohanvaz@smartbear.com"
   },
   "skills": "./skills/",
-  "agents": ["./agents/pact-generator.md", "./agents/pact-implementor.md", "./agents/pact-reviewer.md", "./agents/bdct-tester.md", "./agents/pact-maintainer.md"],
+  "agents": ["./agents/pact-generator.md", "./agents/pact-implementor.md", "./agents/pact-reviewer.md", "./agents/bdct-tester.md", "./agents/pact-maintainer.md", "./agents/pact-coverage.md"],
   "mcpServers": "./.mcp.json",
   "userConfig": {
     "pact_broker_base_url": {

@@ -1,0 +1,68 @@
+openapi: 3.0.3
+info:
+  title: Orders API
+  version: 1.0.0
+paths:
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "123"
+      responses:
+        '200':
+          description: Order found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+  /orders:
+    post:
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Bad request
+components:
+  schemas:
+    Order:
+      type: object
+      required: [id, status, total]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        total:
+          type: number
+    CreateOrderRequest:
+      type: object
+      required: [customerId, orderId, items]
+      properties:
+        customerId:
+          type: string
+        orderId:
+          type: string
+        items:
+          type: array
+          items:
+            type: string
