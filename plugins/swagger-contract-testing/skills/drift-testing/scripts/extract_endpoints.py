@@ -32,12 +32,14 @@ Exit codes:
   2 — error (could not parse spec)
 """
 
+from __future__ import annotations
+
 import argparse
 import json
-import os
 import re
 import sys
 from collections import defaultdict
+from typing import Any
 
 try:
     import yaml
@@ -53,7 +55,8 @@ EXAMPLE_UUID = "59d6d97e-3106-4ebb-b608-352fad9c5b34"
 
 # ─── $ref resolution ───────────────────────────────────────────────────────────
 
-def _resolve_ref(ref, root):
+
+def _resolve_ref(ref: object, root: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(ref, str) or not ref.startswith("#/"):
         return {}
     node = root
@@ -65,7 +68,7 @@ def _resolve_ref(ref, root):
     return node if isinstance(node, dict) else {}
 
 
-def resolve(obj, root):
+def resolve(obj: Any, root: dict[str, Any]) -> Any:
     """Recursively resolve $refs in obj (local refs only)."""
     if isinstance(obj, dict):
         if "$ref" in obj:
@@ -78,7 +81,8 @@ def resolve(obj, root):
 
 # ─── Parameter value extraction ────────────────────────────────────────────────
 
-def _schema_example(schema):
+
+def _schema_example(schema: Any) -> Any:
     """Pull an example value out of a JSON Schema dict."""
     if not isinstance(schema, dict):
         return None
@@ -106,7 +110,7 @@ def _schema_example(schema):
     return None
 
 
-def get_param_example(param, root):
+def get_param_example(param: Any, root: dict[str, Any]) -> tuple[Any, bool]:
     """
     Return (value, has_example) for a parameter.
     has_example=True means the spec supplied an example we can use directly.
@@ -120,7 +124,7 @@ def get_param_example(param, root):
     if "example" in param:
         return param["example"], True
     if "examples" in param and isinstance(param["examples"], dict):
-        first = next(iter(param["examples"].values()), {})
+        first: Any = next(iter(param["examples"].values()), {})
         first = resolve(first, root)
         if "value" in first:
             return first["value"], True
@@ -135,7 +139,7 @@ def get_param_example(param, root):
     return None, False
 
 
-def get_404_path_value(param, root):
+def get_404_path_value(param: Any, root: dict[str, Any]) -> str | int:
     """Return a value that should produce a 404 (non-existent but format-valid ID)."""
     param = resolve(param, root)
     schema = resolve(param.get("schema", {}), root)
@@ -155,7 +159,12 @@ def get_404_path_value(param, root):
 
 # ─── Spec loading ──────────────────────────────────────────────────────────────
 
-def load_operations(spec_path, exclude_codes, path_filter=None):
+
+def load_operations(
+    spec_path: str,
+    exclude_codes: set[str],
+    path_filter: str | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """
     Parse spec and return list of operation dicts.
 
@@ -165,6 +174,8 @@ def load_operations(spec_path, exclude_codes, path_filter=None):
     """
     with open(spec_path) as f:
         raw = yaml.safe_load(f)
+    if not isinstance(raw, dict):
+        raise yaml.YAMLError(f"Expected a YAML mapping, got {type(raw).__name__}")
 
     ops = []
     for path, path_item in raw.get("paths", {}).items():
@@ -204,28 +215,31 @@ def load_operations(spec_path, exclude_codes, path_filter=None):
             has_body = bool(request_body)
             required_fields = []
             if has_body:
-                for ct, ct_obj in request_body.get("content", {}).items():
+                for _ct, ct_obj in request_body.get("content", {}).items():
                     schema = resolve(ct_obj.get("schema", {}), raw)
                     required_fields = schema.get("required", [])
                     break
 
-            ops.append({
-                "operationId": operation.get("operationId") or f"{method}:{path}",
-                "path": path,
-                "method": method,
-                "codes": codes,
-                "params": list(all_params.values()),
-                "has_body": has_body,
-                "required_body_fields": required_fields,
-                "tags": operation.get("tags", []),
-            })
+            ops.append(
+                {
+                    "operationId": operation.get("operationId") or f"{method}:{path}",
+                    "path": path,
+                    "method": method,
+                    "codes": codes,
+                    "params": list(all_params.values()),
+                    "has_body": has_body,
+                    "required_body_fields": required_fields,
+                    "tags": operation.get("tags", []),
+                }
+            )
 
     return ops, raw
 
 
 # ─── Summary output ────────────────────────────────────────────────────────────
 
-def print_summary(ops, raw):
+
+def print_summary(ops: list[dict[str, Any]], raw: dict[str, Any]) -> bool:
     needs_fill = False
     for op in ops:
         codes_str = ", ".join(op["codes"]) or "(none documented)"
@@ -239,7 +253,7 @@ def print_summary(ops, raw):
         for p in op["params"]:
             val, has_ex = get_param_example(p, raw)
             if val is None:
-                missing.append(f"{p.get('in','?')}.{p.get('name','?')}")
+                missing.append(f"{p.get('in', '?')}.{p.get('name', '?')}")
         if missing:
             print(f"           ⚠ no example: {', '.join(missing)}")
             needs_fill = True
@@ -262,14 +276,15 @@ _STATUS_SUFFIX = {
     "422": "UnprocessableEntity",
 }
 
-def _op_name(op_id, code):
+
+def _op_name(op_id: str, code: str) -> str:
     suffix = _STATUS_SUFFIX.get(code, f"Status{code}")
     # Sanitise operationId (replace non-word chars)
     safe_id = re.sub(r"[^\w]", "_", op_id)
     return f"{safe_id}_{suffix}"
 
 
-def _yaml_value(v):
+def _yaml_value(v: Any) -> str:
     """Render a Python value as a compact YAML-safe scalar string."""
     if isinstance(v, bool):
         return "true" if v else "false"
@@ -284,7 +299,7 @@ def _yaml_value(v):
     return f'"{s}"'
 
 
-def scaffold_op(op, code, raw, source):
+def scaffold_op(op: dict[str, Any], code: str, raw: dict[str, Any], source: str) -> str:
     """Return a YAML string for one drift test case stub."""
     lines = []
     op_id = op["operationId"]
@@ -330,7 +345,7 @@ def scaffold_op(op, code, raw, source):
     query_params = [p for p in op["params"] if p.get("in") == "query"]
     header_params = [p for p in op["params"] if p.get("in") == "header"]
 
-    has_params = path_params or query_params or header_params or is_401 or (is_error and True) or (is_write and op["has_body"])
+    has_params = path_params or query_params or header_params or is_401 or is_error or (is_write and op["has_body"])
 
     if has_params:
         lines.append("    parameters:")
@@ -401,7 +416,12 @@ def scaffold_op(op, code, raw, source):
     return "\n".join(lines)
 
 
-def scaffold_all(ops, raw, source, only_missing_coverage=None):
+def scaffold_all(
+    ops: list[dict[str, Any]],
+    raw: dict[str, Any],
+    source: str,
+    only_missing_coverage: dict[str, set[str]] | None = None,
+) -> str:
     """Emit full operations: block as YAML string."""
     out = ["operations:"]
 
@@ -412,8 +432,9 @@ def scaffold_all(ops, raw, source, only_missing_coverage=None):
             # Skip if already covered
             if only_missing_coverage:
                 op_key = op["operationId"]
-                covered = only_missing_coverage.get(op_key, set()) | \
-                          only_missing_coverage.get(f"{op['method']}:{op['path']}", set())
+                covered = only_missing_coverage.get(op_key, set()) | only_missing_coverage.get(
+                    f"{op['method']}:{op['path']}", set()
+                )
                 if code in covered:
                     continue
 
@@ -430,12 +451,13 @@ def scaffold_all(ops, raw, source, only_missing_coverage=None):
 
 # ─── Load existing test coverage (for --only-missing) ──────────────────────────
 
-def load_existing_coverage(test_file):
+
+def load_existing_coverage(test_file: str) -> dict[str, set[str]]:
     """Return dict: operationId -> set of covered status codes."""
     try:
         with open(test_file) as f:
             data = yaml.safe_load(f)
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
         print(f"WARNING: Could not read {test_file}: {e}", file=sys.stderr)
         return {}
 
@@ -461,31 +483,31 @@ def load_existing_coverage(test_file):
 
 # ─── Entry point ───────────────────────────────────────────────────────────────
 
-def main():
+
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Extract endpoints and response codes from an OpenAPI spec.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
     parser.add_argument("--spec", required=True, help="Path to OpenAPI spec")
-    parser.add_argument("--scaffold", action="store_true",
-                        help="Emit drift test case stubs instead of summary")
-    parser.add_argument("--source", default="source-oas",
-                        help="Drift source name to use in targets (default: source-oas)")
-    parser.add_argument("--only-missing", metavar="DRIFT_YAML",
-                        help="Only scaffold operations/codes not already in this test file")
-    parser.add_argument("--filter", metavar="PATH_PREFIX",
-                        help="Only include paths starting with this prefix")
-    parser.add_argument("--exclude-codes", nargs="*", default=sorted(DEFAULT_EXCLUDE),
-                        help="Response codes to skip")
+    parser.add_argument("--scaffold", action="store_true", help="Emit drift test case stubs instead of summary")
+    parser.add_argument(
+        "--source", default="source-oas", help="Drift source name to use in targets (default: source-oas)"
+    )
+    parser.add_argument(
+        "--only-missing", metavar="DRIFT_YAML", help="Only scaffold operations/codes not already in this test file"
+    )
+    parser.add_argument("--filter", metavar="PATH_PREFIX", help="Only include paths starting with this prefix")
+    parser.add_argument("--exclude-codes", nargs="*", default=sorted(DEFAULT_EXCLUDE), help="Response codes to skip")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     args = parser.parse_args()
 
-    exclude_codes = set(str(c) for c in args.exclude_codes)
+    exclude_codes = {str(c) for c in args.exclude_codes}
 
     try:
         ops, raw = load_operations(args.spec, exclude_codes, args.filter)
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
         print(f"ERROR: Could not parse spec: {e}", file=sys.stderr)
         sys.exit(2)
 
@@ -500,21 +522,25 @@ def main():
             param_info = []
             for p in op["params"]:
                 val, has_ex = get_param_example(p, raw)
-                param_info.append({
-                    "name": p.get("name"),
-                    "in": p.get("in"),
-                    "required": p.get("required", False),
-                    "example": val,
-                    "has_spec_example": has_ex,
-                })
-            out.append({
-                "operationId": op["operationId"],
-                "method": op["method"].upper(),
-                "path": op["path"],
-                "response_codes": op["codes"],
-                "parameters": param_info,
-                "has_request_body": op["has_body"],
-            })
+                param_info.append(
+                    {
+                        "name": p.get("name"),
+                        "in": p.get("in"),
+                        "required": p.get("required", False),
+                        "example": val,
+                        "has_spec_example": has_ex,
+                    }
+                )
+            out.append(
+                {
+                    "operationId": op["operationId"],
+                    "method": op["method"].upper(),
+                    "path": op["path"],
+                    "response_codes": op["codes"],
+                    "parameters": param_info,
+                    "has_request_body": op["has_body"],
+                }
+            )
         print(json.dumps(out, indent=2))
         return
 

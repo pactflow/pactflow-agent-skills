@@ -19,9 +19,8 @@ import re
 from pathlib import Path
 
 import tree_sitter_c_sharp as tscs
+from _common import REFERENCES_DIR, run_main
 from tree_sitter import Language, Node, Parser
-
-from _common import REFERENCES_DIR, clone_shallow, run_main
 
 REPO_URL = "https://github.com/pact-foundation/pact-net.git"
 DEST_PATH = REFERENCES_DIR / "dsl.dotnet.md"
@@ -59,21 +58,7 @@ def _is_public(src: bytes, node: Node) -> bool:
 
 def _accessor_summary(src: bytes, accessor_list: Node) -> str:
     """Reduce a full accessor_list to a compact form like '{ get; }' or '{ get; set; }'."""
-    has_get = any(
-        _text(src, c) == "get"
-        for c in accessor_list.children
-        if c.type == "accessor_declaration"
-        for kw in c.children
-        if kw.type in ("get", "identifier") and _text(src, kw) == "get"
-    )
-    has_set = any(
-        _text(src, c) == "set"
-        for c in accessor_list.children
-        if c.type == "accessor_declaration"
-        for kw in c.children
-        if kw.type in ("set", "identifier") and _text(src, kw) == "set"
-    )
-    # simpler: just look for 'get' / 'set' keywords in children
+    # look for 'get' / 'set' keywords in children
     tokens = []
     for c in accessor_list.children:
         if c.type == "accessor_declaration":
@@ -109,7 +94,11 @@ def _prop_sig(src: bytes, node: Node, indent: str = "    ", in_interface: bool =
     type_str = _text(src, type_node) if type_node else "?"
     acc_str = _accessor_summary(src, acc_node) if acc_node else "{ get; }"
     mods = _modifiers_text(src, node)
-    mods_str = (" ".join(m for m in mods if m not in ("override", "virtual", "abstract")) + " ") if (mods and not in_interface) else ""
+    mods_str = (
+        (" ".join(m for m in mods if m not in ("override", "virtual", "abstract")) + " ")
+        if (mods and not in_interface)
+        else ""
+    )
     return f"{indent}{mods_str}{type_str} {name} {acc_str}"
 
 
@@ -130,7 +119,11 @@ def _method_sig(src: bytes, node: Node, indent: str = "    ", in_interface: bool
     params = _text(src, params_node) if params_node else "()"
     tp = _text(src, type_params_node) if type_params_node else ""
     mods = _modifiers_text(src, node)
-    mods_str = (" ".join(m for m in mods if m not in ("override", "virtual", "sealed", "abstract")) + " ") if (mods and not in_interface) else ""
+    mods_str = (
+        (" ".join(m for m in mods if m not in ("override", "virtual", "sealed", "abstract")) + " ")
+        if (mods and not in_interface)
+        else ""
+    )
     return f"{indent}{mods_str}{ret} {name}{tp}{params};"
 
 

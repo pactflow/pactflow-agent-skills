@@ -1,4 +1,5 @@
 """Tests for build_filtered_oas.py — covers run_ripwire, parse_routes_xml, and main()."""
+
 import io
 import json
 import pathlib
@@ -19,12 +20,14 @@ FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
 
 # ─── fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def kg_xml() -> str:
     return (FIXTURES_DIR / "consumer_kg.xml").read_text()
 
 
 # ─── 1. run_ripwire ───────────────────────────────────────────────────────────
+
 
 class TestRunRipwire:
     def test_successful_call_returns_stdout(self):
@@ -55,6 +58,7 @@ class TestRunRipwire:
 
 # ─── 2. parse_routes_xml ──────────────────────────────────────────────────────
 
+
 class TestParseRoutesXml:
     def test_parses_routes(self, kg_xml):
         routes, confidence, over_ceiling = parse_routes_xml(kg_xml)
@@ -75,11 +79,7 @@ class TestParseRoutesXml:
             assert route["method"] == route["method"].upper()
 
     def test_over_ceiling_flag(self):
-        xml = (
-            '<r confidence="low" over_ceiling="1">'
-            '<routes><route method="get" path="/x" from="" to=""/></routes>'
-            '</r>'
-        )
+        xml = '<r confidence="low" over_ceiling="1"><routes><route method="get" path="/x" from="" to=""/></routes></r>'
         routes, confidence, over_ceiling = parse_routes_xml(xml)
         assert confidence == "low"
         assert over_ceiling is True
@@ -117,11 +117,11 @@ class TestParseRoutesXml:
 
 _VALID_RIPWIRE_XML = (
     '<r confidence="high">'
-    '<routes>'
+    "<routes>"
     '<route method="GET" path="/orders/{id}" from="getOrder" to="get_order"/>'
     '<route method="POST" path="/orders" from="createOrder" to="create_order"/>'
-    '</routes>'
-    '</r>'
+    "</routes>"
+    "</r>"
 )
 
 

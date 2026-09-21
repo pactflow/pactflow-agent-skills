@@ -1,0 +1,32 @@
+name: Lint
+
+on:
+  push:
+    paths:
+      - "**/*.py"
+      - "pyproject.toml"
+      - ".github/workflows/lint.yml"
+  pull_request:
+    paths:
+      - "**/*.py"
+      - "pyproject.toml"
+      - ".github/workflows/lint.yml"
+
+jobs:
+  lint:
+    name: Ruff + mypy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+
+      - name: Ruff lint
+        run: uvx ruff check scripts/ plugins/swagger-contract-testing/skills/
+
+      - name: Ruff format check
+        run: uvx ruff format --check scripts/ plugins/swagger-contract-testing/skills/
+
+      - name: mypy type check
+        run: uvx --with mypy mypy scripts/ plugins/swagger-contract-testing/skills/

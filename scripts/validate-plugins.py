@@ -24,6 +24,7 @@ uv/pip install needed. Checks:
 
 Exits 1 with a list of every failure found (not just the first), 0 if clean.
 """
+
 from __future__ import annotations
 
 import json
@@ -200,7 +201,7 @@ def check_agent_plugins_manifest(errors: list[str], plugin_dirs: dict[str, Path]
 
 
 def check_skill_frontmatter(errors: list[str], plugin_dirs: dict[str, Path]) -> None:
-    for name, plugin_dir in plugin_dirs.items():
+    for _name, plugin_dir in plugin_dirs.items():
         for skill_md in sorted(plugin_dir.rglob("SKILL.md")):
             text = skill_md.read_text()
             lines = text.split("\n")

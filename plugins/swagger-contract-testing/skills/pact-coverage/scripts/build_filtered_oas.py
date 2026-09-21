@@ -32,8 +32,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-
 # ─── ripwire integration ───────────────────────────────────────────────────────
+
 
 def run_ripwire(bin_path: str, root: str, args: list[str], *, timeout: int = 30) -> str:
     """Run ripwire as subprocess. Returns stdout string. Raises RuntimeError on non-zero exit."""
@@ -54,7 +54,7 @@ def run_ripwire(bin_path: str, root: str, args: list[str], *, timeout: int = 30)
     return result.stdout
 
 
-def parse_routes_xml(xml_str: str) -> tuple[list[dict], str, bool]:
+def parse_routes_xml(xml_str: str) -> tuple[list[dict[str, str]], str, bool]:
     """Parse ripwire XML output. Returns (routes, confidence, over_ceiling)."""
     try:
         root = ET.fromstring(xml_str)
@@ -70,17 +70,20 @@ def parse_routes_xml(xml_str: str) -> tuple[list[dict], str, bool]:
         path = elem.get("path", "")
         from_sym = elem.get("from", "")
         to_sym = elem.get("to", "")
-        routes.append({
-            "method": method.upper(),
-            "path": path,
-            "from": from_sym,
-            "to": to_sym,
-        })
+        routes.append(
+            {
+                "method": method.upper(),
+                "path": path,
+                "from": from_sym,
+                "to": to_sym,
+            }
+        )
 
     return (routes, confidence, over_ceiling)
 
 
 # ─── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(

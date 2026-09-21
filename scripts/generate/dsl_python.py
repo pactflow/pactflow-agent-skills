@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,9 +28,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 import tree_sitter_python as tspython
-from tree_sitter import Language, Node, Parser
-
 from _common import REFERENCES_DIR
+from tree_sitter import Language, Node, Parser
 
 REPO_URL = "https://github.com/pact-foundation/pact-python.git"
 DEST_PATH = REFERENCES_DIR / "dsl.python.md"
@@ -140,18 +140,12 @@ def _is_trivial_alias(source: bytes, func_node: Node) -> bool:
     for child in body.children:
         if child.type in _SKIP_NODE_TYPES:
             continue
-        if (
-            child.type == "expression_statement"
-            and child.children
-            and child.children[0].type == "string"
-        ):
+        if child.type == "expression_statement" and child.children and child.children[0].type == "string":
             continue
         stmts.append(child)
     if len(stmts) != 1 or stmts[0].type != "return_statement":
         return False
-    call_candidates = [
-        c for c in stmts[0].children if c.type not in ("return", "newline")
-    ]
+    call_candidates = [c for c in stmts[0].children if c.type not in ("return", "newline")]
     if not call_candidates or call_candidates[0].type != "call":
         return False
     func_part = call_candidates[0].child_by_field_name("function")
@@ -219,11 +213,7 @@ def _get_docstring_summary(source: bytes, func_node: Node) -> str:
                 continue
             raw = _text(source, expr)
             for delim in ('"""', "'''", '"', "'"):
-                if (
-                    raw.startswith(delim)
-                    and raw.endswith(delim)
-                    and len(raw) > 2 * len(delim)
-                ):
+                if raw.startswith(delim) and raw.endswith(delim) and len(raw) > 2 * len(delim):
                     content = raw[len(delim) : -len(delim)]
                     for raw_line in content.strip().splitlines():
                         stripped = raw_line.strip().rstrip(".")
@@ -346,13 +336,8 @@ def _section_interaction(repo: Path) -> str:
     base_src, base_root = _parse(repo, "interaction/_base.py")
     http_src, http_root = _parse(repo, "interaction/_http_interaction.py")
     base_block = _class_block(base_src, base_root, "Interaction", skip_init=True)
-    http_block = _class_block(
-        http_src, http_root, "HttpInteraction", skip_init=True, skip_aliases=True
-    )
-    base_header = (
-        "File: src/pact/interaction/_base.py"
-        "  (shared methods — available on all interaction types)"
-    )
+    http_block = _class_block(http_src, http_root, "HttpInteraction", skip_init=True, skip_aliases=True)
+    base_header = "File: src/pact/interaction/_base.py  (shared methods — available on all interaction types)"
     return f"""\
 {base_header}
 ```python
@@ -403,9 +388,7 @@ def _section_match(repo: Path) -> str:
         "null": "none",
         "like": "type",
     }
-    block = _func_block(
-        source, root, ordered_names=public, alias_map=alias_map, module_prefix="match"
-    )
+    block = _func_block(source, root, ordered_names=public, alias_map=alias_map, module_prefix="match")
     return f"""\
 File: src/pact/match/__init__.py
 ```python
@@ -592,12 +575,8 @@ def _section_matcher_table(repo: Path) -> str:
 
 def _section_examples(repo: Path) -> str:
     examples = repo / "examples" / "http" / "requests_and_fastapi"
-    consumer_funcs = _extract_func_source(
-        examples / "test_consumer.py", ["test_get_user", "test_create_user"]
-    )
-    provider_funcs = _extract_func_source(
-        examples / "test_provider.py", ["test_provider", "mock_user_exists"]
-    )
+    consumer_funcs = _extract_func_source(examples / "test_consumer.py", ["test_get_user", "test_create_user"])
+    provider_funcs = _extract_func_source(examples / "test_provider.py", ["test_provider", "mock_user_exists"])
     consumer_block = "\n\n".join(consumer_funcs)
     provider_block = "\n\n".join(provider_funcs)
     src_consumer = "examples/http/requests_and_fastapi/test_consumer.py"
@@ -697,8 +676,6 @@ def main() -> int:
     try:
         content = build_doc(repo)
     finally:
-        import shutil
-
         shutil.rmtree(repo, ignore_errors=True)
 
     if args.check:
@@ -706,8 +683,7 @@ def main() -> int:
             print(f"✓ {out_path} is up to date")  # noqa: T201
             return 0
         print(  # noqa: T201
-            f"✗ {out_path} is out of date"
-            " — run: uv run --no-project scripts/generate/dsl_python.py"
+            f"✗ {out_path} is out of date — run: uv run --no-project scripts/generate/dsl_python.py"
         )
         return 1
 

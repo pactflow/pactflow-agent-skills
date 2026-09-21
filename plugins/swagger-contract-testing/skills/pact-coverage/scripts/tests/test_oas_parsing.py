@@ -1,6 +1,6 @@
 import jsonref
 import pytest
-from parse_pact_coverage import load_oas, extract_oas_operations, _extract_required_fields
+from parse_pact_coverage import _extract_required_fields, extract_oas_operations, load_oas
 
 DEFAULT_EXCLUDE = {"500", "501", "502", "503"}
 
@@ -31,10 +31,9 @@ class TestExtractOasOperations:
 
     def test_excludes_default_codes(self, sample_oas):
         import copy
+
         oas_with_500 = copy.deepcopy(sample_oas)
-        oas_with_500["paths"]["/orders/{id}"]["get"]["responses"]["500"] = {
-            "description": "Internal error"
-        }
+        oas_with_500["paths"]["/orders/{id}"]["get"]["responses"]["500"] = {"description": "Internal error"}
         ops = extract_oas_operations(oas_with_500, DEFAULT_EXCLUDE)
         assert "500" not in ops["get:/orders/{id}"]["status_codes"]
 
@@ -71,11 +70,7 @@ class TestExtractRequiredFields:
 
     def test_ref_resolution(self):
         doc = {
-            "components": {
-                "schemas": {
-                    "Foo": {"type": "object", "required": ["x", "y"]}
-                }
-            },
+            "components": {"schemas": {"Foo": {"type": "object", "required": ["x", "y"]}}},
             "schema": {"$ref": "#/components/schemas/Foo"},
         }
         resolved = jsonref.replace_refs(doc)

@@ -1,0 +1,81 @@
+# Code quality tool configuration for pact-agent-skills.
+# The [project] table is minimal — this is not a pip-installable package.
+# It exists so that `uv run` commands from any subdirectory don't fail when
+# uv discovers this file while walking up the directory tree.
+# For the DSL generator uv project, see scripts/generate/pyproject.toml.
+
+[project]
+name = "pact-agent-skills"
+version = "0.0.0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+exclude = [
+    "**/.venv/**",
+    ".agents/**",
+    "**/*.md",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes (undefined names, unused imports)
+    "I",    # isort (import ordering)
+    "ANN",  # flake8-annotations (enforce type annotations — strict mode)
+    "B",    # flake8-bugbear (bug-prone patterns)
+    "UP",   # pyupgrade (modernize syntax for py312)
+    "BLE",  # flake8-blind-except (no bare `except Exception:`)
+    "C4",   # flake8-comprehensions
+]
+ignore = [
+    "ANN401",  # Dynamically typed expressions (Any) — needed for tree-sitter Nodes and opaque OAS/pact dicts
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*.py" = [
+    "ANN",  # test functions don't require full type annotations
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = ["scripts/generate"]  # lets mypy resolve `from _common import ...` in DSL scripts
+exclude = [
+    ".*\\.venv.*",
+    "\\.agents/.*",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "tree_sitter",
+    "tree_sitter_swift",
+    "tree_sitter_python",
+    "tree_sitter_kotlin",
+    "tree_sitter_java",
+    "tree_sitter_typescript",
+    "tree_sitter_c_sharp",
+    "tree_sitter_php",
+    "tree_sitter_go",
+    "jsonref",
+    "pytest",
+    "yaml",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "test_pact_parsing",
+    "test_coverage_analysis",
+    "test_oas_parsing",
+    "test_build_filtered_oas",
+    "conftest",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_decorators = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+check_untyped_defs = false

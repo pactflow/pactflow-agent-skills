@@ -18,13 +18,13 @@ import argparse
 import os
 import sys
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
-import tree_sitter_kotlin as tskotlin
 import tree_sitter_java as tsjava
-from tree_sitter import Language, Node, Parser
-
+import tree_sitter_kotlin as tskotlin
 from _common import REFERENCES_DIR, clone_shallow
+from tree_sitter import Language, Node, Parser
 
 REPO_URL = "https://github.com/pact-foundation/pact-jvm.git"
 DEST_KOTLIN = REFERENCES_DIR / "dsl.kotlin.md"
@@ -61,7 +61,7 @@ def _parse_java(path: Path) -> tuple[bytes, Node]:
     return src, tree.root_node
 
 
-def _find_all(node: Node, *types: str):
+def _find_all(node: Node, *types: str) -> Iterator[Node]:
     if node.type in types:
         yield node
     for child in node.children:
@@ -125,10 +125,7 @@ def _kt_is_annotation_class(src: bytes, node: Node) -> bool:
     mods = next((c for c in node.children if c.type == "modifiers"), None)
     if mods is None:
         return False
-    return any(
-        c.type == "class_modifier" and _text(src, c) == "annotation"
-        for c in mods.children
-    )
+    return any(c.type == "class_modifier" and _text(src, c) == "annotation" for c in mods.children)
 
 
 def _kt_indent_kdoc(kdoc: str, indent: str = "    ") -> str:

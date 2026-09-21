@@ -31,6 +31,7 @@ import os
 import re
 import sys
 from collections import defaultdict
+from typing import Any
 
 try:
     import yaml
@@ -42,7 +43,7 @@ HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "tra
 DEFAULT_EXCLUDE = {"500", "501", "502", "503"}
 
 
-def _resolve_ref(ref: str, root: dict) -> dict:
+def _resolve_ref(ref: str, root: dict[str, Any]) -> dict[str, Any]:
     """Resolve a local JSON Pointer $ref (e.g. '#/components/schemas/Foo')."""
     if not ref.startswith("#/"):
         return {}  # external refs not supported — return empty
@@ -56,14 +57,14 @@ def _resolve_ref(ref: str, root: dict) -> dict:
     return node if isinstance(node, dict) else {}
 
 
-def _resolve_path_item(path_item: dict, root: dict) -> dict:
+def _resolve_path_item(path_item: dict[str, Any], root: dict[str, Any]) -> dict[str, Any]:
     """Resolve a top-level $ref in a path item object."""
     if "$ref" in path_item:
         return _resolve_ref(path_item["$ref"], root)
     return path_item
 
 
-def get_spec_operations(spec_path: str, exclude_codes: set) -> dict:
+def get_spec_operations(spec_path: str, exclude_codes: set[str]) -> dict[str, Any]:
     """
     Parse an OpenAPI spec and return a dict of operation descriptors.
 
@@ -120,7 +121,8 @@ def get_spec_operations(spec_path: str, exclude_codes: set) -> dict:
 
 # ─── Test file parsing ──────────────────────────────────────────────────────────
 
-def _parse_target(target: str):
+
+def _parse_target(target: str) -> tuple[str | None, str | None]:
     """
     Parse a Drift target string into (source, operation_key).
 
@@ -141,7 +143,7 @@ def _parse_target(target: str):
     return source, rest  # operationId format
 
 
-def get_test_coverage(test_files: list) -> dict:
+def get_test_coverage(test_files: list[str]) -> dict[str, set[str]]:
     """
     Parse Drift test YAML files and return what's covered.
 
@@ -154,7 +156,7 @@ def get_test_coverage(test_files: list) -> dict:
         try:
             with open(test_file) as f:
                 data = yaml.safe_load(f)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"  Warning: could not parse {test_file}: {e}", file=sys.stderr)
             continue
 
@@ -183,7 +185,8 @@ def get_test_coverage(test_files: list) -> dict:
 
 # ─── Comparison ────────────────────────────────────────────────────────────────
 
-def compare(spec_ops: dict, test_coverage: dict) -> dict:
+
+def compare(spec_ops: dict[str, Any], test_coverage: dict[str, set[str]]) -> dict[str, Any]:
     """Diff spec operations against test coverage and return a structured report."""
     missing_ops = []
     partial_ops = []
@@ -235,7 +238,8 @@ def compare(spec_ops: dict, test_coverage: dict) -> dict:
 
 # ─── Output ────────────────────────────────────────────────────────────────────
 
-def print_report(report: dict, spec_path: str, test_files: list, exclude_codes: set):
+
+def print_report(report: dict[str, Any], spec_path: str, test_files: list[str], exclude_codes: set[str]) -> None:
     total_ops = report["total_operations"]
     covered_ops = report["covered_operations"]
     total_codes = report["total_codes"]
@@ -285,20 +289,20 @@ def print_report(report: dict, spec_path: str, test_files: list, exclude_codes: 
 
 # ─── Entry point ───────────────────────────────────────────────────────────────
 
-def main():
+
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Check Drift test coverage against an OpenAPI spec.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
     parser.add_argument("--spec", required=True, help="Path to OpenAPI spec (YAML or JSON)")
+    parser.add_argument("--test-files", nargs="+", required=True, help="Drift test YAML files or glob patterns")
     parser.add_argument(
-        "--test-files", nargs="+", required=True,
-        help="Drift test YAML files or glob patterns"
-    )
-    parser.add_argument(
-        "--exclude-codes", nargs="*", default=sorted(DEFAULT_EXCLUDE),
-        help=f"Response codes to skip (default: {' '.join(sorted(DEFAULT_EXCLUDE))})"
+        "--exclude-codes",
+        nargs="*",
+        default=sorted(DEFAULT_EXCLUDE),
+        help=f"Response codes to skip (default: {' '.join(sorted(DEFAULT_EXCLUDE))})",
     )
     parser.add_argument("--json", action="store_true", help="Output as JSON instead of text")
     args = parser.parse_args()
@@ -313,11 +317,11 @@ def main():
         print("ERROR: No test files found.", file=sys.stderr)
         sys.exit(2)
 
-    exclude_codes = set(str(c) for c in args.exclude_codes)
+    exclude_codes = {str(c) for c in args.exclude_codes}
 
     try:
         spec_ops = get_spec_operations(args.spec, exclude_codes)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"ERROR: Could not parse spec '{args.spec}': {e}", file=sys.stderr)
         sys.exit(2)
 
