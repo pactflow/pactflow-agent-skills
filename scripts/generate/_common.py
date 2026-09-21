@@ -11,14 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-REFERENCES_DIR = (
-    REPO_ROOT
-    / "plugins"
-    / "swagger-contract-testing"
-    / "skills"
-    / "pactflow"
-    / "references"
-)
+REFERENCES_DIR = REPO_ROOT / "plugins" / "swagger-contract-testing" / "skills" / "pactflow" / "references"
 
 
 def clone_shallow(repo_url: str, ref: str, dest: Path) -> None:

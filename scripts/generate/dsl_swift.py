@@ -14,12 +14,13 @@ Usage (from repo root):
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterator
 from pathlib import Path
 
 import tree_sitter_swift as tsswift
+from _common import REFERENCES_DIR, run_main
 from tree_sitter import Language, Node, Parser
-
-from _common import REFERENCES_DIR, clone_shallow, run_main
 
 REPO_URL = "https://github.com/surpher/PactSwift.git"
 DEST_PATH = REFERENCES_DIR / "dsl.swift.md"
@@ -48,7 +49,7 @@ def _parse(path: Path) -> tuple[bytes, Node]:
     return src, tree.root_node
 
 
-def _find_all(node: Node, *types: str):
+def _find_all(node: Node, *types: str) -> Iterator[Node]:
     if node.type in types:
         yield node
     for child in node.children:
@@ -91,7 +92,6 @@ def _strip_body_attrs(sig: str) -> str:
     for attr in ("@discardableResult", "@objc", "@_implementationOnly", "@available(*, deprecated", "@available(macOS"):
         sig = sig.replace(attr, "")
     # Collapse multiple spaces
-    import re
     sig = re.sub(r"[ \t]+", " ", sig).strip()
     return sig
 
@@ -101,7 +101,13 @@ def _strip_body_attrs(sig: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _init_sig(src: bytes, node: Node, indent: str = "    ", prefix: str = "", require_public: bool = False) -> str | None:
+def _init_sig(
+    src: bytes,
+    node: Node,
+    indent: str = "    ",
+    prefix: str = "",
+    require_public: bool = False,
+) -> str | None:
     """Format an init_declaration as a one-liner."""
     if _is_internal_or_private(src, node):
         return None
@@ -123,12 +129,10 @@ def _init_sig(src: bytes, node: Node, indent: str = "    ", prefix: str = "", re
         if c.type in ("throws", "rethrows"):
             throws_str = f" {_text(src, c)}"
 
-    import re
     mods = _modifiers_text(src, node)
     mods = re.sub(r"@available\([^)]*\)", "", mods).strip()
     display_mods = " ".join(
-        w for w in mods.split()
-        if w not in ("@discardableResult", "@objc", "convenience", "override")
+        w for w in mods.split() if w not in ("@discardableResult", "@objc", "convenience", "override")
     )
     mod_prefix = (display_mods + " ") if display_mods else ""
 
@@ -192,11 +196,9 @@ def _func_sig(src: bytes, node: Node, indent: str = "    ") -> str | None:
     # Build modifier prefix, stripping noise
     mods = _modifiers_text(src, node)
     # Remove @available(...) blocks entirely using regex
-    import re
     mods = re.sub(r"@available\([^)]*\)", "", mods).strip()
     display_mods = " ".join(
-        w for w in mods.split()
-        if w not in ("@discardableResult", "@objc", "convenience", "override", "open")
+        w for w in mods.split() if w not in ("@discardableResult", "@objc", "convenience", "override", "open")
     )
     mod_prefix = (display_mods + " ") if display_mods else ""
 
@@ -362,7 +364,11 @@ def _extension_block(
                     block = _class_block(src, child, include_inits=include_inits, include_funcs=include_funcs)
                     if block:
                         # Re-prefix with parent.Nested
-                        return block.replace(f"{n_kw} {nested_struct_name}", f"{n_kw} {extended_type}.{nested_struct_name}", 1)
+                        return block.replace(
+                            f"{n_kw} {nested_struct_name}",
+                            f"{n_kw} {extended_type}.{nested_struct_name}",
+                            1,
+                        )
         return None
 
     # Top-level extension methods/inits
@@ -384,7 +390,15 @@ def _extension_block(
     return f"extension {extended_type} {{\n{inner}\n}}"
 
 
-def _file_block(repo: Path, rel_path: str, **kwargs) -> str:
+def _file_block(
+    repo: Path,
+    rel_path: str,
+    *,
+    include_inits: bool = True,
+    include_funcs: bool = True,
+    nested_prefix: str = "",
+    skip_public_check: bool = False,
+) -> str:
     """Parse a Swift source file and return a formatted code block."""
     path = repo / rel_path
     if not path.exists():
@@ -399,11 +413,24 @@ def _file_block(repo: Path, rel_path: str, **kwargs) -> str:
 
         kw = _keyword(src, child)
         if kw in ("class", "struct", "enum", "actor"):
-            block = _class_block(src, child, **kwargs)
+            block = _class_block(
+                src,
+                child,
+                include_inits=include_inits,
+                include_funcs=include_funcs,
+                nested_prefix=nested_prefix,
+                skip_public_check=skip_public_check,
+            )
             if block:
                 parts.append(block)
         elif kw == "extension":
-            block = _extension_block(src, child, extended_type=_type_name(src, child), **kwargs)
+            block = _extension_block(
+                src,
+                child,
+                extended_type=_type_name(src, child),
+                include_inits=include_inits,
+                include_funcs=include_funcs,
+            )
             if block:
                 parts.append(block)
 
@@ -448,7 +475,11 @@ def _matcher_structs(repo: Path, matcher_files: list[str]) -> str:
                 n_kw = _keyword(src, child)
                 if n_kw not in ("struct", "enum"):
                     continue
-                n_name = _text(src, next((c for c in child.children if c.type in ("type_identifier", "user_type")), child))
+                name_child = next(
+                    (c for c in child.children if c.type in ("type_identifier", "user_type")),
+                    child,
+                )
+                n_name = _text(src, name_child)
                 if any(n_name.startswith(p) for p in _OBJC_PREFIXES):
                     continue
 
@@ -511,7 +542,11 @@ def _generator_structs(repo: Path, generator_files: list[str]) -> str:
                 n_kw = _keyword(src, child)
                 if n_kw not in ("struct", "enum"):
                     continue
-                n_name = _text(src, next((c for c in child.children if c.type in ("type_identifier", "user_type")), child))
+                name_child = next(
+                    (c for c in child.children if c.type in ("type_identifier", "user_type")),
+                    child,
+                )
+                n_name = _text(src, name_child)
                 if any(n_name.startswith(p) for p in _OBJC_PREFIXES):
                     continue
 
@@ -589,7 +624,7 @@ def _section_mock_service(repo: Path) -> str:
     async_path = repo / f"{_SRC}/MockService+Concurrency.swift"
     if async_path.exists():
         src, root = _parse(async_path)
-        members: list[str] = []
+        members = []
         for top in root.children:
             if top.type != "class_declaration":
                 continue
@@ -608,7 +643,11 @@ def _section_mock_service(repo: Path) -> str:
                         members.append(sig)
         if members:
             inner = "\n".join(members)
-            parts.append(f"File: ./{_SRC}/MockService+Concurrency.swift\n```swift\n// Async/await API (macOS 12+, iOS 15+)\nextension MockService {{\n{inner}\n}}\n```\n")
+            parts.append(
+                f"File: ./{_SRC}/MockService+Concurrency.swift\n"
+                f"```swift\n// Async/await API (macOS 12+, iOS 15+)\n"
+                f"extension MockService {{\n{inner}\n}}\n```\n"
+            )
 
     return "\n".join(p for p in parts if p)
 
@@ -741,7 +780,10 @@ def _section_provider_verifier(repo: Path) -> str:
                                 members.append(sig)
         if members:
             inner = "\n".join(members)
-            parts.append(f"File: ./{_SRC}/ProviderVerifier.swift\n```swift\npublic final class ProviderVerifier {{\n{inner}\n}}\n```\n")
+            parts.append(
+                f"File: ./{_SRC}/ProviderVerifier.swift\n"
+                f"```swift\npublic final class ProviderVerifier {{\n{inner}\n}}\n```\n"
+            )
 
     # Options struct (from ProviderVerifier+Options.swift)
     opts_path = repo / f"{_SRC}/Model/ProviderVerifier+Options.swift"
@@ -755,10 +797,18 @@ def _section_provider_verifier(repo: Path) -> str:
                 continue
             # Find the Options struct
             for child in body.children:
-                if child.type == "class_declaration" and _keyword(src, child) == "struct" and _type_name(src, child) == "Options":
+                if (
+                    child.type == "class_declaration"
+                    and _keyword(src, child) == "struct"
+                    and _type_name(src, child) == "Options"
+                ):
                     block = _class_block(src, child, skip_public_check=True)
                     if block:
-                        parts.append(f"File: ./{_SRC}/Model/ProviderVerifier+Options.swift\n```swift\n// ProviderVerifier.Options and its nested types\n{block.replace('struct Options', 'struct ProviderVerifier.Options', 1)}\n```\n")
+                        parts.append(
+                            f"File: ./{_SRC}/Model/ProviderVerifier+Options.swift\n"
+                            f"```swift\n// ProviderVerifier.Options and its nested types\n"
+                            f"{block.replace('struct Options', 'struct ProviderVerifier.Options', 1)}\n```\n"
+                        )
                     break
 
     # Provider struct
@@ -772,10 +822,17 @@ def _section_provider_verifier(repo: Path) -> str:
             if not body:
                 continue
             for child in body.children:
-                if child.type == "class_declaration" and _keyword(src, child) == "struct" and _type_name(src, child) == "Provider":
+                if (
+                    child.type == "class_declaration"
+                    and _keyword(src, child) == "struct"
+                    and _type_name(src, child) == "Provider"
+                ):
                     block = _class_block(src, child, skip_public_check=True)
                     if block:
-                        parts.append(f"File: ./{_SRC}/Model/ProviderVerifier+Provider.swift\n```swift\n{block.replace('struct Provider', 'struct ProviderVerifier.Provider', 1)}\n```\n")
+                        renamed = block.replace("struct Provider", "struct ProviderVerifier.Provider", 1)
+                        parts.append(
+                            f"File: ./{_SRC}/Model/ProviderVerifier+Provider.swift\n```swift\n{renamed}\n```\n"
+                        )
                     break
 
     # PactBroker
@@ -788,7 +845,11 @@ def _section_provider_verifier(repo: Path) -> str:
     if vs_path.exists():
         src, root = _parse(vs_path)
         for top in root.children:
-            if top.type == "class_declaration" and _keyword(src, top) == "struct" and _type_name(src, top) == "VersionSelector":
+            if (
+                top.type == "class_declaration"
+                and _keyword(src, top) == "struct"
+                and _type_name(src, top) == "VersionSelector"
+            ):
                 block = _class_block(src, top)
                 if block:
                     parts.append(f"File: ./{_SRC}/Model/VersionSelector.swift\n```swift\n{block}\n```\n")

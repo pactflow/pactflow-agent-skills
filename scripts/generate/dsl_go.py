@@ -19,9 +19,8 @@ import re
 from pathlib import Path
 
 import tree_sitter_go as tsgo
+from _common import REFERENCES_DIR, run_main
 from tree_sitter import Language, Node, Parser
-
-from _common import REFERENCES_DIR, clone_shallow, run_main
 
 REPO_URL = "https://github.com/pact-foundation/pact-go.git"
 DEST_PATH = REFERENCES_DIR / "dsl.golang.md"
@@ -31,12 +30,32 @@ _PARSER = Parser(_LANGUAGE)
 
 _SKIP_METHODS = {"ExecuteTest"}
 
-_GO_BUILTINS = frozenset({
-    "bool", "byte", "complex64", "complex128", "error",
-    "float32", "float64", "int", "int8", "int16", "int32", "int64",
-    "rune", "string", "uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
-    "any", "comparable",
-})
+_GO_BUILTINS = frozenset(
+    {
+        "bool",
+        "byte",
+        "complex64",
+        "complex128",
+        "error",
+        "float32",
+        "float64",
+        "int",
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "rune",
+        "string",
+        "uint",
+        "uint8",
+        "uint16",
+        "uint32",
+        "uint64",
+        "uintptr",
+        "any",
+        "comparable",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Low-level helpers
@@ -86,9 +105,7 @@ def _struct_fields(src: bytes, struct_node: Node, indent: str = "\t") -> list[st
             continue
 
         # Try to find a field_identifier (named field) vs embedded type
-        name_node = next(
-            (c for c in field.children if c.type == "field_identifier"), None
-        )
+        name_node = next((c for c in field.children if c.type == "field_identifier"), None)
 
         if name_node is not None:
             name = _text(src, name_node)
@@ -224,9 +241,7 @@ def _method_sig(src: bytes, node: Node) -> str | None:
     params_node = node.child_by_field_name("parameters")
     result_node = node.child_by_field_name("result")
 
-    if _has_unexported_custom_type(src, params_node) or _has_unexported_custom_type(
-        src, result_node
-    ):
+    if _has_unexported_custom_type(src, params_node) or _has_unexported_custom_type(src, result_node):
         return None
 
     receiver = _text(src, receiver_node) if receiver_node else ""
@@ -243,9 +258,7 @@ def _method_sig(src: bytes, node: Node) -> str | None:
 
 
 def _const_spec_text(src: bytes, spec_node: Node) -> str | None:
-    name_node = next(
-        (c for c in spec_node.children if c.type == "identifier"), None
-    )
+    name_node = next((c for c in spec_node.children if c.type == "identifier"), None)
     if name_node is None:
         return None
     name = _text(src, name_node)
@@ -273,9 +286,7 @@ def _const_decl(src: bytes, node: Node) -> str | None:
 
 
 def _var_spec_text(src: bytes, spec_node: Node) -> str | None:
-    name_node = next(
-        (c for c in spec_node.children if c.type == "identifier"), None
-    )
+    name_node = next((c for c in spec_node.children if c.type == "identifier"), None)
     if name_node is None:
         return None
     name = _text(src, name_node)

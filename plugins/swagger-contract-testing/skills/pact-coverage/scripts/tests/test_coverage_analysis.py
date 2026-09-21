@@ -1,12 +1,12 @@
 import json
-import pytest
+
 from parse_pact_coverage import (
-    extract_pact_interactions,
+    _build_consumer_filtered_oas,
+    compute_coverage,
     extract_oas_operations,
+    extract_pact_interactions,
     find_matching_operation,
     oas_path_to_pattern,
-    compute_coverage,
-    _build_consumer_filtered_oas,
 )
 
 DEFAULT_EXCLUDE = {"500", "501", "502", "503"}
@@ -61,13 +61,17 @@ class TestFindMatchingOperation:
         # sort-by-param-count disambiguation logic.
         ops = {
             "get:/v1/{tenant}/orders/{id}": {
-                "path": "/v1/{tenant}/orders/{id}", "method": "get",
-                "status_codes": {"200"}, "req_required_fields": set(),
+                "path": "/v1/{tenant}/orders/{id}",
+                "method": "get",
+                "status_codes": {"200"},
+                "req_required_fields": set(),
                 "resp_required_fields": {},
             },
             "get:/v1/acme/orders/{id}": {
-                "path": "/v1/acme/orders/{id}", "method": "get",
-                "status_codes": {"200"}, "req_required_fields": set(),
+                "path": "/v1/acme/orders/{id}",
+                "method": "get",
+                "status_codes": {"200"},
+                "req_required_fields": set(),
                 "resp_required_fields": {},
             },
         }
@@ -133,22 +137,46 @@ class TestComputeCoverage:
     def test_has_gaps_false_when_fully_covered(self, sample_oas):
         oas_ops = extract_oas_operations(sample_oas, DEFAULT_EXCLUDE)
         interactions = [
-            {"method": "GET", "path": "/orders/123", "status": 200,
-             "req_body_fields": set(), "resp_body_fields": {"id", "status", "total"},
-             "description": "get 200"},
-            {"method": "GET", "path": "/orders/999", "status": 401,
-             "req_body_fields": set(), "resp_body_fields": set(),
-             "description": "get 401"},
-            {"method": "GET", "path": "/orders/000", "status": 404,
-             "req_body_fields": set(), "resp_body_fields": set(),
-             "description": "get 404"},
-            {"method": "POST", "path": "/orders", "status": 201,
-             "req_body_fields": {"customerId", "orderId", "items"},
-             "resp_body_fields": {"id", "status", "total"},
-             "description": "post 201"},
-            {"method": "POST", "path": "/orders", "status": 400,
-             "req_body_fields": set(), "resp_body_fields": set(),
-             "description": "post 400"},
+            {
+                "method": "GET",
+                "path": "/orders/123",
+                "status": 200,
+                "req_body_fields": set(),
+                "resp_body_fields": {"id", "status", "total"},
+                "description": "get 200",
+            },
+            {
+                "method": "GET",
+                "path": "/orders/999",
+                "status": 401,
+                "req_body_fields": set(),
+                "resp_body_fields": set(),
+                "description": "get 401",
+            },
+            {
+                "method": "GET",
+                "path": "/orders/000",
+                "status": 404,
+                "req_body_fields": set(),
+                "resp_body_fields": set(),
+                "description": "get 404",
+            },
+            {
+                "method": "POST",
+                "path": "/orders",
+                "status": 201,
+                "req_body_fields": {"customerId", "orderId", "items"},
+                "resp_body_fields": {"id", "status", "total"},
+                "description": "post 201",
+            },
+            {
+                "method": "POST",
+                "path": "/orders",
+                "status": 400,
+                "req_body_fields": set(),
+                "resp_body_fields": set(),
+                "description": "post 400",
+            },
         ]
         report = compute_coverage(oas_ops, interactions, DEFAULT_EXCLUDE)
         assert report["has_gaps"] is False
@@ -156,9 +184,14 @@ class TestComputeCoverage:
     def test_unmatched_pact_interactions_are_ignored(self, sample_oas):
         oas_ops = extract_oas_operations(sample_oas, DEFAULT_EXCLUDE)
         interactions = [
-            {"method": "GET", "path": "/unknown/endpoint", "status": 200,
-             "req_body_fields": set(), "resp_body_fields": set(),
-             "description": "unmatched"},
+            {
+                "method": "GET",
+                "path": "/unknown/endpoint",
+                "status": 200,
+                "req_body_fields": set(),
+                "resp_body_fields": set(),
+                "description": "unmatched",
+            },
         ]
         report = compute_coverage(oas_ops, interactions, DEFAULT_EXCLUDE)
         # All OAS operations remain missing since nothing matched
@@ -206,10 +239,12 @@ class TestBuildConsumerFilteredOas:
         assert result is None
 
     def test_multiple_routes_include_all_matched_operations(self, sample_oas):
-        routes_json = json.dumps([
-            {"method": "GET", "path": "/orders/{id}"},
-            {"method": "POST", "path": "/orders"},
-        ])
+        routes_json = json.dumps(
+            [
+                {"method": "GET", "path": "/orders/{id}"},
+                {"method": "POST", "path": "/orders"},
+            ]
+        )
         filtered = _build_consumer_filtered_oas(
             sample_oas,
             consumer_root=None,
@@ -223,10 +258,12 @@ class TestBuildConsumerFilteredOas:
 
     def test_unrecognised_route_does_not_crash(self, sample_oas):
         # /nonexistent is not in the OAS — should be silently skipped
-        routes_json = json.dumps([
-            {"method": "GET", "path": "/nonexistent"},
-            {"method": "GET", "path": "/orders/{id}"},
-        ])
+        routes_json = json.dumps(
+            [
+                {"method": "GET", "path": "/nonexistent"},
+                {"method": "GET", "path": "/orders/{id}"},
+            ]
+        )
         filtered = _build_consumer_filtered_oas(
             sample_oas,
             consumer_root=None,

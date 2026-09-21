@@ -14,12 +14,12 @@ Usage (from repo root):
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import tree_sitter_php as tsphp
-from tree_sitter import Language, Parser, Node
-
-from _common import REFERENCES_DIR, clone_shallow, run_main
+from _common import REFERENCES_DIR, run_main
+from tree_sitter import Language, Node, Parser
 
 REPO_URL = "https://github.com/pact-foundation/pact-php.git"
 DEST_PATH = REFERENCES_DIR / "dsl.php.md"
@@ -45,7 +45,7 @@ def _parse(path: Path) -> tuple[bytes, Node]:
     return src, tree.root_node
 
 
-def _find_all(node: Node, *types: str):
+def _find_all(node: Node, *types: str) -> Iterator[Node]:
     if node.type in types:
         yield node
     for child in node.children:
