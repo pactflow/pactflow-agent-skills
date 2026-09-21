@@ -455,14 +455,7 @@ drift verify --test-files drift/tests.yaml --failed
 drift verify --test-files drift/tests.yaml --operation SendOrderCreated_Observe
 ```
 
-`run_loop.sh` works for AsyncAPI too — pass `--skip-coverage` if you prefer to run `check_coverage.py` separately:
-
-```bash
-path/to/scripts/run_loop.sh \
-  --test-files drift/tests.yaml \
-  --spec service.asyncapi.yaml \
-  --skip-coverage
-```
+> **Note:** `run_loop.sh` is designed for OpenAPI (it requires `--server-url`). For AsyncAPI, iterate manually with `drift verify --failed` until all tests pass, then run `check_coverage.py` for coverage.
 
 ### Step 4 — Diagnose AsyncAPI failures
 

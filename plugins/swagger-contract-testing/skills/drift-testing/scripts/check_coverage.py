@@ -46,9 +46,9 @@ DEFAULT_EXCLUDE = {"500", "501", "502", "503"}
 # ─── AsyncAPI spec support ─────────────────────────────────────────────────────
 
 
-def is_asyncapi_spec(raw: dict[str, Any]) -> bool:
+def is_asyncapi_spec(raw: Any) -> bool:
     """Return True if this is an AsyncAPI document (not OpenAPI)."""
-    return "asyncapi" in raw
+    return isinstance(raw, dict) and "asyncapi" in raw
 
 
 def get_asyncapi_operations(spec_path: str) -> dict[str, Any]:
@@ -70,7 +70,10 @@ def get_asyncapi_operations(spec_path: str) -> dict[str, Any]:
         raw = yaml.safe_load(f)
 
     version = str(raw.get("asyncapi", ""))
-    if version.startswith("2."):
+    if not version:
+        print("ERROR: Not an AsyncAPI document (missing 'asyncapi:' field).", file=sys.stderr)
+        sys.exit(2)
+    if not version.startswith("3."):
         print(
             f"ERROR: AsyncAPI {version} is not supported by Drift. Only AsyncAPI 3.x is supported.",
             file=sys.stderr,
@@ -83,7 +86,8 @@ def get_asyncapi_operations(spec_path: str) -> dict[str, Any]:
     for op_id, op_body in raw.get("operations", {}).items():
         if not isinstance(op_body, dict):
             continue
-        channel_ref = op_body.get("channel", {}).get("$ref", "")
+        channel_val = op_body.get("channel") or {}
+        channel_ref = channel_val.get("$ref", "") if isinstance(channel_val, dict) else ""
         # "#/channels/orderCreated" → split → [..., "orderCreated"] → last element
         channel_name = channel_ref.split("/")[-1] if channel_ref else ""
         channel_address = channels.get(channel_name, {}).get("address", "") if channel_name else ""
@@ -302,7 +306,8 @@ def report_asyncapi_coverage(
         print("✓ Full coverage — all operations have at least one test.")
         return 0
     else:
-        print(f"Coverage: {len(covered)}/{len(spec_ops)} operations ({round(100 * len(covered) / max(len(spec_ops), 1))}%)")
+        pct = round(100 * len(covered) / max(len(spec_ops), 1))
+        print(f"Coverage: {len(covered)}/{len(spec_ops)} operations ({pct}%)")
         return 1
 
 

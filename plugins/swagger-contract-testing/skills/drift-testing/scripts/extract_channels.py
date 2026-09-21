@@ -78,12 +78,12 @@ def resolve(obj: Any, root: dict[str, Any]) -> Any:
 def _channel_address(channel_ref: str, root: dict[str, Any]) -> str:
     """Resolve a channel $ref and return its address."""
     channel = _resolve_ref(channel_ref, root) if channel_ref.startswith("#/") else {}
-    return channel.get("address", "")
+    return str(channel.get("address", ""))
 
 
-def _message_ids_from_op(op: dict[str, Any], root: dict[str, Any]) -> list[tuple[str, str]]:
+def _message_ids_from_op(op: dict[str, Any], root: dict[str, Any]) -> list[tuple[str, str, dict[str, Any]]]:
     """
-    Return list of (message_local_id, message_name) tuples for an operation.
+    Return list of (local_id, msg_name, resolved_msg_dict) tuples for an operation.
     message_local_id is the key under channels.<channelId>.messages.
     message_name is the name from components.messages.
     """
@@ -141,9 +141,7 @@ def load_operations(spec_path: str) -> tuple[list[dict[str, Any]], dict[str, Any
     if not version:
         raise ValueError("Not an AsyncAPI document (missing 'asyncapi:' field)")
     if version.startswith("2."):
-        raise ValueError(
-            f"AsyncAPI {version} is not supported by Drift. Only AsyncAPI 3.x is supported."
-        )
+        raise ValueError(f"AsyncAPI {version} is not supported by Drift. Only AsyncAPI 3.x is supported.")
     if not version.startswith("3."):
         raise ValueError(f"Unknown AsyncAPI version: {version}")
 
@@ -201,7 +199,7 @@ def print_summary(ops: list[dict[str, Any]]) -> bool:
             req = ", ".join(msg["payload_required"]) or "(none)"
             print(f"    message:  {msg['name']}  required: {req}")
             if not msg["payload_required"]:
-                print(f"              ⚠ no required payload fields — FILL_IN payload manually")
+                print("              ⚠ no required payload fields — FILL_IN payload manually")
                 needs_fill = True
         print()
     return needs_fill
@@ -227,94 +225,96 @@ def _op_name(op_id: str, msg_name: str, total_msgs: int, mode: str) -> str:
         return f"{base}_{msg_name}"
 
 
-def scaffold_observe(op: dict[str, Any], msg: dict[str, Any], op_name: str, source: str) -> str:
+def scaffold_observe(op: dict[str, Any], msg: dict[str, Any], op_name: str, source: str, variant_idx: int = 1) -> str:
     """Scaffold stub for async-observe (send, no reply)."""
     lines = [
         f"  {op_name}:",
         f"    target: {source}:{op['operationId']}:{msg['local_id']}",
-        f"    description: \"FILL_IN — describe what event this observes\"",
-        f"    parameters:",
-        f"      correlation-id: {op['operationId'].lower()}-001",
-        f"      timeout-ms: 5000",
+        '    description: "FILL_IN — describe what event this observes"',
+        "    parameters:",
+        f"      correlation-id: {op['operationId'].lower()}-{variant_idx:03d}",
+        "      timeout-ms: 5000",
     ]
     for field in msg["payload_required"]:
         lines.append(f"      {field}: FILL_IN  # required payload field")
     lines += [
-        f"    trigger:",
-        f"      executable-type: command",
-        f"      value: python3",
-        f"      parameters:",
-        f"        args:",
+        "    trigger:",
+        "      executable-type: command",
+        "      value: python3",
+        "      parameters:",
+        "        args:",
         f"          - ./hooks/trigger-{op['operationId'].lower()}.py",
-        f"          - --correlation-id",
-        f"          - ${{parameters.correlation-id}}",
-        f"          # FILL_IN — add args for payload fields your trigger needs",
-        f"      timeout-ms: 2000",
-        f"    expected:",
-        f"      headers:",
-        f"        correlation-id: ${{parameters.correlation-id}}",
-        f"      payload:",
-        f"        # FILL_IN — assert specific payload fields or omit to use schema validation",
+        "          - --correlation-id",
+        "          - ${parameters.correlation-id}",
+        "          # FILL_IN — add args for payload fields your trigger needs",
+        "      timeout-ms: 2000",
+        "    expected:",
+        "      headers:",
+        "        correlation-id: ${parameters.correlation-id}",
+        "      payload:",
+        "        # FILL_IN — assert specific payload fields or omit to use schema validation",
     ]
     return "\n".join(lines)
 
 
-def scaffold_inject(op: dict[str, Any], msg: dict[str, Any], op_name: str, source: str) -> str:
+def scaffold_inject(op: dict[str, Any], msg: dict[str, Any], op_name: str, source: str, variant_idx: int = 1) -> str:
     """Scaffold stub for async-inject (receive, probe command)."""
     lines = [
         f"  {op_name}:",
         f"    target: {source}:{op['operationId']}:{msg['local_id']}",
-        f"    description: \"FILL_IN — describe what command this injects\"",
-        f"    parameters:",
-        f"      correlation-id: {op['operationId'].lower()}-001",
-        f"      payload:",
+        '    description: "FILL_IN — describe what command this injects"',
+        "    parameters:",
+        f"      correlation-id: {op['operationId'].lower()}-{variant_idx:03d}",
+        "      payload:",
     ]
     for field in msg["payload_required"]:
         lines.append(f"        {field}: FILL_IN  # required")
     if not msg["payload_required"]:
-        lines.append(f"        # FILL_IN — see message schema for required fields")
+        lines.append("        # FILL_IN — see message schema for required fields")
     lines += [
-        f"    probe:",
-        f"      executable-type: command",
-        f"      value: python3",
-        f"      parameters:",
-        f"        args:",
+        "    probe:",
+        "      executable-type: command",
+        "      value: python3",
+        "      parameters:",
+        "        args:",
         f"          - ./hooks/probe-{op['operationId'].lower()}.py",
-        f"          - --correlation-id",
-        f"          - ${{parameters.correlation-id}}",
-        f"      timeout-ms: 3000",
-        f"    expected:",
-        f"      # FILL_IN — matches probe stdout JSON",
-        f"      # correlationId: ${{parameters.correlation-id}}",
-        f"      # status: processed",
+        "          - --correlation-id",
+        "          - ${parameters.correlation-id}",
+        "      timeout-ms: 3000",
+        "    expected:",
+        "      # FILL_IN — matches probe stdout JSON",
+        "      # correlationId: ${parameters.correlation-id}",
+        "      # status: processed",
     ]
     return "\n".join(lines)
 
 
-def scaffold_request_reply(op: dict[str, Any], msg: dict[str, Any], op_name: str, source: str) -> str:
+def scaffold_request_reply(
+    op: dict[str, Any], msg: dict[str, Any], op_name: str, source: str, variant_idx: int = 1
+) -> str:
     """Scaffold stub for async-request-reply (send with reply block)."""
     lines = [
         f"  {op_name}:",
         f"    target: {source}:{op['operationId']}:{msg['local_id']}",
-        f"    description: \"FILL_IN — describe this request/reply interaction\"",
-        f"    parameters:",
-        f"      correlation-id: {op['operationId'].lower()}-001",
-        f"      timeout-ms: 5000",
-        f"      payload:",
+        '    description: "FILL_IN — describe this request/reply interaction"',
+        "    parameters:",
+        f"      correlation-id: {op['operationId'].lower()}-{variant_idx:03d}",
+        "      timeout-ms: 5000",
+        "      payload:",
     ]
     for field in msg["payload_required"]:
         lines.append(f"        {field}: FILL_IN  # required")
     if not msg["payload_required"]:
-        lines.append(f"        # FILL_IN — see request message schema")
+        lines.append("        # FILL_IN — see request message schema")
     lines += [
-        f"      headers:",
-        f"        correlation-id: ${{parameters.correlation-id}}",
-        f"    # No trigger needed — Drift is the publisher for async-request-reply",
-        f"    expected:",
-        f"      payload:",
-        f"        # FILL_IN — describe the REPLY message payload (not the request)",
-        f"      headers:",
-        f"        correlation-id: ${{parameters.correlation-id}}",
+        "      headers:",
+        "        correlation-id: ${parameters.correlation-id}",
+        "    # No trigger needed — Drift is the publisher for async-request-reply",
+        "    expected:",
+        "      payload:",
+        "        # FILL_IN — describe the REPLY message payload (not the request)",
+        "      headers:",
+        "        correlation-id: ${parameters.correlation-id}",
     ]
     return "\n".join(lines)
 
@@ -331,15 +331,15 @@ def scaffold_all(
         if only_missing_ops and op["operationId"] in only_missing_ops:
             continue
         out.append(f"\n  # ── {op['action'].upper()} {op['operationId']} [{mode}] channel: {op['channel_address']}")
-        for msg in op["messages"]:
-            name = _op_name(op["operationId"], msg["name"], total_msgs, mode)
+        for idx, msg in enumerate(op["messages"], start=1):
+            name = _op_name(op["operationId"], msg["local_id"], total_msgs, mode)
             out.append("")
             if mode == "async-observe":
-                out.append(scaffold_observe(op, msg, name, source))
+                out.append(scaffold_observe(op, msg, name, source, idx))
             elif mode == "async-request-reply":
-                out.append(scaffold_request_reply(op, msg, name, source))
+                out.append(scaffold_request_reply(op, msg, name, source, idx))
             else:
-                out.append(scaffold_inject(op, msg, name, source))
+                out.append(scaffold_inject(op, msg, name, source, idx))
     return "\n".join(out)
 
 
@@ -378,9 +378,7 @@ def main() -> None:
     )
     parser.add_argument("--spec", required=True, help="Path to AsyncAPI 3.x spec")
     parser.add_argument("--scaffold", action="store_true", help="Emit Drift test stubs instead of summary")
-    parser.add_argument(
-        "--source", default="async-svc", help="Drift source name for targets (default: async-svc)"
-    )
+    parser.add_argument("--source", default="async-svc", help="Drift source name for targets (default: async-svc)")
     parser.add_argument(
         "--only-missing", metavar="DRIFT_YAML", help="Only scaffold operations not already in this test file"
     )
