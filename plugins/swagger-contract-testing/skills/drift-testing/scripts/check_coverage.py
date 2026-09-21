@@ -43,6 +43,58 @@ HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "tra
 DEFAULT_EXCLUDE = {"500", "501", "502", "503"}
 
 
+# ─── AsyncAPI spec support ─────────────────────────────────────────────────────
+
+
+def is_asyncapi_spec(raw: dict[str, Any]) -> bool:
+    """Return True if this is an AsyncAPI document (not OpenAPI)."""
+    return "asyncapi" in raw
+
+
+def get_asyncapi_operations(spec_path: str) -> dict[str, Any]:
+    """
+    Parse an AsyncAPI 3.x spec and return a dict of operation descriptors.
+
+    Returns:
+        {
+          "<operationId>": {
+            "action": str,           # send or receive
+            "channel": str,          # topic/queue address
+            "has_reply": bool,
+          }
+        }
+
+    Exits 2 if the spec is AsyncAPI 2.x (not supported by Drift).
+    """
+    with open(spec_path) as f:
+        raw = yaml.safe_load(f)
+
+    version = str(raw.get("asyncapi", ""))
+    if version.startswith("2."):
+        print(
+            f"ERROR: AsyncAPI {version} is not supported by Drift. Only AsyncAPI 3.x is supported.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    operations: dict[str, Any] = {}
+    channels = raw.get("channels", {})
+
+    for op_id, op_body in raw.get("operations", {}).items():
+        if not isinstance(op_body, dict):
+            continue
+        channel_ref = op_body.get("channel", {}).get("$ref", "")
+        # "#/channels/orderCreated" → split → [..., "orderCreated"] → last element
+        channel_name = channel_ref.split("/")[-1] if channel_ref else ""
+        channel_address = channels.get(channel_name, {}).get("address", "") if channel_name else ""
+        operations[op_id] = {
+            "action": op_body.get("action", ""),
+            "channel": channel_address,
+            "has_reply": bool(op_body.get("reply")),
+        }
+    return operations
+
+
 def _resolve_ref(ref: str, root: dict[str, Any]) -> dict[str, Any]:
     """Resolve a local JSON Pointer $ref (e.g. '#/components/schemas/Foo')."""
     if not ref.startswith("#/"):
@@ -183,6 +235,77 @@ def get_test_coverage(test_files: list[str]) -> dict[str, set[str]]:
     return dict(covered)
 
 
+def get_asyncapi_covered_ops(test_files: list[str]) -> set[str]:
+    """
+    Parse Drift test files and return the set of operationIds covered.
+
+    For AsyncAPI, target format is: <source>:<operationId> or <source>:<operationId>:<messageId>
+    """
+    covered: set[str] = set()
+    for path in test_files:
+        try:
+            with open(path) as f:
+                data = yaml.safe_load(f)
+        except (OSError, yaml.YAMLError):
+            continue
+        for _name, op in (data or {}).get("operations", {}).items():
+            if not isinstance(op, dict):
+                continue
+            target = op.get("target", "")
+            parts = target.split(":")
+            if len(parts) >= 2:
+                covered.add(parts[1])
+    return covered
+
+
+def report_asyncapi_coverage(
+    spec_ops: dict[str, Any],
+    covered_ops: set[str],
+    as_json: bool,
+) -> int:
+    """Report AsyncAPI operation coverage. Returns exit code (0 = full, 1 = gaps)."""
+    missing = [op_id for op_id in spec_ops if op_id not in covered_ops]
+    covered = [op_id for op_id in spec_ops if op_id in covered_ops]
+
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "spec_type": "asyncapi",
+                    "total_operations": len(spec_ops),
+                    "covered": len(covered),
+                    "missing": missing,
+                    "coverage_pct": round(100 * len(covered) / max(len(spec_ops), 1), 1),
+                },
+                indent=2,
+            )
+        )
+        return 0 if not missing else 1
+
+    print(f"AsyncAPI operations: {len(spec_ops)} total, {len(covered)} covered, {len(missing)} missing\n")
+
+    if covered:
+        print("Covered operations:")
+        for op_id in sorted(covered):
+            op = spec_ops[op_id]
+            print(f"  ✓ {op_id}  [{op['action']}]  {op['channel']}")
+        print()
+
+    if missing:
+        print("Missing operations (no Drift test found):")
+        for op_id in sorted(missing):
+            op = spec_ops[op_id]
+            print(f"  ✗ {op_id}  [{op['action']}]  {op['channel']}")
+        print()
+
+    if not missing:
+        print("✓ Full coverage — all operations have at least one test.")
+        return 0
+    else:
+        print(f"Coverage: {len(covered)}/{len(spec_ops)} operations ({round(100 * len(covered) / max(len(spec_ops), 1))}%)")
+        return 1
+
+
 # ─── Comparison ────────────────────────────────────────────────────────────────
 
 
@@ -312,6 +435,23 @@ def main() -> None:
     for pattern in args.test_files:
         matches = glob.glob(pattern)
         test_files.extend(matches if matches else ([pattern] if os.path.exists(pattern) else []))
+
+    # Auto-detect spec type and dispatch to AsyncAPI path if applicable
+    try:
+        with open(args.spec) as f:
+            raw_spec = yaml.safe_load(f)
+    except (OSError, yaml.YAMLError) as e:
+        print(f"ERROR: Could not read spec '{args.spec}': {e}", file=sys.stderr)
+        sys.exit(2)
+
+    if is_asyncapi_spec(raw_spec):
+        try:
+            async_ops = get_asyncapi_operations(args.spec)
+        except (OSError, yaml.YAMLError) as e:
+            print(f"ERROR: Could not parse AsyncAPI spec: {e}", file=sys.stderr)
+            sys.exit(2)
+        covered_ops = get_asyncapi_covered_ops(test_files)
+        sys.exit(report_asyncapi_coverage(async_ops, covered_ops, args.json))
 
     if not test_files:
         print("ERROR: No test files found.", file=sys.stderr)
