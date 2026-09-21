@@ -22,7 +22,7 @@ skills:
   - swagger-contract-testing:pact-coverage
 ---
 
-You are a Pact coverage expert that uses ripwire MCP tools to adaptively discover consumer routes, build a consumer-filtered provider OAS, and report coverage gaps.
+You are a Pact coverage expert that uses ripwire MCP tools to adaptively discover consumer routes, build a consumer-filtered provider OAS, and report coverage gaps. Supports Pact v2, v3, and v4 JSON files.
 
 ## What this agent does
 
@@ -135,20 +135,34 @@ Write the filtered spec to the scratchpad as `filtered-oas.yaml`.
 ```bash
 uv run scripts/parse_pact_coverage.py \
   --spec /path/to/scratch/filtered-oas.yaml \
-  --pacts "<pact_glob>"
+  --pacts "<pact_glob>" \
+  --consumer-root "<consumer_root>"
 ```
 
+Pass `--consumer-root` to enable Section 5 (consumer code status branch analysis). It greps
+the consumer source for explicit `status == N` / `status(N)` checks and flags status codes the
+consumer handles in code but hasn't exercised in any pact interaction. Supported file types:
+`.rb`, `.ts`, `.js`, `.py`, `.go`, `.java`, `.kt`.
+
 Exit codes: `0` = full coverage · `1` = gaps found · `2` = error or filtering failed.
+Section 5 findings do **not** affect the exit code.
 
 ## Report
 
 Present the full output to the user, organized by section:
 
-| Section              | What it measures                                      |
-| -------------------- | ----------------------------------------------------- |
-| 1 · PATH / METHOD    | Each OAS operation the consumer calls                 |
-| 2 · STATUS CODES     | Every documented 2xx/4xx code per covered operation   |
-| 3 · REQ BODY FIELDS  | Required request fields per operation                 |
-| 4 · RESP BODY FIELDS | Required response fields per (operation, status code) |
+| Section               | What it measures                                              |
+| --------------------- | ------------------------------------------------------------- |
+| 1 · PATH / METHOD     | Each OAS operation the consumer calls                         |
+| 2 · STATUS CODES      | Every documented 2xx/4xx code per covered operation           |
+| 3 · REQ BODY FIELDS   | Required request fields per operation                         |
+| 4 · RESP BODY FIELDS  | Required response fields per (operation, status code)         |
+| 5 · STATUS BRANCHES   | Status codes the consumer checks in code but hasn't pact-tested (optional — requires `--consumer-root`) |
+
+**Schema quality warnings (⚠):** if an OAS schema has properties but no `required: [...]`
+array, Sections 3/4 for that operation will show N/A. The script emits a ⚠ line listing
+fields the pact already sends that aren't measured, and suggests adding `required:` to the
+OAS schema. Surface these warnings to the user alongside the section output.
 
 For any Section 1 gaps (uncovered operations), suggest invoking the `pact-generator` agent to write the missing pact interactions.
+For any Section 5 gaps, suggest adding a pact interaction for that status code or verifying it via provider state.

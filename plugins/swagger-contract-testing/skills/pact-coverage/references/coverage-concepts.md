@@ -49,6 +49,39 @@ response body.
 (operation, status code) combination.  
 **Fix:** Enrich an existing interaction's response body for that status.
 
+### ⑤ CONSUMER CODE STATUS BRANCHES (optional)
+
+When `--consumer-root` is passed to `parse_pact_coverage.py`, the script greps the consumer
+source for explicit status-code checks (e.g. `response.status == 404`, `status(401)`) and
+flags any status code the consumer branches on that isn't exercised in any pact interaction.
+
+Supported file types: `.rb`, `.ts`, `.js`, `.py`, `.go`, `.java`, `.kt`.
+
+**When NOT COVERED:** the consumer's source code contains `status == N` (or equivalent) but
+no pact interaction tests that status code for the operation.
+
+**Fix:** add a pact interaction for that status code or verify the branch is covered via a
+provider state in provider verification.
+
+**Note:** Section 5 findings do not affect the script's exit code.
+
+---
+
+## Schema quality warnings (⚠)
+
+When an OAS requestBody or response schema has **properties defined but no `required: [...]`
+array**, the script cannot measure field coverage (Sections 3/4 will show N/A for that
+operation). Instead, it emits a ⚠ warning:
+
+- Lists how many properties the OAS schema has
+- Shows which fields the pact already sends (for request) or returns (for response)
+- Lists which OAS properties are not yet in any pact
+- Suggests adding `required:` to the schema
+
+These warnings appear inline in the Section 3 / Section 4 output and do not affect the exit
+code. To resolve: add a `required: [field1, field2, ...]` array to the OAS schema for the
+fields that the consumer is expected to always provide or receive.
+
 ---
 
 ## Optional fields are never a gap
@@ -92,3 +125,11 @@ Pact interactions with paths that match no OAS template are silently ignored.
 - **Field coverage across interactions.** A field counts as covered if it appears in
   any matching interaction's body — it does not need to appear in one single
   interaction that has all required fields at once.
+- **Section 5 is grep-based.** Consumer code status branch detection uses a regex
+  pattern (`\bstatus\b[\s=!<>]*[\s(]*(\d{3})\b`) and may produce false positives
+  (e.g. a constant defined as `MAX_STATUS = 200`) or miss branches expressed through
+  variables. Treat Section 5 output as advisory.
+- **Pact v2/v3/v4 detection is per-interaction.** Interactions with `type =
+  "Synchronous/HTTP"` are treated as v4 (body under `content` key); interactions
+  with no `type` field are treated as v2/v3 (body is inline JSON). Non-HTTP
+  interactions (e.g. `Asynchronous/Messages`) are silently skipped.

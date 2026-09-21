@@ -6,12 +6,12 @@ description: >
   Pact consumer tests. Invoke this skill whenever the user asks "what's not covered
   by my pacts?", "which endpoints are missing pact tests?", "do my pact files cover
   the full spec?", "how complete is my pact coverage?", "which required fields
-  aren't tested?", or any time they have Pact v4 JSON files and want to measure
-  contract test coverage against an OpenAPI spec. Also invoke when they say they
-  want to improve pact coverage or find coverage gaps — even if they don't say
-  "pact-coverage" explicitly. Do NOT invoke for running provider verification,
-  publishing pacts to a broker, or checking can-i-deploy; use the pactflow skill
-  for those.
+  aren't tested?", or any time they have Pact v2/v3/v4 JSON files and want to
+  measure contract test coverage against an OpenAPI spec. Also invoke when they
+  say they want to improve pact coverage or find coverage gaps — even if they
+  don't say "pact-coverage" explicitly. Do NOT
+  invoke for running provider verification, publishing pacts to a broker, or
+  checking can-i-deploy; use the pactflow skill for those.
 argument-hint: "[./consumer-src path/to/openapi.yaml \"pacts/*.json\"]"
 metadata:
   context: fork
@@ -20,9 +20,11 @@ metadata:
 
 # Pact Coverage
 
-Analyses Pact v4 `Synchronous/HTTP` interactions against an OpenAPI spec and reports
-gaps across four dimensions: path/method, status codes, request body required fields,
-and response body required fields. Never modifies files.
+Analyses Pact v2/v3/v4 interactions against an OpenAPI spec and reports gaps across
+four core dimensions: path/method, status codes, request body required fields, and
+response body required fields. An optional fifth dimension — consumer code status
+branch analysis — surfaces status codes the consumer handles in code but hasn't
+tested in any pact. Never modifies files.
 
 **Prerequisites:** `ripwire` is required — as an MCP server for interactive use (see [ripwire MCP setup](#ripwire-mcp-setup) above), or as a CLI binary for CI scripts (see [Scripts (CI / advanced)](#scripts-ci--advanced) below). Run `command -v ripwire` to check; see [`references/install-ripwire.md`](references/install-ripwire.md) for install instructions.
 
@@ -261,9 +263,18 @@ The agent handles all framework-specific patterns (direct HTTP clients, class-ba
 | 2 · STATUS CODES | Per covered operation | Every documented 2xx/4xx code has a pact response |
 | 3 · REQ BODY FIELDS | Required request fields | Every `required[]` field appears in ≥1 pact req body |
 | 4 · RESP BODY FIELDS | Required response fields per (op, code) | Every `required[]` field appears in ≥1 pact resp body |
+| 5 · STATUS BRANCHES | Consumer code branches on status codes (optional) | Every status the consumer explicitly checks is tested in pact |
 
 Default exclusions: 500, 501, 502, 503. 3xx, 5xx, wildcard codes, and `default` are
-always silently skipped. For dimension details, path matching, and limitations →
+always silently skipped. Section 5 appears only when `--consumer-root` is passed.
+
+**Schema quality warnings (⚠):** when an OAS operation has response/request body properties
+but no `required: [...]` array, Sections 3 and 4 report N/A. The script emits a ⚠ warning
+listing which fields the pact already sends that aren't measured, and suggests adding
+`required:` to the OAS schema to unlock field-level coverage. These warnings do not affect
+the exit code.
+
+For dimension details, path matching, and limitations →
 [`references/coverage-concepts.md`](references/coverage-concepts.md).
 
 ---
@@ -276,6 +287,8 @@ always silently skipped. For dimension details, path matching, and limitations �
 | Missing status code (Section 2) | Add an interaction with that status; use the pactflow skill for provider state hints |
 | Missing required request field (Section 3) | Enrich an existing interaction's request body |
 | Missing required response field (Section 4) | Enrich an existing interaction's response body for that (op, status) |
+| Status code handled in code but not in pact (Section 5) | Add a pact interaction for that status code, or verify the branch is covered via a provider state |
+| ⚠ OAS has properties but no `required[]` (Sections 3/4 N/A) | Add `required:` to the OAS requestBody or response schema to enable field-level coverage |
 
 After adding or modifying interactions, re-run to verify exit code 0.
 
@@ -283,7 +296,8 @@ After adding or modifying interactions, re-run to verify exit code 0.
 
 ## Scripts (CI / advanced)
 
-For headless CI usage without the agent:
+For headless CI usage without the agent. Both scripts are in the `scripts/` directory inside the
+pact-coverage skill and support `uv run` (self-installing dependencies).
 
 ```bash
 # Step 1: discover consumer routes (Strategy 1 only — simple consumers)
@@ -291,16 +305,32 @@ uv run scripts/build_filtered_oas.py \
   --consumer-root ./consumer-src \
   --output consumer-routes.json
 
-# Step 2: filter provider OAS + measure coverage
+# Step 2: filter provider OAS + measure coverage (Sections 1-4)
 uv run scripts/parse_pact_coverage.py \
   --spec provider-openapi.yaml \
   --pacts "pacts/*.json" \
   --consumer-routes "$(cat consumer-routes.json)"
+
+# With Section 5 (consumer code status branch analysis)
+uv run scripts/parse_pact_coverage.py \
+  --spec provider-openapi.yaml \
+  --pacts "pacts/*.json" \
+  --consumer-routes "$(cat consumer-routes.json)" \
+  --consumer-root ./consumer-src
+
+# Fetch pacts from broker directly (no local files needed)
+uv run scripts/parse_pact_coverage.py \
+  --spec provider-openapi.yaml \
+  --consumer OrderClient \
+  --broker-url $PACT_BROKER_BASE_URL \
+  --broker-token $PACT_BROKER_TOKEN
 ```
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/parse_pact_coverage.py` | Coverage checker — accepts `--consumer-routes` JSON for filtered OAS |
-| `scripts/build_filtered_oas.py` | CI tool: Strategy 1 route discovery only (outputs `--consumer-routes` JSON) |
+| `scripts/parse_pact_coverage.py` | Coverage checker (v2/v3/v4). Flags: `--spec`, `--pacts`, `--consumer-routes` (filtered OAS), `--consumer-root` (Section 5), `--exclude-codes`, `--json`, `--broker-url`/`--broker-token`/`--consumer` (broker fetch) |
+| `scripts/build_filtered_oas.py` | CI tool: Strategy 1 route discovery only (outputs `--consumer-routes` JSON for `parse_pact_coverage.py`) |
+
+**Exit codes for `parse_pact_coverage.py`:** `0` = full coverage across all 4 dimensions · `1` = gaps found · `2` = error (spec/pact unparseable, consumer-filtering failed). Section 5 gaps do **not** affect the exit code.
 
 **Note:** `build_filtered_oas.py` runs Strategy 1 only. For consumers with class-based HTTP clients or unusual patterns, use the interactive agent which tries all strategies.

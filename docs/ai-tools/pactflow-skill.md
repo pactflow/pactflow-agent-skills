@@ -569,6 +569,41 @@ Update our pacts — we renamed the /users endpoint to /accounts
 Set up environments and a webhook to trigger provider verification
 ```
 
+### pact-coverage
+
+**Purpose:** measures how completely the consumer's pact files exercise the provider API surface the consumer actually uses.
+
+The agent scans the consumer codebase with ripwire to discover which provider routes the consumer calls, builds a consumer-filtered provider OAS (the correct denominator for coverage), then runs `parse_pact_coverage.py` against the pact files. Coverage is reported across four dimensions — path/method, status codes, required request body fields, required response body fields — plus an optional fifth dimension (consumer code status branch analysis) when the consumer codebase is available.
+
+**When to invoke:** when the user asks "what's not covered by my pacts?", "which endpoints are missing pact tests?", "how complete is my pact coverage?", or "which required fields aren't tested?".
+
+**Prerequisites:** the ripwire MCP server must be connected (`claude mcp add ripwire -- ripwire --mcp`). See [`references/install-ripwire.md`](../plugins/swagger-contract-testing/skills/pact-coverage/references/install-ripwire.md) for setup.
+
+**Supports:** Pact v2, v3, and v4 JSON files.
+
+**Output:**
+
+| Section | What it measures |
+|---------|-----------------|
+| 1 · PATH / METHOD | Each OAS operation the consumer calls |
+| 2 · STATUS CODES | Every documented 2xx/4xx code per covered operation |
+| 3 · REQ BODY FIELDS | Required request fields per operation |
+| 4 · RESP BODY FIELDS | Required response fields per (operation, status code) |
+| 5 · STATUS BRANCHES | Status codes the consumer branches on in source code but hasn't pact-tested (optional) |
+
+For Section 1 gaps, the agent suggests invoking `pact-generator` to write the missing interactions.
+
+**Triggers:**
+
+```
+What's not covered by my pacts?
+Which endpoints are missing pact tests against the provider OAS?
+How complete is my pact coverage?
+Find coverage gaps in my pact files
+```
+
+---
+
 ### bdct-tester
 
 **Purpose:** drives a full Bi-Directional Contract Testing flow end-to-end — consumer tests, provider OpenAPI contract, publication, cross-contract verification — and loops until BDCT passes or a maximum of 5 iterations is reached.
