@@ -1,0 +1,35 @@
+<r root="consumer-src" est_tokens="312" confidence="high" pr_iters="5">
+  <routes>
+    <route method="GET" path="/orders/{id}" from="getOrder" to="get_order"/>
+    <route method="POST" path="/orders" from="createOrder" to="create_order"/>
+  </routes>
+  <f p="src/api/orders.ts">
+    <s t="fn" n="getOrder" k="0.8">
+      <body>async function getOrder(id: string): Promise&lt;Order&gt; {
+  const resp = await axios.get(`/orders/${id}`);
+  return resp.data as Order;
+}</body>
+    </s>
+    <s t="fn" n="createOrder" k="0.6">
+      <body>async function createOrder(req: CreateOrderRequest): Promise&lt;OrderSummary&gt; {
+  const resp = await axios.post('/orders', req);
+  return resp.data;
+}</body>
+    </s>
+  </f>
+  <f p="src/types/orders.ts">
+    <s t="iface" n="Order" k="0.7">
+      <body>interface Order {
+  id: number;
+  price: number;
+  description: string;
+}</body>
+    </s>
+    <s t="iface" n="OrderSummary" k="0.5">
+      <body>interface OrderSummary {
+  id: number;
+  status: string;
+}</body>
+    </s>
+  </f>
+</r>
