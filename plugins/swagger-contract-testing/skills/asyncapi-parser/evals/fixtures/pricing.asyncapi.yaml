@@ -1,0 +1,99 @@
+asyncapi: 3.1.0
+info:
+  title: Pricing service
+  version: 1.0.0
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:9092
+    protocol: kafka
+
+channels:
+  priceQuoteRequest:
+    address: drift.examples.price-quote.request
+    messages:
+      priceQuoteRequest:
+        $ref: "#/components/messages/priceQuoteRequest"
+
+  priceQuoteReply:
+    address: drift.examples.price-quote.reply
+    messages:
+      priceQuoteReply:
+        $ref: "#/components/messages/priceQuoteReply"
+
+operations:
+  requestPriceQuote:
+    action: send
+    title: Request price quote
+    summary: Sends a price quote request and receives a correlated reply.
+    channel:
+      $ref: "#/channels/priceQuoteRequest"
+    messages:
+      - $ref: "#/channels/priceQuoteRequest/messages/priceQuoteRequest"
+    reply:
+      address:
+        location: "$message.header#/reply-to"
+      channel:
+        $ref: "#/channels/priceQuoteReply"
+      messages:
+        - $ref: "#/channels/priceQuoteReply/messages/priceQuoteReply"
+
+components:
+  messages:
+    priceQuoteRequest:
+      name: priceQuoteRequest
+      correlationId:
+        location: "$message.header#/correlation-id"
+      headers:
+        type: object
+        properties:
+          correlation-id:
+            type: string
+          reply-to:
+            type: string
+        required: [correlation-id, reply-to]
+      payload:
+        type: object
+        required: [requestType, sku, quantity]
+        properties:
+          requestType:
+            type: string
+            const: price.quote
+          sku:
+            type: string
+          quantity:
+            type: integer
+            minimum: 1
+
+    priceQuoteReply:
+      name: priceQuoteReply
+      correlationId:
+        location: "$message.header#/correlation-id"
+      headers:
+        type: object
+        properties:
+          correlation-id:
+            type: string
+        required: [correlation-id]
+      payload:
+        type: object
+        required: [responseType, sku, quantity, quotedUnitPrice, quotedTotalPrice, currency, availability]
+        properties:
+          responseType:
+            type: string
+            const: price.quote
+          sku:
+            type: string
+          quantity:
+            type: integer
+            minimum: 1
+          quotedUnitPrice:
+            type: number
+          quotedTotalPrice:
+            type: number
+          currency:
+            type: string
+            const: USD
+          availability:
+            type: string

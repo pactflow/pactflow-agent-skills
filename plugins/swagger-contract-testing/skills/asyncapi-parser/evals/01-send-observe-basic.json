@@ -1,0 +1,15 @@
+{
+  "skills": ["asyncapi-parser"],
+  "query": "I have this AsyncAPI spec at `evals/fixtures/order.asyncapi.yaml`. What Drift tests should I write for the `sendOrderCreated` operation?",
+  "files": ["evals/fixtures/order.asyncapi.yaml"],
+  "expected_behavior": [
+    "Triggers the asyncapi-parser skill (not the drift-testing skill) to handle spec analysis",
+    "Identifies the operation action as 'send' and determines the execution mode as async-observe",
+    "Produces an analysis section stating: 1 operation, action: send, channel: drift.examples.order-created, mode: async-observe, payload has const fields (eventType, status) — 1 test variant",
+    "Generates a Drift operations YAML block with exactly one operation named SendOrderCreated_Observe (or similar convention-following name)",
+    "The generated operation includes a trigger block with executable-type: command and parameters propagating ${parameters.correlation-id}",
+    "The generated operation includes an expected block with headers.correlation-id and payload fields including eventType: order.created and status: created",
+    "The target field follows the 3-part format: <source>:sendOrderCreated:orderCreated",
+    "Parameters include correlation-id and timeout-ms"
+  ]
+}

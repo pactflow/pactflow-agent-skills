@@ -1,0 +1,16 @@
+{
+  "skills": ["asyncapi-parser"],
+  "query": "I have this AsyncAPI spec at `evals/fixtures/pricing.asyncapi.yaml`. Write Drift tests for the `requestPriceQuote` operation.",
+  "files": ["evals/fixtures/pricing.asyncapi.yaml"],
+  "expected_behavior": [
+    "Triggers the asyncapi-parser skill to handle spec analysis",
+    "Identifies the operation action as 'send' with a reply block present and determines the execution mode as async-request-reply",
+    "Produces an analysis section stating: 1 operation, action: send + reply, mode: async-request-reply, 1 test variant",
+    "Generates exactly one Drift operation named RequestPriceQuote_SendReceive (or similar)",
+    "The operation has NO trigger block — Drift is the publisher for async-request-reply",
+    "The target names the REQUEST operation/message: <source>:requestPriceQuote:priceQuoteRequest",
+    "parameters includes correlation-id, timeout-ms, and payload with requestType: price.quote, sku, and quantity",
+    "parameters includes headers with correlation-id: ${parameters.correlation-id}",
+    "The expected block describes the REPLY message (payload + headers), not the request — it includes responseType, sku, quantity, quotedUnitPrice, quotedTotalPrice, currency, availability"
+  ]
+}
