@@ -3,7 +3,7 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#   "pyyaml",
+#   "pyyaml~=6.0",
 # ]
 # ///
 """
