@@ -656,6 +656,38 @@ Publish and verify contracts for our checkout flow
 
 ---
 
+## Companion skills
+
+The `swagger-contract-testing` plugin ships two additional skills that complement the PactFlow skill. They are separate skills (not subagents of the PactFlow skill), invoked by their own triggers.
+
+### pact-coverage
+
+Measures how completely the consumer's pact files exercise the provider API surface the consumer actually calls. Invoke it when the user asks "what's not covered by my pacts?", "which endpoints are missing pact tests?", or "find pact coverage gaps".
+
+The skill resolves three inputs — the provider OAS, the pact files, and the consumer codebase root — then dispatches to the `pact-coverage` agent, which uses ripwire to discover which provider routes the consumer actually calls. Coverage is measured against that consumer-filtered OAS subset rather than the full provider spec. Supports Pact v2, v3, and v4.
+
+Output sections:
+
+| Section | What it measures |
+|---------|-----------------|
+| 1 · PATH / METHOD | Each OAS operation the consumer calls |
+| 2 · STATUS CODES | Every documented 2xx/4xx code per covered operation |
+| 3 · REQ BODY FIELDS | Required request fields per operation |
+| 4 · RESP BODY FIELDS | Required response fields per (operation, status code) |
+| 5 · STATUS BRANCHES | Status codes the consumer branches on in source code but hasn't pact-tested (optional) |
+
+Gaps in Section 1 trigger a suggestion to invoke the `pact-generator` subagent. Requires the ripwire MCP server (`claude mcp add ripwire -- ripwire --mcp`).
+
+### oas-generator
+
+Generates an OpenAPI 3.x YAML spec by statically analysing a provider codebase with ripwire — for use when no spec exists and a pact-coverage or BDCT workflow is blocked.
+
+Invoke it when the user says "generate an OpenAPI spec from the code", "the provider doesn't have a spec", or any time a contract testing workflow needs a provider OAS that isn't published.
+
+Supports Ruby (Rails/Sinatra), Node.js (Express/Fastify), Python (Flask/FastAPI), and any other ripwire-supported language. The generated spec is always valid OAS; schemas are annotated as `x-schema-source: inferred` or `x-schema-source: stub` where they could not be resolved from handler code. Requires ripwire on PATH.
+
+---
+
 ## SmartBear MCP tools
 
 The full `contract-testing_*` tool catalog — AI generation, can-i-deploy, the contract matrix, BDCT, environments, webhooks, secrets, and more — is documented on the [SmartBear MCP](./smartbear-mcp.md) page.
