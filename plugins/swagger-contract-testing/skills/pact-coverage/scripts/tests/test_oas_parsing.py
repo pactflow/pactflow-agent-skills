@@ -1,3 +1,4 @@
+import jsonref
 import pytest
 from parse_pact_coverage import load_oas, extract_oas_operations, _extract_required_fields
 
@@ -62,22 +63,23 @@ class TestExtractOasOperations:
 class TestExtractRequiredFields:
     def test_direct_required_list(self):
         schema = {"type": "object", "required": ["foo", "bar"], "properties": {}}
-        assert _extract_required_fields(schema, {}) == {"foo", "bar"}
+        assert _extract_required_fields(schema) == {"foo", "bar"}
 
     def test_empty_required_returns_empty_set(self):
         schema = {"type": "object", "required": [], "properties": {}}
-        assert _extract_required_fields(schema, {}) == set()
+        assert _extract_required_fields(schema) == set()
 
     def test_ref_resolution(self):
-        root = {
+        doc = {
             "components": {
                 "schemas": {
                     "Foo": {"type": "object", "required": ["x", "y"]}
                 }
-            }
+            },
+            "schema": {"$ref": "#/components/schemas/Foo"},
         }
-        schema = {"$ref": "#/components/schemas/Foo"}
-        assert _extract_required_fields(schema, root) == {"x", "y"}
+        resolved = jsonref.replace_refs(doc)
+        assert _extract_required_fields(resolved["schema"]) == {"x", "y"}
 
     def test_allof_merges_required(self):
         schema = {
@@ -86,7 +88,7 @@ class TestExtractRequiredFields:
                 {"required": ["c"]},
             ]
         }
-        assert _extract_required_fields(schema, {}) == {"a", "b", "c"}
+        assert _extract_required_fields(schema) == {"a", "b", "c"}
 
     def test_anyof_takes_union(self):
         schema = {
@@ -95,8 +97,7 @@ class TestExtractRequiredFields:
                 {"required": ["b"]},
             ]
         }
-        result = _extract_required_fields(schema, {})
-        assert result == {"a", "b"}
+        assert _extract_required_fields(schema) == {"a", "b"}
 
     def test_oneof_takes_union(self):
         schema = {
@@ -105,9 +106,8 @@ class TestExtractRequiredFields:
                 {"required": ["y"]},
             ]
         }
-        result = _extract_required_fields(schema, {})
-        assert result == {"x", "y"}
+        assert _extract_required_fields(schema) == {"x", "y"}
 
     def test_no_required_returns_empty_set(self):
         schema = {"type": "object", "properties": {"x": {"type": "string"}}}
-        assert _extract_required_fields(schema, {}) == set()
+        assert _extract_required_fields(schema) == set()

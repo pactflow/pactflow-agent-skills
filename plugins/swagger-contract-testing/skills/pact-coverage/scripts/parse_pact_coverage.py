@@ -4,6 +4,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "pyyaml~=6.0",
+#   "jsonref~=1.0",
 # ]
 # ///
 """
@@ -58,38 +59,26 @@ except ImportError:
     print("ERROR: PyYAML not installed. Run: pip install pyyaml", file=sys.stderr)
     sys.exit(2)
 
+try:
+    import jsonref
+except ImportError:
+    print("ERROR: jsonref not installed. Run: pip install jsonref", file=sys.stderr)
+    sys.exit(2)
+
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
 DEFAULT_EXCLUDE = {"500", "501", "502", "503"}
 
 
 # ─── OAS helpers ───────────────────────────────────────────────────────────────
 
-def _resolve_ref(ref: str, root: dict) -> dict:
-    """Resolve a local JSON Pointer $ref (e.g. '#/components/schemas/Foo')."""
-    if not ref.startswith("#/"):
-        return {}  # external refs not supported — return empty
-    parts = ref[2:].split("/")
-    node = root
-    for part in parts:
-        part = part.replace("~1", "/").replace("~0", "~")
-        if not isinstance(node, dict):
-            return {}
-        node = node.get(part, {})
-    return node if isinstance(node, dict) else {}
-
-
-def _get_schema_properties(schema: dict, root: dict) -> set:
-    """All property names defined in a schema (top-level, resolves $ref/allOf/anyOf/oneOf)."""
+def _get_schema_properties(schema: dict) -> set:
+    """All property names defined in a schema (top-level, resolves allOf/anyOf/oneOf)."""
     if not isinstance(schema, dict):
         return set()
-    if "$ref" in schema:
-        schema = _resolve_ref(schema["$ref"], root)
-        if not schema:
-            return set()
     props: set = set()
     for kw in ("allOf", "anyOf", "oneOf"):
         for branch in schema.get(kw, []):
-            props |= _get_schema_properties(branch, root)
+            props |= _get_schema_properties(branch)
     props |= set(schema.get("properties", {}).keys())
     return props
 
@@ -116,31 +105,26 @@ def _consumer_status_branches(consumer_root: str) -> set[str]:
     return codes
 
 
-def _extract_required_fields(schema: dict, root: dict) -> set:
+def _extract_required_fields(schema: dict) -> set:
     """
     Collect required field names from an OAS schema node (top-level only).
 
-    Handles $ref, allOf (union), anyOf/oneOf (union — conservative).
+    Handles allOf (union), anyOf/oneOf (union — conservative).
+    $refs are pre-resolved by jsonref.
     """
     if not isinstance(schema, dict):
         return set()
-
-    # Resolve $ref first
-    if "$ref" in schema:
-        schema = _resolve_ref(schema["$ref"], root)
-        if not schema:
-            return set()
 
     fields: set = set()
 
     # allOf — merge required from all branches
     for branch in schema.get("allOf", []):
-        fields |= _extract_required_fields(branch, root)
+        fields |= _extract_required_fields(branch)
 
     # anyOf / oneOf — union across all branches (conservative)
     for keyword in ("anyOf", "oneOf"):
         for branch in schema.get(keyword, []):
-            fields |= _extract_required_fields(branch, root)
+            fields |= _extract_required_fields(branch)
 
     # Direct required list at this node level
     for field in schema.get("required", []):
@@ -149,11 +133,11 @@ def _extract_required_fields(schema: dict, root: dict) -> set:
     return fields
 
 
-def _get_json_schema_for_media_type(content: dict, root: dict) -> dict:
+def _get_json_schema_for_media_type(content: dict) -> dict:
     """
     Given an OAS content block, find the application/json schema.
 
-    Returns the resolved schema dict, or {} if not found.
+    Returns the schema dict (already ref-resolved by jsonref), or {} if not found.
     """
     if not isinstance(content, dict):
         return {}
@@ -173,8 +157,6 @@ def _get_json_schema_for_media_type(content: dict, root: dict) -> dict:
     if not isinstance(schema, dict):
         return {}
 
-    if "$ref" in schema:
-        return _resolve_ref(schema["$ref"], root)
     return schema
 
 
@@ -257,7 +239,7 @@ def load_oas(path: str) -> dict:
         raise ValueError(f"Could not parse spec '{path}': {e}") from e
     if not isinstance(result, dict):
         raise ValueError("spec did not parse to a mapping")
-    return result
+    return jsonref.replace_refs(result)
 
 
 def _filter_oas_to_routes(oas: dict, routes: list[dict]) -> dict:
@@ -297,12 +279,6 @@ def extract_oas_operations(oas: dict, exclude_codes: set | None = None) -> dict:
         if not isinstance(path_item, dict):
             continue
 
-        # Resolve path item $ref
-        if "$ref" in path_item:
-            path_item = _resolve_ref(path_item["$ref"], oas)
-            if not path_item:
-                continue
-
         for method, operation in path_item.items():
             if method not in HTTP_METHODS:
                 continue
@@ -323,12 +299,10 @@ def extract_oas_operations(oas: dict, exclude_codes: set | None = None) -> dict:
             req_schema_properties: set = set()
             request_body = operation.get("requestBody", {})
             if isinstance(request_body, dict):
-                if "$ref" in request_body:
-                    request_body = _resolve_ref(request_body["$ref"], oas)
                 req_content = request_body.get("content", {})
-                req_schema = _get_json_schema_for_media_type(req_content, oas)
-                req_required_fields = _extract_required_fields(req_schema, oas)
-                req_schema_properties = _get_schema_properties(req_schema, oas)
+                req_schema = _get_json_schema_for_media_type(req_content)
+                req_required_fields = _extract_required_fields(req_schema)
+                req_schema_properties = _get_schema_properties(req_schema)
 
             # Response body required fields + all schema properties per status code
             resp_required_fields: dict = {}
@@ -339,12 +313,10 @@ def extract_oas_operations(oas: dict, exclude_codes: set | None = None) -> dict:
                     resp_required_fields[code] = set()
                     resp_schema_properties[code] = set()
                     continue
-                if "$ref" in response_obj:
-                    response_obj = _resolve_ref(response_obj["$ref"], oas)
                 resp_content = response_obj.get("content", {})
-                resp_schema = _get_json_schema_for_media_type(resp_content, oas)
-                resp_required_fields[code] = _extract_required_fields(resp_schema, oas)
-                resp_schema_properties[code] = _get_schema_properties(resp_schema, oas)
+                resp_schema = _get_json_schema_for_media_type(resp_content)
+                resp_required_fields[code] = _extract_required_fields(resp_schema)
+                resp_schema_properties[code] = _get_schema_properties(resp_schema)
 
             op_key = f"{method}:{path}"
             operations[op_key] = {

@@ -2,6 +2,7 @@ import json
 import pathlib
 import sys
 
+import jsonref
 import pytest
 import yaml
 
@@ -18,7 +19,7 @@ def sample_pact() -> dict:
 
 @pytest.fixture
 def sample_oas() -> dict:
-    return yaml.safe_load((FIXTURES_DIR / "openapi.yaml").read_text())
+    return jsonref.replace_refs(yaml.safe_load((FIXTURES_DIR / "openapi.yaml").read_text()))
 
 
 @pytest.fixture
