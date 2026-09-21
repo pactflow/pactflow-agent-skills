@@ -11,6 +11,9 @@ description: >
   spec, or check whether their API has drifted from its spec. Use when the user wants
   full endpoint coverage, wants all tests to pass, or asks to "keep running until
   everything passes".
+  Also use when the user mentions AsyncAPI, event-driven API testing, Kafka
+  contract testing, SNS or SQS testing, async message contracts, or wants to
+  verify that a service publishes or consumes messages matching an AsyncAPI spec.
 
 argument-hint: "[path/to/oas|path/to/drift-test]"
 metadata: 
@@ -38,6 +41,7 @@ Never modify the openapi spec that you are testing.
   ready-to-fill `operations:` YAML block with correct auth patterns, nil UUIDs for 404s,
   `ignore.schema` for 4xx, and `FILL_IN` markers. Use `--only-missing <drift.yaml>` to generate
   only the gaps not yet covered by an existing test file. Requires `pyyaml`.
+- `scripts/extract_channels.py` — AsyncAPI equivalent of `extract_endpoints.py`. Reads an AsyncAPI 3.x spec and outputs all operations with their action type (send/receive), execution mode (async-observe / async-inject / async-request-reply), and channel address. Scaffold mode (`--scaffold`) emits ready-to-fill Drift `operations:` YAML stubs with the correct trigger/probe structure per mode. Use `--only-missing <drift.yaml>` to scaffold only operations not yet covered. Requires `pyyaml`. AsyncAPI 3.x only.
 - `scripts/check_coverage.py` — Coverage checker: diffs an OpenAPI spec against Drift test files
   and reports which operations and response codes are missing tests. Requires `pyyaml`.
 - `scripts/run_loop.sh` / `scripts/run_loop.ps1` — Feedback loop runner: retries `drift verify --failed` until all tests
@@ -360,6 +364,139 @@ Done when both commands exit 0.
 
 ---
 
+## AsyncAPI Testing
+
+AsyncAPI testing verifies event-driven services (Kafka, SNS, SQS) against AsyncAPI 3.x documents. It requires a **real running broker** — there is no mock server equivalent.
+
+> **Supported versions:** AsyncAPI 3.x only. Drift does not support AsyncAPI 2.x.
+
+### Plugin stack (required in every AsyncAPI test file)
+
+```yaml
+# yaml-language-server: $schema=https://download.pactflow.io/drift/schemas/drift.testcases.v1.schema.json
+drift-testcase-file: v1
+title: "<service> AsyncAPI verification"
+
+sources:
+  - name: <source-name>               # referenced in target fields
+    path: ./asyncapi/<service>.asyncapi.yaml
+
+plugins:
+  - name: asyncapi      # reads the AsyncAPI document
+  - name: kafka         # transport; use aws-messaging for SNS/SQS
+  - name: json          # payload validation
+
+operations:
+  # test cases go here
+```
+
+### Full Coverage Feedback Loop for AsyncAPI
+
+```
+AsyncAPI Coverage Loop Progress:
+- [ ] Step 0: Check current coverage (check_coverage.py auto-detects AsyncAPI)
+- [ ] Step 1: Parse spec and collect operation list (asyncapi-parser skill or extract_channels.py)
+- [ ] Step 2: Assemble test file with correct plugins and sources
+- [ ] Step 3: Start broker (Kafka/SNS/SQS) and run drift verify
+- [ ] Step 4: Diagnose and fix failures
+- [ ] Step 5: Verify full coverage
+```
+
+### Step 0 — Check current AsyncAPI coverage
+
+`check_coverage.py` auto-detects AsyncAPI specs and switches to operation-level coverage (no status codes):
+
+```bash
+uv run path/to/scripts/check_coverage.py \
+  --spec service.asyncapi.yaml \
+  --test-files "tests/*.yaml"
+# Exit 0 = all operations have at least one test; 1 = gaps remain
+```
+
+### Step 1 — Parse the spec
+
+Use `extract_channels.py` to see all operations and generate scaffold stubs. For complex message schemas (oneOf/anyOf/allOf/discriminator in payload), invoke the **asyncapi-parser** skill instead.
+
+```bash
+# Summary: see all operations + execution modes
+uv run scripts/extract_channels.py --spec service.asyncapi.yaml
+
+# Scaffold stubs for all operations
+uv run scripts/extract_channels.py --spec service.asyncapi.yaml \
+  --scaffold --source async-svc > drift/tests.yaml
+
+# Scaffold only gaps in an existing test file
+uv run scripts/extract_channels.py --spec service.asyncapi.yaml \
+  --scaffold --only-missing drift/tests.yaml >> drift/tests.yaml
+```
+
+### Step 2 — Assemble the test file
+
+Wire scaffold stubs with the correct plugins/sources header. Each operation requires:
+- `correlation-id` in `parameters` — Drift uses this to match the right message
+- `timeout-ms` — how long to wait for the message (default: 5000ms)
+- A `trigger` hook (async-observe, async-request-reply) or `payload` (async-inject/inject-capture)
+- A `probe` hook (async-inject) or `probe-topic` (async-inject-capture) for receive operations
+
+For trigger hooks: the trigger command MUST propagate `${parameters.correlation-id}` into the published message's header. A mismatched correlation ID causes a capture timeout.
+
+### Step 3 — Run tests
+
+No `--server-url` is needed for AsyncAPI tests — Drift connects to the broker declared in the AsyncAPI `servers` block.
+
+```bash
+# Run all tests
+drift verify --test-files drift/tests.yaml
+
+# Re-run only failures
+drift verify --test-files drift/tests.yaml --failed
+
+# Single operation (fast iteration)
+drift verify --test-files drift/tests.yaml --operation SendOrderCreated_Observe
+```
+
+> **Note:** `run_loop.sh` is designed for OpenAPI (it requires `--server-url`). For AsyncAPI, iterate manually with `drift verify --failed` until all tests pass, then run `check_coverage.py` for coverage.
+
+### Step 4 — Diagnose AsyncAPI failures
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Capture timeout, trigger succeeded | Trigger published a different correlation ID | Verify trigger passes `${parameters.correlation-id}` as the header value |
+| Capture timeout, trigger did not run | Wrong path to trigger script | Use path relative to the test case YAML file location |
+| Capture timeout, no trigger involved | Wrong channel address or broker not running | Check `address:` in AsyncAPI spec matches actual topic name |
+| Probe false positive (test passes when it shouldn't) | Prior test's state not cleared | Add state-clearing logic at start of probe |
+| Intermittent probe failures | Probe runs before service finishes processing | Add retry loop or delay in probe script |
+| Schema validation failure on publish | Payload missing required field | Check `components.messages.<name>.payload.required` |
+| `async-observe` mode when request-reply expected | No `reply` block in AsyncAPI operation | Add `reply-channel: <topic>` to `parameters`, or fix the AsyncAPI spec |
+| SNS/SQS: request-reply not working | SNS/SQS do not support request-reply | Use Kafka for request-reply interactions |
+
+### Local Kafka for development
+
+Start a local broker with Docker:
+
+```bash
+# Start Kafka (KRaft mode, no Zookeeper)
+docker run -d --name drift-kafka -p 9092:9092 \
+  -e KAFKA_ENABLE_KRAFT=yes \
+  -e KAFKA_NODE_ID=1 \
+  -e KAFKA_PROCESS_ROLES=broker,controller \
+  -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+  -e KAFKA_LISTENERS="PLAINTEXT://:9092,CONTROLLER://:9093" \
+  -e KAFKA_ADVERTISED_LISTENERS="PLAINTEXT://localhost:9092" \
+  -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP="PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT" \
+  -e KAFKA_CONTROLLER_QUORUM_VOTERS="1@localhost:9093" \
+  -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=true \
+  -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+  confluentinc/cp-kafka:latest
+
+# Stop when done
+docker stop drift-kafka && docker rm drift-kafka
+```
+
+The AsyncAPI `servers` block declares the broker connection; Drift uses it unless you override via plugin configuration.
+
+---
+
 ## Quick Reference
 
 | Scenario                           | Approach                                       |
@@ -375,3 +512,9 @@ Done when both commands exit 0.
 | Non-standard auth prefix           | `http:request` hook — see `references/auth.md` |
 | Re-run only broken tests           | `--failed` flag                                |
 | Publish to PactFlow                | `--generate-result` flag                       |
+| AsyncAPI send operation (observe) | `async-observe` mode — add `trigger` hook |
+| AsyncAPI receive operation (inject) | `async-inject` mode — add `probe` hook or use `probe-topic` |
+| AsyncAPI request/reply | `async-request-reply` mode — no trigger needed |
+| Parse complex AsyncAPI message schemas | asyncapi-parser skill |
+| Scaffold AsyncAPI test stubs | `extract_channels.py --scaffold` |
+| Check AsyncAPI coverage | `check_coverage.py` (auto-detects spec type) |
