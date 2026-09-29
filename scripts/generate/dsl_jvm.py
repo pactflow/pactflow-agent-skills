@@ -23,7 +23,7 @@ from pathlib import Path
 
 import tree_sitter_java as tsjava
 import tree_sitter_kotlin as tskotlin
-from _common import REFERENCES_DIR, clone_shallow
+from _common import REFERENCES_DIR, clone_shallow, validate_generated_document
 from tree_sitter import Language, Node, Parser
 
 REPO_URL = "https://github.com/pact-foundation/pact-jvm.git"
@@ -518,6 +518,8 @@ def main() -> int:
             clone_shallow(REPO_URL, args.ref, repo)
             kotlin_doc = build_kotlin_doc(repo)
             java_doc = build_java_doc(repo)
+    validate_generated_document(kotlin_doc)
+    validate_generated_document(java_doc)
 
     if args.check:
         up_to_date = True

@@ -580,7 +580,7 @@ The agent scans the consumer codebase with ripwire to discover which provider ro
 
 **When to invoke:** when the user asks "what's not covered by my pacts?", "which endpoints are missing pact tests?", "how complete is my pact coverage?", or "which required fields aren't tested?".
 
-**Prerequisites:** the ripwire MCP server must be connected (`claude mcp add ripwire -- ripwire --mcp`). See [`references/install-ripwire.md`](../../plugins/swagger-contract-testing/skills/pact-coverage/references/install-ripwire.md) for setup.
+**Prerequisites:** the ripwire MCP server must be connected (`claude mcp add ripwire -- ripwire --mcp`). See the [ripwire installation guide](../../plugins/swagger-contract-testing/skills/pact-coverage/references/install-ripwire.md) for setup.
 
 **Supports:** Pact v2, v3, and v4 JSON files.
 

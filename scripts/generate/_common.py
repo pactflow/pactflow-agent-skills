@@ -7,7 +7,8 @@ import os
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -20,6 +21,27 @@ def clone_shallow(repo_url: str, ref: str, dest: Path) -> None:
         ["git", "clone", "--depth=1", f"--branch={ref}", repo_url, str(dest)],
         check=True,
     )
+
+
+@contextmanager
+def temporary_clone(repo_url: str, ref: str, repo_dirname: str) -> Iterator[Path]:
+    """Yield a shallow clone and remove its temporary directory afterward."""
+    with tempfile.TemporaryDirectory(prefix=f"{repo_dirname}-") as tmp:
+        repo = Path(tmp) / repo_dirname
+        clone_shallow(repo_url, ref, repo)
+        yield repo
+
+
+def validate_generated_document(content: str) -> None:
+    """Reject incomplete generator output before it replaces a reference file."""
+    required_fragments = ("\n## ", "```")
+    missing = [fragment for fragment in required_fragments if fragment not in content]
+    if missing:
+        raise ValueError(f"generated document is missing required content: {', '.join(missing)}")
+    if len(content) < 1_000:
+        raise ValueError("generated document is unexpectedly short")
+    if not content.endswith("\n"):
+        raise ValueError("generated document must end with a newline")
 
 
 def run_main(
@@ -62,10 +84,9 @@ def run_main(
         repo = args.local_repo.resolve()
         doc = build_doc(repo)
     else:
-        with tempfile.TemporaryDirectory() as tmp:
-            repo = Path(tmp) / repo_dirname
-            clone_shallow(repo_url, args.ref, repo)
+        with temporary_clone(repo_url, args.ref, repo_dirname) as repo:
             doc = build_doc(repo)
+    validate_generated_document(doc)
 
     if args.check:
         existing = args.output.read_text() if args.output.exists() else ""

@@ -34,6 +34,9 @@ on:
         default: main
         required: false
 
+permissions:
+  contents: read
+
 jobs:
   generate:
     name: Generate ${{ matrix.sdk }} DSL
@@ -84,20 +87,25 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          python-version: "3.12"
 
       - name: Generate DSL(s) for ${{ matrix.sdk }}
+        env:
+          SDK_REF: ${{ inputs[matrix.ref_input] }}
         run: |
-          REF="${{ inputs[matrix.ref_input] }}"
-          uv run --project scripts/generate ${{ matrix.script }} ${REF:+--ref "$REF"}
+          uv run --project scripts/generate --locked ${{ matrix.script }} ${SDK_REF:+--ref "$SDK_REF"}
 
       - name: Format generated markdown
         env:
           OUTPUTS: ${{ matrix.outputs }}
         run: |
           while IFS= read -r f; do
-            uvx mdformat "$f"
+            uv run --locked mdformat "$f"
           done <<< "$OUTPUTS"
 
       - name: Upload generated files
@@ -119,10 +127,13 @@ jobs:
         with:
           app-id: ${{ vars.PACTFLOW_CI_BOT_APP_ID }}
           private-key: ${{ secrets.PACTFLOW_CI_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
 
       - name: Download generated DSL files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8

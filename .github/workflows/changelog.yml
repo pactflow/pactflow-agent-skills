@@ -7,6 +7,9 @@ on:
       - ".github/workflows/changelog.yml"
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: Validate changelog generation
@@ -15,6 +18,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Generate changelog preview
         uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff  # v4.9.1

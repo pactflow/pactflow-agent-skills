@@ -12,6 +12,9 @@ on:
       - "pyproject.toml"
       - ".github/workflows/lint.yml"
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Ruff + mypy
@@ -19,14 +22,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          python-version: "3.12"
 
       - name: Ruff lint
-        run: uvx ruff check scripts/ plugins/swagger-contract-testing/skills/
+        run: uv run --locked ruff check scripts/ plugins/swagger-contract-testing/skills/ tests/
 
       - name: Ruff format check
-        run: uvx ruff format --check scripts/ plugins/swagger-contract-testing/skills/
+        run: uv run --locked ruff format --check scripts/ plugins/swagger-contract-testing/skills/ tests/
 
       - name: mypy type check
-        run: uvx --with mypy mypy scripts/ plugins/swagger-contract-testing/skills/
+        run: uv run --locked mypy scripts/ plugins/swagger-contract-testing/skills/ tests/
