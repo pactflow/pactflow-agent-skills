@@ -29,7 +29,7 @@ The repository is not an installable Python package. Run `uv sync --locked` and 
 - Keep every `SKILL.md` frontmatter block intact and include a `name:` key.
 - When changing plugin identity or metadata, update the relevant root `plugin.json`, `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, MCP configuration, and marketplace entry together. Claude and Codex manifests must remain equivalent where both exist.
 - Keep portable manifests compliant with the agent-plugins.org schemas already referenced in those files.
-- Do not edit `plugins/swagger-contract-testing/skills/pactflow/references/dsl.*.md` by hand. Regenerate them with the matching script under `scripts/generate/`, then format the output with `uvx mdformat`.
+- Do not edit `plugins/swagger-contract-testing/skills/pactflow/references/dsl.*.md` by hand. Regenerate them with the matching script under `scripts/generate/`, then format the output with `uv run --locked mdformat`.
 - Do not maintain `CHANGELOG.md` manually and do not add release-note fragments. Changelog content is generated from Git history.
 - Keep Python compatible with 3.12 and within the Ruff and strict mypy rules in `pyproject.toml`. Tests are exempt from full annotation enforcement.
 - Avoid unrelated formatting or generated-file churn.

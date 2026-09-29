@@ -43,6 +43,17 @@ The `swagger-contract-testing` skills work together: **OAS Generator** produces 
 - [Antigravity](#installing-in-antigravity)
 - [Agent Plugins standard](#installing-via-the-agent-plugins-standard)
 
+### Prerequisites by capability
+
+| Capability                              | Prerequisite                                                                                                                                                                      |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Install with `npx skills`               | Node.js and npm (`npx`)                                                                                                                                                           |
+| Install with `gh skill`                 | GitHub CLI with the `gh-skill` extension                                                                                                                                          |
+| Use the bundled SmartBear MCP server    | Node.js 20+ and a PactFlow account or self-hosted Pact Broker                                                                                                                     |
+| Use `pact-coverage` or `oas-generator`  | [`ripwire`](plugins/swagger-contract-testing/skills/pact-coverage/references/install-ripwire.md) on `PATH`; interactive coverage also requires its MCP server                     |
+
+The quick installers install skills only. To include the specialised agents and automatically configured SmartBear MCP server, use a plugin installation where the client supports it. Broker credentials are needed only for live PactFlow or Pact Broker operations; authoring and reviewing local tests works without them.
+
 ## Quick install with `npx skills`
 
 The [`skills` CLI](https://skills.sh) installs agent skills from GitHub directly into your project. It auto-detects which agentic coding tools you use and places the skill files in the correct location for each one.
@@ -209,6 +220,15 @@ claude --plugin-dir ./plugins/swagger-contract-testing
 /plugin uninstall swagger-contract-testing@pactflow-agent-skills
 ```
 
+### Automatic hooks
+
+The Claude Code plugin installs two local hooks:
+
+- `SessionStart` runs `hooks/check-pact-config.sh` to report missing PactFlow configuration.
+- `PostToolUse` runs `hooks/deployment-reminder.sh` after Bash commands to remind you about deployment recording when relevant.
+
+Both hooks have a five-second timeout and do not send credentials anywhere. If either hook reports an error, confirm the plugin files are executable and reload the plugin with `/reload-plugins`. Disable the plugin to disable its hooks.
+
 ### Installing `contract-testing-flywheel`
 
 This second plugin ships in the same repo marketplace as `swagger-contract-testing` — it isn't (yet) listed in Anthropic's community marketplace, so install it from this repo:
@@ -248,18 +268,15 @@ automatically selects relevant skills based on task context.
 ### Global install (available in all projects)
 
 ```bash
-cp -r plugins/swagger-contract-testing/skills/drift-testing ~/.config/opencode/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser ~/.config/opencode/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow ~/.config/opencode/skills/pactflow
+mkdir -p ~/.config/opencode/skills
+cp -r plugins/swagger-contract-testing/skills/* ~/.config/opencode/skills/
 ```
 
 ### Project-level install (this project only)
 
 ```bash
 mkdir -p .opencode/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing .opencode/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser .opencode/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow .opencode/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* .opencode/skills/
 ```
 
 OpenCode will pick up the skills automatically — no restart required.
@@ -279,21 +296,15 @@ Copy the skill folders into any of the standard discovery locations — Copilot 
 ```bash
 # .github/skills  (most common for GitHub projects)
 mkdir -p .github/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing .github/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser .github/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow .github/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* .github/skills/
 
 # or .agents/skills
 mkdir -p .agents/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing .agents/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser .agents/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow .agents/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* .agents/skills/
 
 # or .claude/skills (already used by Claude Code)
 mkdir -p .claude/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing .claude/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser .claude/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow .claude/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* .claude/skills/
 ```
 
 Commit the chosen directory to share the skills with your team. No VS Code configuration required.
@@ -304,9 +315,7 @@ Copy to a personal skills directory so the skills are available in every repo yo
 
 ```bash
 mkdir -p ~/.copilot/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing ~/.copilot/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser ~/.copilot/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow ~/.copilot/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* ~/.copilot/skills/
 ```
 
 ### Custom location
@@ -343,6 +352,8 @@ If your version of Copilot doesn't support Agent Skills yet, use custom instruct
 cat plugins/swagger-contract-testing/skills/drift-testing/SKILL.md plugins/swagger-contract-testing/skills/drift-testing/references/*.md >> .github/copilot-instructions.md
 cat plugins/swagger-contract-testing/skills/openapi-parser/SKILL.md plugins/swagger-contract-testing/skills/openapi-parser/references/*.md >> .github/copilot-instructions.md
 cat plugins/swagger-contract-testing/skills/pactflow/SKILL.md plugins/swagger-contract-testing/skills/pactflow/references/*.md >> .github/copilot-instructions.md
+cat plugins/swagger-contract-testing/skills/pact-coverage/SKILL.md plugins/swagger-contract-testing/skills/pact-coverage/references/*.md >> .github/copilot-instructions.md
+cat plugins/swagger-contract-testing/skills/oas-generator/SKILL.md >> .github/copilot-instructions.md
 ```
 
 **Path-scoped** — loads only when relevant files are open:
@@ -369,6 +380,8 @@ cat plugins/swagger-contract-testing/skills/pactflow/SKILL.md plugins/swagger-co
    cat plugins/swagger-contract-testing/skills/drift-testing/SKILL.md plugins/swagger-contract-testing/skills/drift-testing/references/*.md > .github/prompts/drift.prompt.md
    cat plugins/swagger-contract-testing/skills/openapi-parser/SKILL.md plugins/swagger-contract-testing/skills/openapi-parser/references/*.md > .github/prompts/openapi-parser.prompt.md
    cat plugins/swagger-contract-testing/skills/pactflow/SKILL.md plugins/swagger-contract-testing/skills/pactflow/references/*.md > .github/prompts/pactflow.prompt.md
+  cat plugins/swagger-contract-testing/skills/pact-coverage/SKILL.md plugins/swagger-contract-testing/skills/pact-coverage/references/*.md > .github/prompts/pact-coverage.prompt.md
+  cp plugins/swagger-contract-testing/skills/oas-generator/SKILL.md .github/prompts/oas-generator.prompt.md
    ```
 3. In Copilot Chat, click **Attach context → Prompt...** and select the skill.
 
@@ -425,14 +438,15 @@ Cursor supports [Agent Skills](https://cursor.com/docs/skills) loaded from `SKIL
 4. Enter the URL to each skill folder:
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/drift-testing`
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/openapi-parser`
+  - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pactflow`
+  - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pact-coverage`
+  - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/oas-generator`
 
 ### Project-level install (manual)
 
 ```bash
 mkdir -p .cursor/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing .cursor/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser .cursor/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow .cursor/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* .cursor/skills/
 ```
 
 Commit `.cursor/skills/` to share the skills with your team. Cursor also discovers skills from `.agents/skills/`.
@@ -441,9 +455,7 @@ Commit `.cursor/skills/` to share the skills with your team. Cursor also discove
 
 ```bash
 mkdir -p ~/.cursor/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing ~/.cursor/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser ~/.cursor/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow ~/.cursor/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* ~/.cursor/skills/
 ```
 
 ---
@@ -463,9 +475,7 @@ Windsurf supports [Skills](https://docs.windsurf.com/windsurf/cascade/skills) lo
 
 ```bash
 mkdir -p .windsurf/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing .windsurf/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser .windsurf/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow .windsurf/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* .windsurf/skills/
 ```
 
 Commit `.windsurf/skills/` to share the skills with your team.
@@ -474,9 +484,7 @@ Commit `.windsurf/skills/` to share the skills with your team.
 
 ```bash
 mkdir -p ~/.codeium/windsurf/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing ~/.codeium/windsurf/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser ~/.codeium/windsurf/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow ~/.codeium/windsurf/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* ~/.codeium/windsurf/skills/
 ```
 
 ---
@@ -487,7 +495,7 @@ Codex supports [Skills](https://developers.openai.com/codex/skills/) loaded from
 
 ### Plugin install (recommended)
 
-The plugin manifest bundles all three skills together and wires up the SmartBear MCP server automatically.
+The plugin manifest bundles all five skills together and wires up the SmartBear MCP server automatically.
 
 **1. Add the marketplace** (repo-scoped, shared with your team):
 
@@ -528,15 +536,15 @@ Get your API token from `https://yourorg.pactflow.io/settings/api-tokens`. For a
 $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/drift-testing
 $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/openapi-parser
 $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/pactflow
+$skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/pact-coverage
+$skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/oas-generator
 ```
 
 ### Project-level install (manual)
 
 ```bash
 mkdir -p .agents/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing .agents/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser .agents/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow .agents/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* .agents/skills/
 ```
 
 Commit `.agents/skills/` to share the skills with your team.
@@ -545,9 +553,7 @@ Commit `.agents/skills/` to share the skills with your team.
 
 ```bash
 mkdir -p ~/.agents/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing ~/.agents/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser ~/.agents/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow ~/.agents/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* ~/.agents/skills/
 ```
 
 ---
@@ -574,6 +580,8 @@ Set `PACT_BROKER_BASE_URL` and `PACT_BROKER_TOKEN` in your shell profile or Kiro
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/drift-testing`
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/openapi-parser`
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pactflow`
+  - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pact-coverage`
+  - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/oas-generator`
 
 Imported skills are copied to your skills directory and work immediately.
 
@@ -581,9 +589,7 @@ Imported skills are copied to your skills directory and work immediately.
 
 ```bash
 mkdir -p .kiro/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing .kiro/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser .kiro/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow .kiro/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* .kiro/skills/
 ```
 
 Commit `.kiro/skills/` to share the skills with your team.
@@ -592,9 +598,7 @@ Commit `.kiro/skills/` to share the skills with your team.
 
 ```bash
 mkdir -p ~/.kiro/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing ~/.kiro/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser ~/.kiro/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow ~/.kiro/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* ~/.kiro/skills/
 ```
 
 > When both locations contain a skill with the same name, the workspace skill takes priority.
@@ -609,9 +613,7 @@ Antigravity supports [Agent Skills](https://antigravity.google/docs/skills) load
 
 ```bash
 mkdir -p .agents/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing .agents/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser .agents/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow .agents/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* .agents/skills/
 ```
 
 Commit `.agents/skills/` to share the skills with your team.
@@ -620,9 +622,7 @@ Commit `.agents/skills/` to share the skills with your team.
 
 ```bash
 mkdir -p ~/.gemini/antigravity/skills
-cp -r plugins/swagger-contract-testing/skills/drift-testing ~/.gemini/antigravity/skills/drift-testing
-cp -r plugins/swagger-contract-testing/skills/openapi-parser ~/.gemini/antigravity/skills/openapi-parser
-cp -r plugins/swagger-contract-testing/skills/pactflow ~/.gemini/antigravity/skills/pactflow
+cp -r plugins/swagger-contract-testing/skills/* ~/.gemini/antigravity/skills/
 ```
 
 > Antigravity also supports `.agent/skills/` (singular) for backward compatibility.

@@ -542,7 +542,7 @@ contract-testing_create_webhook
         pact_url: "${pactbroker.pactUrl}"
 ```
 
-See the [webhook template library](/pact_broker/webhooks/template_library) for ready-made templates for GitHub Actions, CircleCI, GitLab CI, Jenkins, and Azure DevOps.
+See the [webhook template library](https://docs.pact.io/pact_broker/webhooks/template_library) for ready-made templates for GitHub Actions, CircleCI, GitLab CI, Jenkins, and Azure DevOps.
 
 ---
 
