@@ -13,3 +13,8 @@ dependencies = [
     "tree-sitter-swift",
     "tree-sitter-typescript>=0.23",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest~=9.0",
+]
