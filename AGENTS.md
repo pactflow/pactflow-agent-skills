@@ -17,11 +17,11 @@ This repository publishes agent skills, agent definitions, plugin manifests, and
 ## Dependencies
 
 - Python 3.12 or newer.
-- [`uv`](https://docs.astral.sh/uv/) for Python tools, tests, and generator dependencies. Generator dependencies are declared in `scripts/generate/pyproject.toml`.
+- [`uv`](https://docs.astral.sh/uv/) for the locked development, test, and generator environments.
 - [`git-cliff`](https://git-cliff.org/) for changelog validation and release generation (`brew install git-cliff` on macOS).
 - Node.js with `npx` only when reproducing the commitlint CI check locally.
 
-The repository is not an installable Python package. Ruff and mypy are invoked through `uvx`, so no persistent virtual environment setup is required for the standard checks.
+The repository is not an installable Python package. Run `uv sync --locked` and `uv sync --project scripts/generate --locked` after dependency changes.
 
 ## Working Conventions
 
@@ -40,24 +40,22 @@ Run these from the repository root before handing off a change:
 
 ```bash
 make check
-python3 scripts/validate-plugins.py
 git diff --check
 ```
 
-`make check` runs Ruff linting, Ruff formatting verification, strict mypy type checking, and an unreleased changelog preview. It requires `git-cliff`.
+`make check` runs Ruff linting, Ruff formatting verification, strict mypy type checking, unit tests, plugin/package validation, and an unreleased changelog preview. It requires `git-cliff`.
 
 For changes under `plugins/swagger-contract-testing/skills/pact-coverage/`, also run:
 
 ```bash
-cd plugins/swagger-contract-testing/skills/pact-coverage/scripts/tests
-uv run --with pytest --with pyyaml pytest -v
+uv run --locked pytest -v plugins/swagger-contract-testing/skills/pact-coverage/scripts/tests/
 ```
 
 For generated DSL changes, run the corresponding generator from the repository root and format every output it names. For example:
 
 ```bash
-uv run --project scripts/generate scripts/generate/dsl_python.py
-uvx mdformat plugins/swagger-contract-testing/skills/pactflow/references/dsl.python.md
+uv run --project scripts/generate --locked scripts/generate/dsl_python.py
+uv run --locked mdformat plugins/swagger-contract-testing/skills/pactflow/references/dsl.python.md
 ```
 
 Review the resulting generated diff before committing. Generator scripts may fetch upstream Pact SDK source and therefore require network access.

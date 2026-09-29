@@ -1,18 +1,25 @@
-.PHONY: lint format format-check typecheck changelog-check changelog check fix
+.PHONY: lint format format-check typecheck test validate changelog-check changelog check fix
 
 LINT_PATHS := scripts/ plugins/swagger-contract-testing/skills/
 
 lint:
-	uvx ruff check $(LINT_PATHS)
+	uv run --locked ruff check $(LINT_PATHS) tests/
 
 format:
-	uvx ruff format $(LINT_PATHS)
+	uv run --locked ruff format $(LINT_PATHS) tests/
 
 format-check:
-	uvx ruff format --check $(LINT_PATHS)
+	uv run --locked ruff format --check $(LINT_PATHS) tests/
 
 typecheck:
-	uvx --with mypy mypy $(LINT_PATHS)
+	uv run --locked mypy $(LINT_PATHS) tests/
+
+test:
+	uv run --locked pytest -q tests/ plugins/swagger-contract-testing/skills/pact-coverage/scripts/tests/
+	uv run --project scripts/generate --locked pytest -q scripts/generate/tests/
+
+validate:
+	uv run --locked python scripts/validate-plugins.py
 
 changelog-check:
 	git cliff --unreleased --strip all >/dev/null
@@ -21,8 +28,8 @@ changelog:
 	@test -n "$(VERSION)" || (echo "VERSION is required (for example: make changelog VERSION=1.3.0)" && exit 2)
 	git cliff --tag v$(VERSION) $(if $(DRY_RUN),--unreleased,--output CHANGELOG.md)
 
-check: lint format-check typecheck changelog-check
+check: lint format-check typecheck test validate changelog-check
 
 fix:
-	uvx ruff check --fix $(LINT_PATHS)
-	uvx ruff format $(LINT_PATHS)
+	uv run --locked ruff check --fix $(LINT_PATHS) tests/
+	uv run --locked ruff format $(LINT_PATHS) tests/
