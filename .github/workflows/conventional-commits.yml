@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Determine commit range
         id: range
@@ -43,8 +44,11 @@ jobs:
           echo "to=$to" >> "$GITHUB_OUTPUT"
 
       - name: Validate commits
+        env:
+          COMMITLINT_FROM: ${{ steps.range.outputs.from }}
+          COMMITLINT_TO: ${{ steps.range.outputs.to }}
         run: >-
           npx --yes @commitlint/cli@19.8.1
-          --from "${{ steps.range.outputs.from }}"
-          --to "${{ steps.range.outputs.to }}"
+          --from "$COMMITLINT_FROM"
+          --to "$COMMITLINT_TO"
           --verbose
