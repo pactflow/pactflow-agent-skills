@@ -38,10 +38,22 @@ ignore = [
     "ANN",  # test functions don't require full type annotations
 ]
 
+[tool.pyright]
+typeCheckingMode = "basic"
+extraPaths = [
+    "scripts/generate",
+    "plugins/swagger-contract-testing/skills/pact-coverage/scripts",
+]
+reportMissingImports = "none"
+reportMissingModuleSource = "none"
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
-mypy_path = ["scripts/generate"]  # lets mypy resolve `from _common import ...` in DSL scripts
+mypy_path = [
+    "scripts/generate",  # lets mypy resolve `from _common import ...` in DSL scripts
+    "plugins/swagger-contract-testing/skills/pact-coverage/scripts",
+]
 exclude = [
     ".*\\.venv.*",
     "\\.agents/.*",

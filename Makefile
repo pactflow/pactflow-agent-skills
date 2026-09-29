@@ -1,4 +1,4 @@
-.PHONY: lint format format-check typecheck test check fix
+.PHONY: lint format format-check typecheck changelog-check changelog test check fix
 
 LINT_PATHS := scripts/ plugins/swagger-contract-testing/skills/
 
@@ -17,7 +17,14 @@ typecheck:
 test:
 	uv run --with pytest --with pyyaml pytest -q plugins/swagger-contract-testing/skills/drift-testing/scripts/tests
 
-check: lint format-check typecheck test
+changelog-check:
+	git cliff --unreleased --strip all >/dev/null
+
+changelog:
+	@test -n "$(VERSION)" || (echo "VERSION is required (for example: make changelog VERSION=1.3.0)" && exit 2)
+	git cliff --tag v$(VERSION) $(if $(DRY_RUN),--unreleased,--output CHANGELOG.md)
+
+check: lint format-check typecheck changelog-check test
 
 fix:
 	uvx ruff check --fix $(LINT_PATHS)

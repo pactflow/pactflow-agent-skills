@@ -218,6 +218,7 @@ type V4InteractionWithRequest struct {}
 type V4RequestBuilderFunc func(*V4RequestBuilder)
 type V4RequestBuilder struct {}
 func (i *V4UnconfiguredInteraction) UponReceiving(description string) *V4UnconfiguredInteraction
+func (i *V4UnconfiguredInteraction) AddExternalReference(group, name, value string) *V4UnconfiguredInteraction
 func (i *V4UnconfiguredInteraction) WithCompleteRequest(request Request) *V4InteractionWithCompleteRequest
 type V4InteractionWithCompleteRequest struct {}
 func (i *V4InteractionWithCompleteRequest) WithCompleteResponse(response Response) *V4InteractionWithResponse
@@ -426,6 +427,7 @@ type SynchronousMessageBuilder struct {}
 func (m *UnconfiguredSynchronousMessageBuilder) Given(state string) *UnconfiguredSynchronousMessageBuilder
 func (m *UnconfiguredSynchronousMessageBuilder) GivenWithParameter(state models.ProviderState) *UnconfiguredSynchronousMessageBuilder
 type UnconfiguredSynchronousMessageBuilder struct {}
+func (m *UnconfiguredSynchronousMessageBuilder) AddExternalReference(group, name, value string) *UnconfiguredSynchronousMessageBuilder
 func (m *UnconfiguredSynchronousMessageBuilder) UsingPlugin(config PluginConfig) *SynchronousMessageWithPlugin
 func (m *SynchronousMessageWithPlugin) UsingPlugin(config PluginConfig) *SynchronousMessageWithPlugin
 func (m *UnconfiguredSynchronousMessageBuilder) WithRequest(r RequestBuilderFunc) *SynchronousMessageWithRequest
@@ -467,6 +469,7 @@ type AsynchronousMessageBuilder struct {
 }
 func (m *AsynchronousMessageBuilder) Given(state string) *AsynchronousMessageBuilder
 func (m *AsynchronousMessageBuilder) GivenWithParameter(state models.ProviderState) *AsynchronousMessageBuilder
+func (m *AsynchronousMessageBuilder) AddExternalReference(group, name, value string) *AsynchronousMessageBuilder
 func (m *AsynchronousMessageBuilder) ExpectsToReceive(description string) *UnconfiguredAsynchronousMessageBuilder
 type UnconfiguredAsynchronousMessageBuilder struct {}
 func (m *UnconfiguredAsynchronousMessageBuilder) UsingPlugin(config PluginConfig) *AsynchronousMessageWithPlugin
@@ -536,6 +539,7 @@ type VerifyRequest struct {
 	BrokerToken string
 	FailIfNoPactsFound bool
 	PublishVerificationResults bool
+	SoftFail bool
 	ProviderVersion string
 	StateHandlers models.StateHandlers
 	MessageHandlers message.Handlers

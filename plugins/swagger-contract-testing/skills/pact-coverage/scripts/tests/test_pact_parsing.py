@@ -3,6 +3,7 @@ import subprocess
 import sys
 import unittest.mock as mock
 import urllib.error
+from email.message import Message
 from pathlib import Path
 
 import pytest
@@ -270,7 +271,7 @@ class TestFetchPactsFromBroker:
             mock.patch("parse_pact_coverage.shutil.which", return_value=None),
             mock.patch(
                 "parse_pact_coverage.urllib.request.urlopen",
-                side_effect=urllib.error.HTTPError(None, 401, "Unauthorized", {}, None),
+                side_effect=urllib.error.HTTPError("https://broker", 401, "Unauthorized", Message(), None),
             ),
         ):
             result = fetch_pacts_from_broker("C", "https://broker", None, str(tmp_path))

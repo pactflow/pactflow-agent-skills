@@ -283,6 +283,7 @@ class TestBuildConsumerFilteredOas:
             consumer_routes=routes_json,
             ripwire="ripwire",
         )
+        assert filtered
         assert "openapi" in filtered
         assert "info" in filtered
         assert "paths" in filtered
