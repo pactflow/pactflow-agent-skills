@@ -24,7 +24,7 @@ The `swagger-contract-testing` skills work together: **OAS Generator** produces 
 
 `contract-testing-flywheel` is a different kind of plugin: instead of an always-on knowledge skill, it's a one-shot workflow you invoke by name (`/contract-testing-flywheel`) to scaffold a team's onboarding backlog. It has no dependency on the other plugin, but the backlog it generates points teams at `swagger-contract-testing`'s skills and agents for the actual test-authoring work. See the [Contract Testing Flywheel guide](docs/ai-tools/contract-testing-flywheel.md) for the full write-up.
 
-**Further reading:** [PactFlow Skill](docs/ai-tools/pactflow-skill.md) · [SmartBear MCP](docs/ai-tools/smartbear-mcp.md) · [Kiro Power](docs/ai-tools/kiro-power.md) · [Contract Testing Flywheel](docs/ai-tools/contract-testing-flywheel.md) · [Release process](docs/releasing.md)
+**Further reading:** [PactFlow Skill](docs/ai-tools/pactflow-skill.md) · [SmartBear MCP](docs/ai-tools/smartbear-mcp.md) · [Kiro Power](docs/ai-tools/kiro-power.md) · [Contract Testing Flywheel](docs/ai-tools/contract-testing-flywheel.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Release process](docs/releasing.md)
 
 ---
 
