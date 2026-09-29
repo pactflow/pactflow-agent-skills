@@ -30,6 +30,44 @@ metadata:
 
 ## Workflow
 
+### 0. Navigate large specifications without loading them wholesale
+
+For a specification over 1,000 lines or 100 KB, do not read or paste the whole
+file. Build a line-number index, then inspect only the operation and definitions
+that are reachable from it:
+
+```bash
+# Establish the document size and top-level section boundaries.
+wc -l -c asyncapi.yaml
+grep -nE '^(operations|channels|components):' asyncapi.yaml
+
+# List AsyncAPI operation IDs without reading their bodies.
+awk '/^operations:/{in_operations=1; next} in_operations && /^[^ ]/{exit} in_operations && /^  [A-Za-z0-9._-]+:$/ {print NR ":" $0}' asyncapi.yaml
+```
+
+For a requested operation, locate its line number, then use `sed -n` to read a
+bounded range ending at the next operation at the same indentation. Follow the
+same pattern for the referenced channel, message, and schema definitions. Never
+expand unrelated operations, channels, or every item under `components` merely
+to find a match.
+
+Keep a compact fact ledger while resolving references:
+
+| item | source line | refs still to resolve | resolved facts |
+| --- | --- | --- | --- |
+| operation | | | action, channel, messages, reply |
+| channel | | | address |
+| message | | | correlation ID, headers, payload ref |
+| schema | | | variants, required fields, discriminator |
+
+Process the `refs still to resolve` column as a queue, deduplicating repeated
+`$ref` values. Stop when every reachable reference is resolved to primitives or
+the schema patterns needed to generate the requested tests. For a request to
+cover the entire specification, first index operation IDs, then process one
+operation at a time and emit a separate fact ledger entry and test block for
+each. This keeps very long documents within context while preserving complete
+operation coverage.
+
 ### 1. Locate the operation
 
 Extract only what's needed:
@@ -60,7 +98,9 @@ From the message block (via `components.messages`):
 
 1. Grep for `MessageName:` in `components.messages` to find the definition
 2. If the payload itself contains refs, follow those into `components.schemas`
-3. Stop at primitive types (`string`, `integer`, `boolean`, `array`, `object`, `const`)
+3. Track visited refs. When a schema recursively refers to an active ancestor, preserve the `$ref` back-edge and stop expanding that branch.
+4. For external refs such as `./messages.yaml#/Order`, open the referenced file and continue from its JSON Pointer. Report unresolved files or pointers as gaps; never treat them as empty schemas.
+5. Stop at primitive types (`string`, `integer`, `boolean`, `array`, `object`, `const`)
 
 `allOf: [$ref: Base, properties: {...}]` is composition — merge all schemas into one full payload. See `references/asyncapi-schema-patterns.md` for all patterns.
 
@@ -99,7 +139,8 @@ For each variant produce a Drift operation block. See `references/asyncapi-drift
 - Name multi-variant operations as `{operationId}_{variant}` — e.g. `ReceiveInventoryAdjusted_commandType`, `ReceiveInventoryAdjusted_minimal`
 - Always include `correlation-id` in `parameters` — it is required for message matching
 - Always set `timeout-ms` (default 5000ms; increase for slow services)
-- For `async-observe` and `async-request-reply`: include a `trigger` hook — Drift cannot make your service publish
+- For `async-observe`: include a `trigger` hook — Drift cannot make your service publish
+- For `async-request-reply`: do not include a trigger — Drift publishes the request and captures the reply
 - For `async-inject`: include a `probe` hook to verify side effects, OR use `probe-topic` for race-condition-free capture
 - `expected.headers` + `expected.payload` for message capture modes; `expected` matches probe stdout JSON for `async-inject` mode
 - Omitting an `expected.payload` field lets Drift validate it against the AsyncAPI message schema automatically; add explicit field assertions only when asserting specific variant values (e.g. the discriminator property came back correctly)

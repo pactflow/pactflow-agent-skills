@@ -1,4 +1,4 @@
-.PHONY: lint format format-check typecheck check fix
+.PHONY: lint format format-check typecheck test check fix
 
 LINT_PATHS := scripts/ plugins/swagger-contract-testing/skills/
 
@@ -14,7 +14,10 @@ format-check:
 typecheck:
 	uvx --with mypy mypy $(LINT_PATHS)
 
-check: lint format-check typecheck
+test:
+	uv run --with pytest --with pyyaml pytest -q plugins/swagger-contract-testing/skills/drift-testing/scripts/tests
+
+check: lint format-check typecheck test
 
 fix:
 	uvx ruff check --fix $(LINT_PATHS)

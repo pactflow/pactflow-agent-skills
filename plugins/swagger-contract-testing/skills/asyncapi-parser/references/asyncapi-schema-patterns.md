@@ -153,6 +153,20 @@ grep -n "^  StandardShipment:" asyncapi.yaml
 grep -n "BaseShipment:\|ShipmentAddress:" asyncapi.yaml
 ```
 
+Track visited references while following a chain. Recursive schemas are valid: if a ref points to a schema
+already active in the current chain, retain that `$ref` as a back-edge and stop expanding that branch.
+
+External refs such as `./messages.yaml#/components/messages/Order` must be resolved relative to the file
+that contains the ref. If the file or JSON Pointer cannot be resolved, report the unresolved ref as a gap;
+do not replace it with an empty schema.
+
+## Nullable payload fields
+
+AsyncAPI 3.x schemas may express nullability with JSON Schema types such as `type: [string, "null"]` or
+with a union branch whose type is `"null"`. Generate a null variant only when null changes application
+behaviour or selects a distinct schema branch. Otherwise, cover the field through the normal required-only
+and with-optionals cases rather than multiplying every nullable field into another permutation.
+
 After resolving, treat the merged schema as a flat set of properties for variant enumeration.
 
 ---

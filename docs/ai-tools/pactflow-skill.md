@@ -2,10 +2,13 @@
 
 The **PactFlow skill** turns your AI coding assistant into a Pact and PactFlow contract testing expert. It provides deep knowledge of consumer test patterns, provider verification configuration, can-i-deploy diagnostics, and full workspace management — surfaced directly in your editor without leaving your flow.
 
-It ships as part of the [`swagger-contract-testing`](https://github.com/pactflow/pactflow-agent-skills) plugin alongside two companion skills:
+It ships as part of the [`swagger-contract-testing`](https://github.com/pactflow/pactflow-agent-skills) plugin alongside five companion skills:
 
 - **Drift** ☁ (Spec-based API conformance testing tool, PactFlow Cloud only — [docs](https://pactflow.github.io/drift-docs/))
-- **OpenAPI Parser** (spec analysis).
+- **OpenAPI Parser** (complex OpenAPI schema analysis and Drift test generation)
+- **AsyncAPI Parser** (AsyncAPI 3.x message analysis and Drift test generation)
+- **Pact Coverage** (consumer-focused Pact coverage analysis)
+- **OAS Generator** (OpenAPI generation from provider source code)
 
 :::tip Works with open-source Pact Broker and PactFlow Cloud
 The skill and MCP server work with both the open-source Pact Broker and PactFlow Cloud. Features marked ☁ require a PactFlow Cloud account. All other capabilities work with Pact and any Pact Broker.
@@ -41,7 +44,7 @@ There are three levels of capability depending on what is installed alongside th
 **Full plugin (skill + MCP server)** — the [SmartBear MCP server](./smartbear-mcp.md) exposes `contract-testing_*` tools that go beyond what the CLI supports: direct matrix queries and structured access to every broker resource. On PactFlow Cloud ☁, it also enables AI-assisted test generation and review using your live provider states, BDCT cross-contract verification results, and team metrics. This is the recommended setup for the richest experience.
 
 :::note Pact Plugin Framework
-The word "plugin" in this context refers to an AI coding assistant plugin — a bundle of skills and agents for your IDE. It is unrelated to the [Pact Plugin Framework](/plugins/quick_start), which extends Pact with new transports and protocols (gRPC, Protobuf, etc.).
+The word "plugin" in this context refers to an AI coding assistant plugin — a bundle of skills and agents for your IDE. It is unrelated to the [Pact Plugin Framework](https://docs.pact.io/plugins/quick_start), which extends Pact with new transports and protocols (gRPC, Protobuf, etc.).
 :::
 
 ---
@@ -74,7 +77,7 @@ If you have the `pact-broker` CLI installed and broker credentials set in your e
 
 ### Install the CLI
 
-See the [Pact CLI installation guide](/implementation_guides/cli/pact-broker-cli) for install options, or ask the skill to install it for you:
+See the [Pact CLI installation guide](https://docs.pact.io/implementation_guides/cli/pact-broker-cli) for install options, or ask the skill to install it for you:
 
 ```
 Install the pact-broker CLI
@@ -282,7 +285,7 @@ My provider verification is failing with 'unexpected body'. Walk me through fixi
 
 ### CI/CD pipeline setup
 
-The skill covers the full [Pact Nirvana](/pact_nirvana) journey — Bronze through Diamond — and can scaffold the exact CI steps for your platform (GitHub Actions, GitLab CI, CircleCI, Jenkins).
+The skill covers the full [Pact Nirvana](https://docs.pact.io/pact_nirvana) journey — Bronze through Diamond — and can scaffold the exact CI steps for your platform (GitHub Actions, GitLab CI, CircleCI, Jenkins).
 
 It will configure:
 
@@ -430,7 +433,7 @@ Record the deployment of FrontendApp version abc123 to production
 
 ## Subagents
 
-The plugin ships with three specialist subagents that the PactFlow skill can delegate to automatically. Each runs as an independent agent with its own set of tools, so it can read your codebase, write files, and call MCP tools without interrupting the main conversation.
+The plugin ships with six specialist subagents that the PactFlow skill can delegate to automatically. Each runs as an independent agent with its own set of tools, so it can read your codebase, write files, and call MCP tools without interrupting the main conversation.
 
 You don't invoke them by name — the skill detects when a task is better handled by a subagent and dispatches it. You can also trigger them explicitly with a natural language prompt.
 
@@ -577,7 +580,7 @@ The agent scans the consumer codebase with ripwire to discover which provider ro
 
 **When to invoke:** when the user asks "what's not covered by my pacts?", "which endpoints are missing pact tests?", "how complete is my pact coverage?", or "which required fields aren't tested?".
 
-**Prerequisites:** the ripwire MCP server must be connected (`claude mcp add ripwire -- ripwire --mcp`). See [`references/install-ripwire.md`](../plugins/swagger-contract-testing/skills/pact-coverage/references/install-ripwire.md) for setup.
+**Prerequisites:** the ripwire MCP server must be connected (`claude mcp add ripwire -- ripwire --mcp`). See [`references/install-ripwire.md`](../../plugins/swagger-contract-testing/skills/pact-coverage/references/install-ripwire.md) for setup.
 
 **Supports:** Pact v2, v3, and v4 JSON files.
 
@@ -656,9 +659,9 @@ Publish and verify contracts for our checkout flow
 
 ---
 
-## Companion skills
+## Workflow companion skills
 
-The `swagger-contract-testing` plugin ships two additional skills that complement the PactFlow skill. They are separate skills (not subagents of the PactFlow skill), invoked by their own triggers.
+Two of the plugin's companion skills orchestrate broader codebase workflows. They are separate skills (not subagents of the PactFlow skill), invoked by their own triggers.
 
 ### pact-coverage
 

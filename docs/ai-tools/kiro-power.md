@@ -88,11 +88,12 @@ Once activated, the Power detects the type of work you are doing and loads the a
 
 Install these Kiro skills alongside the Power for deeper reference material. The Power handles live broker operations and routing; these skills add detailed language-specific examples, CLI references, and schema documentation that the Power draws on when generating or explaining code.
 
-| Skill              | What it adds                                                                                                          | Install from GitHub                                                                                                  |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **pactflow**       | Full Pact/PactFlow reference — consumer test patterns, provider verification, CI/CD, BDCT, DSL guides for 8 languages | `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pactflow`       |
-| **drift-testing**  | Full Drift CLI reference — test case YAML schema, Lua API, authentication, mock server, CI/CD publishing              | `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/drift-testing`  |
-| **openapi-parser** | Complex OpenAPI schema patterns (anyOf/oneOf/allOf/discriminator/$ref) and Drift YAML mapping                         | `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/openapi-parser` |
+| Skill               | What it adds                                                                                                          | Install from GitHub                                                                                                   |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **pactflow**        | Full Pact/PactFlow reference — consumer test patterns, provider verification, CI/CD, BDCT, DSL guides for 8 languages | `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pactflow`        |
+| **drift-testing**   | Full Drift CLI reference — OpenAPI and AsyncAPI test cases, Lua API, authentication, coverage, and CI/CD publishing   | `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/drift-testing`   |
+| **asyncapi-parser** | Complex AsyncAPI 3.x message schemas, operation modes, payload variants, and Drift YAML mapping                       | `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/asyncapi-parser` |
+| **openapi-parser**  | Complex OpenAPI schema patterns (anyOf/oneOf/allOf/discriminator/$ref) and Drift YAML mapping                         | `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/openapi-parser`  |
 
 To install each skill: open **Agent Steering & Skills** → **+** → **Import a skill** → **GitHub** → paste the URL.
 

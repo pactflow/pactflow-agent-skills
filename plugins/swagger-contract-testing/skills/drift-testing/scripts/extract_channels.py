@@ -15,6 +15,7 @@ channel address, and message types. Flags messages with no payload example.
 In scaffold mode (--scaffold), emits a ready-to-fill Drift `operations:` block with one
 stub per operation+message — pre-wired with the correct execution mode, correlation-id
 parameter, trigger/probe stubs, and FILL_IN markers for payload fields.
+Use --fragments when appending missing stubs inside an existing `operations:` mapping.
 
 Supports AsyncAPI 3.x only (asyncapi: 3.0 or 3.1). Exits 2 if an AsyncAPI 2.x spec is
 detected.
@@ -39,6 +40,8 @@ import json
 import sys
 from typing import Any
 
+from asyncapi_targets import load_asyncapi_targets
+
 try:
     import yaml
 except ImportError:
@@ -50,8 +53,10 @@ except ImportError:
 
 
 def _resolve_ref(ref: str, root: dict[str, Any]) -> dict[str, Any]:
-    if not isinstance(ref, str) or not ref.startswith("#/"):
+    if not isinstance(ref, str):
         return {}
+    if not ref.startswith("#/"):
+        raise ValueError(f"External $ref is not supported by extract_channels.py: {ref}")
     node: Any = root
     for part in ref[2:].split("/"):
         part = part.replace("~1", "/").replace("~0", "~")
@@ -61,14 +66,17 @@ def _resolve_ref(ref: str, root: dict[str, Any]) -> dict[str, Any]:
     return node if isinstance(node, dict) else {}
 
 
-def resolve(obj: Any, root: dict[str, Any]) -> Any:
+def resolve(obj: Any, root: dict[str, Any], active_refs: frozenset[str] = frozenset()) -> Any:
     """Recursively resolve $refs in obj (local refs only)."""
     if isinstance(obj, dict):
         if "$ref" in obj:
-            return resolve(_resolve_ref(obj["$ref"], root), root)
-        return {k: resolve(v, root) for k, v in obj.items()}
+            ref = obj["$ref"]
+            if ref in active_refs:
+                return {"$ref": ref}
+            return resolve(_resolve_ref(ref, root), root, active_refs | {ref})
+        return {k: resolve(v, root, active_refs) for k, v in obj.items()}
     if isinstance(obj, list):
-        return [resolve(i, root) for i in obj]
+        return [resolve(i, root, active_refs) for i in obj]
     return obj
 
 
@@ -150,6 +158,8 @@ def load_operations(spec_path: str) -> tuple[list[dict[str, Any]], dict[str, Any
         if not isinstance(op_body, dict):
             continue
         action = op_body.get("action", "")
+        if action not in {"send", "receive"}:
+            raise ValueError(f"Operation {op_id!r} has invalid action {action!r}; expected 'send' or 'receive'")
         channel_ref = op_body.get("channel", {}).get("$ref", "")
         channel_addr = _channel_address(channel_ref, raw)
         has_reply_block = _has_reply(op_body)
@@ -322,16 +332,25 @@ def scaffold_request_reply(
 def scaffold_all(
     ops: list[dict[str, Any]],
     source: str,
-    only_missing_ops: set[str] | None = None,
+    existing_targets: set[tuple[str, str | None]] | None = None,
+    *,
+    include_root: bool = True,
 ) -> str:
-    out = ["operations:"]
+    out = ["operations:"] if include_root else []
     for op in ops:
         mode = _execution_mode(op)
         total_msgs = len(op["messages"])
-        if only_missing_ops and op["operationId"] in only_missing_ops:
+        if existing_targets and (op["operationId"], None) in existing_targets:
+            continue
+        pending_messages = [
+            message
+            for message in op["messages"]
+            if not existing_targets or (op["operationId"], message["local_id"]) not in existing_targets
+        ]
+        if not pending_messages:
             continue
         out.append(f"\n  # ── {op['action'].upper()} {op['operationId']} [{mode}] channel: {op['channel_address']}")
-        for idx, msg in enumerate(op["messages"], start=1):
+        for idx, msg in enumerate(pending_messages, start=1):
             name = _op_name(op["operationId"], msg["local_id"], total_msgs, mode)
             out.append("")
             if mode == "async-observe":
@@ -346,25 +365,9 @@ def scaffold_all(
 # ─── Load existing test coverage (for --only-missing) ─────────────────────────
 
 
-def load_existing_op_ids(test_file: str) -> set[str]:
-    """Return set of operationIds already covered in a Drift test file."""
-    try:
-        with open(test_file) as f:
-            data = yaml.safe_load(f)
-    except (OSError, yaml.YAMLError) as e:
-        print(f"WARNING: Could not read {test_file}: {e}", file=sys.stderr)
-        return set()
-
-    covered: set[str] = set()
-    for _name, op in (data or {}).get("operations", {}).items():
-        if not isinstance(op, dict):
-            continue
-        target = op.get("target", "")
-        parts = target.split(":")
-        # target format: source:operationId or source:operationId:messageId
-        if len(parts) >= 2:
-            covered.add(parts[1])
-    return covered
+def load_existing_targets(test_file: str) -> set[tuple[str, str | None]]:
+    """Return operation/message targets already covered in a Drift test file."""
+    return load_asyncapi_targets([test_file], warn=True)
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
@@ -380,7 +383,14 @@ def main() -> None:
     parser.add_argument("--scaffold", action="store_true", help="Emit Drift test stubs instead of summary")
     parser.add_argument("--source", default="async-svc", help="Drift source name for targets (default: async-svc)")
     parser.add_argument(
-        "--only-missing", metavar="DRIFT_YAML", help="Only scaffold operations not already in this test file"
+        "--only-missing",
+        metavar="DRIFT_YAML",
+        help="Only scaffold operation/message targets not already in this test file",
+    )
+    parser.add_argument(
+        "--fragments",
+        action="store_true",
+        help="Omit the root 'operations:' key so output can be appended inside an existing operations mapping",
     )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     args = parser.parse_args()
@@ -424,10 +434,10 @@ def main() -> None:
 
     # Scaffold mode
     if args.scaffold:
-        existing: set[str] | None = None
+        existing: set[tuple[str, str | None]] | None = None
         if args.only_missing:
-            existing = load_existing_op_ids(args.only_missing)
-        print(scaffold_all(ops, args.source, existing))
+            existing = load_existing_targets(args.only_missing)
+        print(scaffold_all(ops, args.source, existing, include_root=not args.fragments))
         return
 
     # Summary mode

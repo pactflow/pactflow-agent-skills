@@ -42,8 +42,9 @@ Never modify the openapi spec that you are testing.
   `ignore.schema` for 4xx, and `FILL_IN` markers. Use `--only-missing <drift.yaml>` to generate
   only the gaps not yet covered by an existing test file. Requires `pyyaml`.
 - `scripts/extract_channels.py` — AsyncAPI equivalent of `extract_endpoints.py`. Reads an AsyncAPI 3.x spec and outputs all operations with their action type (send/receive), execution mode (async-observe / async-inject / async-request-reply), and channel address. Scaffold mode (`--scaffold`) emits ready-to-fill Drift `operations:` YAML stubs with the correct trigger/probe structure per mode. Use `--only-missing <drift.yaml>` to scaffold only operations not yet covered. Requires `pyyaml`. AsyncAPI 3.x only.
-- `scripts/check_coverage.py` — Coverage checker: diffs an OpenAPI spec against Drift test files
-  and reports which operations and response codes are missing tests. Requires `pyyaml`.
+- `scripts/check_coverage.py` — Coverage checker: diffs an OpenAPI or AsyncAPI spec against Drift test files.
+  OpenAPI coverage tracks operations and response codes; AsyncAPI coverage tracks each operation/message target.
+  Requires `pyyaml`.
 - `scripts/run_loop.sh` / `scripts/run_loop.ps1` — Feedback loop runner: retries `drift verify --failed` until all tests
   pass, then runs `check_coverage.py`. Both gates must pass for exit 0. Dependencies are installed automatically via uv.
   Use the `.ps1` version on Windows.
@@ -404,13 +405,15 @@ AsyncAPI Coverage Loop Progress:
 
 ### Step 0 — Check current AsyncAPI coverage
 
-`check_coverage.py` auto-detects AsyncAPI specs and switches to operation-level coverage (no status codes):
+`check_coverage.py` auto-detects AsyncAPI specs and switches to operation/message-level coverage (no status codes).
+An unqualified `<source>:<operationId>` target covers the whole operation for compatibility; use
+`<source>:<operationId>:<messageId>` for precise multi-message coverage.
 
 ```bash
 uv run path/to/scripts/check_coverage.py \
   --spec service.asyncapi.yaml \
   --test-files "tests/*.yaml"
-# Exit 0 = all operations have at least one test; 1 = gaps remain
+# Exit 0 = all operation/message targets have at least one test; 1 = gaps remain
 ```
 
 ### Step 1 — Parse the spec
@@ -427,15 +430,18 @@ uv run scripts/extract_channels.py --spec service.asyncapi.yaml \
 
 # Scaffold only gaps in an existing test file
 uv run scripts/extract_channels.py --spec service.asyncapi.yaml \
-  --scaffold --only-missing drift/tests.yaml >> drift/tests.yaml
+  --scaffold --only-missing drift/tests.yaml --fragments >> drift/tests.yaml
 ```
+
+`--fragments` omits the root `operations:` key so appending does not create a duplicate YAML mapping.
+Without it, scaffold output is a complete standalone `operations:` block intended for redirection to a new file.
 
 ### Step 2 — Assemble the test file
 
 Wire scaffold stubs with the correct plugins/sources header. Each operation requires:
 - `correlation-id` in `parameters` — Drift uses this to match the right message
 - `timeout-ms` — how long to wait for the message (default: 5000ms)
-- A `trigger` hook (async-observe, async-request-reply) or `payload` (async-inject/inject-capture)
+- A `trigger` hook for `async-observe`, or `payload` for `async-inject`, `async-inject-capture`, and `async-request-reply`
 - A `probe` hook (async-inject) or `probe-topic` (async-inject-capture) for receive operations
 
 For trigger hooks: the trigger command MUST propagate `${parameters.correlation-id}` into the published message's header. A mismatched correlation ID causes a capture timeout.

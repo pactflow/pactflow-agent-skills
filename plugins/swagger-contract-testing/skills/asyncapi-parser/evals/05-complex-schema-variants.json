@@ -1,0 +1,15 @@
+{
+  "skills": ["asyncapi-parser"],
+  "query": "Generate complete Drift tests for `receiveBillingCommand` in `evals/fixtures/platform.asyncapi.yaml`, including every structurally distinct payload variant.",
+  "files": ["evals/fixtures/platform.asyncapi.yaml"],
+  "expected_behavior": [
+    "Triggers the asyncapi-parser skill to handle spec analysis",
+    "Follows the message payload ref through BillingCommandPayload to both oneOf branches",
+    "Resolves each branch's allOf composition with CommandBase",
+    "Uses the discriminator mapping to identify billing.charge-card and billing.issue-credit as two variants",
+    "Generates exactly two async-inject Drift operations targeting receiveBillingCommand and the billing message",
+    "Includes commandType, accountId, and each branch's required fields in the appropriate payload",
+    "Does not multiply the nullable optional note field into unrelated permutations",
+    "Includes a probe and correlation-id for each generated operation"
+  ]
+}

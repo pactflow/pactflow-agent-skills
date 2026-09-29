@@ -113,6 +113,6 @@ The backlog's Implementation and Testing tickets point teams at:
 - [`/swagger-contract-testing`](../../plugins/swagger-contract-testing) — end-to-end help authoring and running contract tests (CDCT and BDCT).
 - `swagger-contract-testing:pact-generator` / `:pact-reviewer` agents — author and review Pact tests.
 - `swagger-contract-testing:pactflow` skill — publish contracts, run can-i-deploy, inspect the matrix.
-- `swagger-contract-testing:drift-testing` / `:openapi-parser` skills — BDCT-only; write and debug Drift test cases, and generate them from complex OpenAPI schemas.
+- `swagger-contract-testing:drift-testing` / `:openapi-parser` / `:asyncapi-parser` skills — BDCT-only; write and debug Drift test cases, and generate them from complex OpenAPI or AsyncAPI schemas.
 
 For the full technical reference (exact placeholders, per-tool adapter mechanics, template layout), see the plugin's own [README](../../plugins/contract-testing-flywheel/README.md) and [SKILL.md](../../plugins/contract-testing-flywheel/skills/contract-testing-flywheel/SKILL.md).
