@@ -145,13 +145,13 @@ class PactDslRequestWithoutPath@JvmOverloads constructor(
     *
     * @param headers Key-value pairs
     */
-    fun headers(headers: Map<String, Stri): PactDslRequestWithoutPath
+    fun headers(headers: Map<String, String>): PactDslRequestWithoutPath
     /**
     * Headers to be included in the request
     *
     * @param firstHeaderName      The name of the first header
     * @param firstHeaderValue     The value of the first header
-    * @param headerNameValuePairs As Additional headers in name-value pairs.
+    * @param headerNameValuePairs Additional headers in name-value pairs.
     */
     fun headers(
     firstHeaderName: String,
@@ -1484,6 +1484,18 @@ class PactDslJsonBody : DslPart {
     */
     fun or(name: String, value: Any?, vararg rules: MatchingRule): PactDslJsonBody
     /**
+    * Applies a matching rule provided by a plugin to an attribute, and its generator if the matcher
+    * was built with one.
+    *
+    * The rule name is resolved against the plugin catalogue when the rule is applied, so the plugin
+    * providing it has to be loaded (`usingPlugin`) for the test to work. See proposal 006,
+    * Field-level matchers and generators.
+    *
+    * @param name Attribute name
+    * @param matcher The plugin-provided rule and its example value
+    */
+    fun pluginValue(name: String, matcher: PluginRuleMatcher): PactDslJsonBody
+    /**
     * Matches a URL that is composed of a base path and a sequence of path expressions
     * @param name Attribute name
     * @param basePath The base path for the URL (like "http://localhost:8080/") which will be excluded from the matching
@@ -2557,23 +2569,6 @@ class PactVerificationContext@JvmOverloads constructor(
   val pact: Pact,
   var testExecutionResult: MutableList<VerificationResult.Failed> = mutableListOf(),
   val additionalTargets: MutableList<TestTarget> = mutableListOf()
-) {
-    /**
-    * Called to verify the interaction from the test template method.
-    *
-    * @throws AssertionError Throws an assertion error if the verification fails.
-    */
-    fun verifyInteraction()
-    fun withStateChangeHandlers(vararg stateClasses: Any): PactVerificationContext
-    fun addStateChangeHandlers(vararg stateClasses: Any)
-    /**
-    * Adds additional targets to the context for the test.
-    */
-    fun addAdditionalTarget(target: TestTarget)
-    fun currentTarget(): TestTarget?
-}
-```
-dditionalTargets: MutableList<TestTarget> = mutableListOf()
 ) {
     /**
     * Called to verify the interaction from the test template method.

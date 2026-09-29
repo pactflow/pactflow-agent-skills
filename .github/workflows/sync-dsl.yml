@@ -50,7 +50,7 @@ jobs:
           - sdk: javascript
             repo: pact-js
             script: scripts/generate/dsl_js.py
-            outputs: >-
+            outputs: |-
               plugins/swagger-contract-testing/skills/pactflow/references/dsl.typescript.md
               plugins/swagger-contract-testing/skills/pactflow/references/dsl.javascript.md
             ref_input: js_ref
@@ -72,7 +72,7 @@ jobs:
           - sdk: jvm
             repo: pact-jvm
             script: scripts/generate/dsl_jvm.py
-            outputs: >-
+            outputs: |-
               plugins/swagger-contract-testing/skills/pactflow/references/dsl.kotlin.md
               plugins/swagger-contract-testing/skills/pactflow/references/dsl.java.md
             ref_input: jvm_ref
@@ -93,16 +93,18 @@ jobs:
           uv run --project scripts/generate ${{ matrix.script }} ${REF:+--ref "$REF"}
 
       - name: Format generated markdown
+        env:
+          OUTPUTS: ${{ matrix.outputs }}
         run: |
-          for f in ${{ matrix.outputs }}; do
+          while IFS= read -r f; do
             uvx mdformat "$f"
-          done
+          done <<< "$OUTPUTS"
 
       - name: Upload generated files
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: dsl-${{ matrix.sdk }}
-          path: plugins/swagger-contract-testing/skills/pactflow/references/
+          path: ${{ matrix.outputs }}
 
   pull-request:
     name: Open PR for updated DSLs
