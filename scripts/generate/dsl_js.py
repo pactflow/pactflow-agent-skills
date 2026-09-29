@@ -17,13 +17,11 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import tree_sitter_typescript as tsts
-from _common import REFERENCES_DIR
+from _common import REFERENCES_DIR, temporary_clone, validate_generated_document
 from tree_sitter import Language, Node, Parser
 
 REPO_URL = "https://github.com/pact-foundation/pact-js.git"
@@ -32,22 +30,6 @@ DEST_JS = REFERENCES_DIR / "dsl.javascript.md"
 
 _LANGUAGE = Language(tsts.language_typescript())
 _DEPRECATED_RE = re.compile(r"@deprecated", re.IGNORECASE)
-
-
-# ---------------------------------------------------------------------------
-# Clone helpers
-# ---------------------------------------------------------------------------
-
-
-def _clone(ref: str) -> Path:
-    """Shallow-clone pact-js at *ref* into a temp directory."""
-    tmp = Path(tempfile.mkdtemp(prefix="pact-js-"))
-    print(f"Cloning {REPO_URL} @ {ref} → {tmp} ...")  # noqa: T201
-    subprocess.run(
-        ["git", "clone", "--depth=1", "--branch", ref, REPO_URL, str(tmp)],
-        check=True,
-    )
-    return tmp
 
 
 # ---------------------------------------------------------------------------
@@ -878,18 +860,14 @@ def main() -> int:
 
     if args.local_repo:
         repo = Path(args.local_repo)
-        cleanup_repo = False
-    else:
-        repo = _clone(args.ref)
-        cleanup_repo = True
-    try:
         content_ts = build_doc(repo, ts=True)
         content_js = build_doc(repo, ts=False)
-    finally:
-        if cleanup_repo:
-            import shutil
-
-            shutil.rmtree(repo, ignore_errors=True)
+    else:
+        with temporary_clone(REPO_URL, args.ref, "pact-js") as repo:
+            content_ts = build_doc(repo, ts=True)
+            content_js = build_doc(repo, ts=False)
+    validate_generated_document(content_ts)
+    validate_generated_document(content_js)
 
     if args.check:
         up_to_date = True

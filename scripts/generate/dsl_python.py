@@ -17,10 +17,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import shutil
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -28,7 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 import tree_sitter_python as tspython
-from _common import REFERENCES_DIR
+from _common import REFERENCES_DIR, temporary_clone, validate_generated_document
 from tree_sitter import Language, Node, Parser
 
 REPO_URL = "https://github.com/pact-foundation/pact-python.git"
@@ -37,22 +34,6 @@ DEST_PATH = REFERENCES_DIR / "dsl.python.md"
 _LANGUAGE = Language(tspython.language())
 _BUILTIN_PREFIX = re.compile(r"\bbuiltins\.")
 _SKIP_NODE_TYPES = {"newline", "indent", "dedent", "comment", "pass_statement"}
-
-
-# ---------------------------------------------------------------------------
-# Clone helpers
-# ---------------------------------------------------------------------------
-
-
-def _clone(ref: str) -> Path:
-    """Shallow-clone pact-python at *ref* into a temp directory."""
-    tmp = Path(tempfile.mkdtemp(prefix="pact-python-"))
-    print(f"Cloning {REPO_URL} @ {ref} → {tmp} ...")  # noqa: T201
-    subprocess.run(
-        ["git", "clone", "--depth=1", "--branch", ref, REPO_URL, str(tmp)],
-        check=True,
-    )
-    return tmp
 
 
 # ---------------------------------------------------------------------------
@@ -672,11 +653,9 @@ def main() -> int:
     args = parser.parse_args()
     out_path = Path(args.output)
 
-    repo = _clone(args.ref)
-    try:
+    with temporary_clone(REPO_URL, args.ref, "pact-python") as repo:
         content = build_doc(repo)
-    finally:
-        shutil.rmtree(repo, ignore_errors=True)
+    validate_generated_document(content)
 
     if args.check:
         if out_path.exists() and out_path.read_text(encoding="utf-8") == content:
