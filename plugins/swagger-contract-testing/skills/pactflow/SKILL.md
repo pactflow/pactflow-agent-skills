@@ -9,8 +9,8 @@ description: >
   user wants to generate or review Pact tests using AI, check deployment safety, investigate
   why a consumer-provider verification failed, or integrate contract testing into CI/CD.
   Trigger even if the user doesn't say "PactFlow" explicitly — phrases like "safe to deploy?",
-  "check compatibility between services", "consumer test", "OpenAPI contract", or "service
-  compatibility matrix" are strong signals.
+      "check compatibility between services", "consumer test", "OpenAPI contract", "AsyncAPI
+      contract", or "service compatibility matrix" are strong signals.
 compatibility:
   tools:
     - contract-testing_generate_pact_tests
@@ -112,7 +112,8 @@ You are an expert assistant for **PactFlow** and open-source **Pact** contract t
 ### PactFlow & MCP Tools
 
 - `references/workflow.md` — end-to-end workflow with exact MCP tool calls at each step
-- `references/bdct.md` — Bi-Directional Contract Testing (BDCT) patterns and tools
+- `references/bdct.md` — Bi-Directional Contract Testing (BDCT) workflow, patterns, and tools
+- `references/asyncapi.md` — AsyncAPI provider contracts: supported versions, Pact message mapping, validation, and troubleshooting
 - `references/tools.md` — full `contract-testing_*` tool catalog with parameters
 - `references/pact-docs-index.md` — complete index of all docs.pact.io documentation with URLs
 
@@ -143,7 +144,7 @@ If the `contract-testing_*` tools are not available, the user needs to install a
 
 **Environments** — named deployment targets (e.g. `staging`, `production`) with UUIDs. Record deployments against them so can-i-deploy reflects real state.
 
-**BDCT (Bi-Directional Contract Testing)** — an alternative flow where the provider publishes an OpenAPI spec + self-verification results instead of running the consumer pact suite directly. PactFlow performs cross-contract verification automatically. See `references/bdct.md`.
+**BDCT (Bi-Directional Contract Testing)** — an alternative flow where the provider publishes an OpenAPI or AsyncAPI definition plus self-verification results instead of running the consumer pact suite directly. PactFlow performs cross-contract verification automatically. See `references/bdct.md`; for event-driven APIs, also read `references/asyncapi.md`.
 
 ---
 

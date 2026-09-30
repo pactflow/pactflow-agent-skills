@@ -396,7 +396,7 @@ Language-agnostic CLI tools available for all Pact implementations:
 | `pact-broker record-deployment`      | Record deployment to environment                            |
 | `pact-broker record-release`         | Record a release (mobile/libraries)                         |
 | `pact-broker create-environment`     | Set up environments                                         |
-| `pactflow publish-provider-contract` | Publish OpenAPI spec for BDCT                               |
+| `pactflow publish-provider-contract` | Publish an OpenAPI or AsyncAPI provider contract for BDCT   |
 | `pact-stub-server`                   | Serve pact files as HTTP stubs                              |
 | `pact-verifier`                      | Verify pacts against a running provider (language-agnostic) |
 
