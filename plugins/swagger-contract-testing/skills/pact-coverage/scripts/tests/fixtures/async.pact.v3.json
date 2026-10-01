@@ -1,0 +1,21 @@
+{
+  "consumer": {"name": "OrderConsumer"},
+  "provider": {"name": "OrderService"},
+  "messages": [
+    {
+      "description": "an order created event",
+      "contents": {"orderId": "1", "status": "CREATED"},
+      "metadata": {"topic": "orders.created", "correlationId": "abc"}
+    },
+    {
+      "description": "OrderShipped",
+      "contents": {"orderId": "1", "status": "SHIPPED"},
+      "metadata": {"kafka_topic": "orders.events"}
+    },
+    {
+      "description": "mystery",
+      "contents": {"foo": 1}
+    }
+  ],
+  "metadata": {"pactSpecification": {"version": "3.0.0"}}
+}

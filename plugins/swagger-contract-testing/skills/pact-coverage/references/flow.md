@@ -5,11 +5,11 @@ flowchart TD
     START([User invokes swagger-contract-testing:pact-coverage])
 
     subgraph SKILL["SKILL — Input Resolution"]
-        FIND_OAS[Search for OAS files\nopenapi.yaml/json · swagger.yaml/json]
+        FIND_OAS[Search for spec files\nopenapi · swagger · asyncapi yaml/json]
         OAS_COUNT{How many\nvalid OAS files?}
         OAS_ASK[Ask user: provide path/URL\nfetch from PactFlow\nor generate from codebase]
         OAS_GIVEN{Valid spec\nprovided?}
-        OAS_GEN[Invoke oas-generator skill\nwith provider codebase path]
+        OAS_GEN[Invoke oas-generator skill for OpenAPI\nor asyncapi-generator skill for events\nwith provider codebase path]
         OAS_PICK[Ask user to select one]
         FIND_PACTS[Search for pact files\npacts/ · target/pacts/ · build/pacts/]
         PACT_DISK{Found on disk?}
@@ -43,6 +43,17 @@ flowchart TD
     subgraph AGENT["AGENT — pact-coverage"]
         MCP_CHECK{mcp__ripwire__for\navailable?}
         INPUT_CHECK{All inputs\npresent?}
+
+        subgraph ASYNC["AsyncAPI mode — no route discovery"]
+            SPEC_KIND{Spec has\nasyncapi key?}
+            RUN_ASYNC["parse_pact_coverage.py\n--spec asyncapi.yaml --pacts glob\n[--consumer-channels JSON]\n[--include-actions send,receive]"]
+            MATCH["Match pact messages to AsyncAPI messages\nchannel metadata → description/name → payload shape"]
+            ASYNC_EXIT{Exit code?}
+            ASYNC_REPORT["Report gaps by section\n§1 CHANNEL/OPERATION\n§2 MESSAGE VARIANTS\n§3 PAYLOAD REQUIRED FIELDS\n§4 HEADER REQUIRED FIELDS\n+ ambiguous / unmatched pact messages"]
+
+            SPEC_KIND -- Yes --> RUN_ASYNC --> MATCH --> ASYNC_EXIT
+            ASYNC_EXIT -- 1 gaps --> ASYNC_REPORT
+        end
 
         subgraph DISC["Route Discovery — 4-Strategy Cascade"]
             S1["Strategy 1\nmcp__ripwire__for\nHTTP API route calls and response types"]
@@ -127,7 +138,11 @@ flowchart TD
     INPUT_CHECK -- consumer_root missing --> STOP_CR
     INPUT_CHECK -- spec_path invalid --> STOP_SP
     INPUT_CHECK -- pact_glob empty --> STOP_PG
-    INPUT_CHECK -- All present --> S1
+    INPUT_CHECK -- All present --> SPEC_KIND
+    SPEC_KIND -- No, OpenAPI --> S1
+    ASYNC_EXIT -- 0 full coverage --> DONE_FULL
+    ASYNC_EXIT -- 2 error --> STOP_SCRIPT
+    ASYNC_REPORT --> DONE_GAPS
     S1_OK -- Yes --> SYM_CHECK
     S2_OK -- Yes --> SYM_CHECK
     S3_ROK -- Yes --> SYM_CHECK

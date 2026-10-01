@@ -32,6 +32,10 @@ Usage:
   uv run parse_pact_coverage.py --spec openapi.yaml --pacts "pacts/*.json" \\
       --consumer-root ./consumer-src
 
+  # AsyncAPI mode: an AsyncAPI 3.x --spec is auto-detected and measured against Pact message pacts.
+  uv run parse_pact_coverage.py --spec asyncapi.yaml --pacts "pacts/*.json" \\
+      --consumer-channels '["orders.created"]' [--include-actions send,receive]
+
 Exit codes:
   0 — full coverage across all four dimensions
   1 — gaps found (at least one dimension has missing coverage)
@@ -54,6 +58,8 @@ import urllib.request
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, cast
+
+import async_coverage
 
 try:
     import yaml
@@ -842,6 +848,38 @@ def fetch_pacts_from_broker(
     return []
 
 
+def _run_async(args: argparse.Namespace, pact_files: list[str]) -> int:
+    """AsyncAPI mode: message-pact coverage via async_coverage.py."""
+    messages = []
+    for pact_path in pact_files:
+        try:
+            messages.extend(async_coverage.extract_pact_messages(load_pact(pact_path)))
+        except (ValueError, OSError) as e:
+            print(f"ERROR: Could not parse pact '{pact_path}': {e}", file=sys.stderr)
+            return 2
+
+    channels: set[str] | None = None
+    if args.consumer_channels:
+        try:
+            parsed = json.loads(args.consumer_channels)
+        except json.JSONDecodeError:
+            parsed = None
+        if not isinstance(parsed, list) or not parsed:
+            print("ERROR: --consumer-channels must be a non-empty JSON array of channel addresses.", file=sys.stderr)
+            return 2
+        channels = {str(c) for c in parsed}
+
+    actions = frozenset(a.strip() for a in args.include_actions.split(",") if a.strip())
+    return async_coverage.run(
+        args.spec,
+        messages,
+        pact_files,
+        include_actions=actions,
+        consumer_channels=channels,
+        as_json=args.json,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Check Pact interaction coverage against an OpenAPI spec.",
@@ -874,6 +912,19 @@ def main() -> None:
         "--consumer-root",
         metavar="PATH",
         help="Path to the consumer codebase. Enables Section 5: consumer code status branch analysis.",
+    )
+
+    parser.add_argument(
+        "--consumer-channels",
+        metavar="JSON",
+        help="AsyncAPI only. JSON array of channel addresses the consumer uses, e.g. '[\"orders.created\"]'. "
+        "Filters the spec to those channels before computing coverage.",
+    )
+    parser.add_argument(
+        "--include-actions",
+        metavar="CSV",
+        default="send",
+        help="AsyncAPI only. Operation actions to measure (default: send). Use send,receive for consumer-side specs.",
     )
 
     # Broker fetch flags (optional; env vars PACT_BROKER_BASE_URL / PACT_BROKER_TOKEN / PACT_CONSUMER)
@@ -918,6 +969,9 @@ def main() -> None:
         sys.exit(2)
 
     exclude_codes = {str(c) for c in args.exclude_codes}
+
+    if async_coverage.is_asyncapi(args.spec):
+        sys.exit(_run_async(args, pact_files))
 
     try:
         oas = load_oas(args.spec)

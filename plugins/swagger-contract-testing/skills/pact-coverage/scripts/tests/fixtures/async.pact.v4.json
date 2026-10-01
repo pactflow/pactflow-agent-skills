@@ -1,0 +1,23 @@
+{
+  "consumer": {"name": "OrderConsumer"},
+  "provider": {"name": "OrderService"},
+  "interactions": [
+    {
+      "type": "Synchronous/HTTP",
+      "description": "an http call",
+      "request": {"method": "GET", "path": "/orders"},
+      "response": {"status": 200}
+    },
+    {
+      "type": "Asynchronous/Messages",
+      "description": "cancel",
+      "contents": {
+        "content": {"orderId": "1", "status": "CANCELLED", "reason": "out of stock"},
+        "contentType": "application/json",
+        "encoded": false
+      },
+      "metadata": {"topic": "orders.events"}
+    }
+  ],
+  "metadata": {"pactSpecification": {"version": "4.0"}}
+}
