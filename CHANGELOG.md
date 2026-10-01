@@ -4,12 +4,25 @@ All notable changes to this project are documented in this file. The format is b
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.4] - 2026-10-01
 
+### Added
+
+- Expand plugin package validation
+- Add asyncapi support to drfit (#73)
+### Changed
+
+- Centralize DSL generator lifecycle
 ### Dependencies
 
 - Update astral-sh/setup-uv action to v10.1.0 (#68)
 - Update astral-sh/setup-uv action to v10.2.0 (#71)
+- Update actions/dependency-review-action action to v4.9.0 (#74)
+- Update actions/dependency-review-action action to v5 (#75)
+### Documentation
+
+- Add contribution and security policies
+- Update docs
 
 ## [1.0.3] - 2026-09-21
 
