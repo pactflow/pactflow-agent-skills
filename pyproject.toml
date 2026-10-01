@@ -29,6 +29,7 @@ exclude = [
     "**/.venv/**",
     ".agents/**",
     "**/*.md",
+    "**/evals/fixtures/**",  # sample services analysed by skill evals, not project code
 ]
 
 [tool.ruff.lint]
@@ -70,6 +71,7 @@ mypy_path = [
 exclude = [
     ".*\\.venv.*",
     "\\.agents/.*",
+    ".*/evals/fixtures/.*",
 ]
 
 [[tool.mypy.overrides]]

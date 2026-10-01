@@ -1,0 +1,56 @@
+{
+  "skill_name": "asyncapi-generator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "There's no AsyncAPI spec for our Kafka orders service at plugins/swagger-contract-testing/skills/asyncapi-generator/evals/fixtures/kafka-orders. Generate one from the code and save it to asyncapi-generator-workspace/iteration-1/kafka-orders/with_skill/outputs/asyncapi-generated.yaml",
+      "expected_output": "Valid AsyncAPI 3.x YAML. Channels orders.created (send operation, constants resolved via topics.js) and payments.events (receive operation). OrderCreated payload has orderId, customerId, total, items and a correlation-id header. payments.events has two message variants (payment.succeeded, payment.failed) as oneOf. No channel for test.fake.topic.",
+      "files": [],
+      "assertions": [
+        "Spec declares asyncapi 3.x (not 2.x)",
+        "Channel with address orders.created exists (constant resolved from topics.js)",
+        "orders.created has a send operation",
+        "Channel with address payments.events exists with a receive operation",
+        "OrderCreated payload lists orderId, customerId, total and items",
+        "OrderCreated declares a correlation-id header / correlationId location",
+        "payments.events models payment.succeeded and payment.failed as separate message variants",
+        "No channel generated from test.fake.topic in the test file",
+        "Every $ref in the document resolves"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "document the event contract of the email notifier in plugins/swagger-contract-testing/skills/asyncapi-generator/evals/fixtures/sqs-notifier as an asyncapi spec, we dont have one. save to asyncapi-generator-workspace/iteration-1/sqs-notifier/with_skill/outputs/asyncapi-generated.yaml",
+      "expected_output": "Valid AsyncAPI 3.x YAML. A receive operation on the email-requests SQS queue (queue name email-requests from the URL comment, x-address-source: inferred, not the full URL) with payload fields to, subject, template (to/subject required). A send operation on an SNS topic whose ARN is unresolvable (placeholder address, x-address-source: unresolved) with payload to, status, attempts and an eventType header. Action direction is from the notifier's point of view.",
+      "files": [],
+      "assertions": [
+        "Spec declares asyncapi 3.x (not 2.x)",
+        "Receive operation exists on the email-requests queue address",
+        "Receive payload has to, subject and template, with to and subject required",
+        "Send operation exists for the SNS topic",
+        "SNS topic address is marked unresolved (x-address-source: unresolved or equivalent TODO placeholder), not invented",
+        "Send payload has to, status and attempts, and eventType is captured as a header/attribute",
+        "Operation actions are from the notifier's perspective (queue=receive, SNS=send)",
+        "Every $ref in the document resolves"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "We have no AsyncAPI spec for the billing service in plugins/swagger-contract-testing/skills/asyncapi-generator/evals/fixtures/spring-billing (Spring Kafka). Generate one from the code and save it to asyncapi-generator-workspace/iteration-2/eval-2-spring-billing/with_skill/run-1/outputs/asyncapi-generated.yaml",
+      "expected_output": "Valid AsyncAPI 3.x. Topics resolved through application.yml and TopicProperties: billing.invoices.issued.v1 and billing.invoices.voided.v1 (send, via InvoiceEventPublisher wrapper), billing.payments.received.v1 (receive, @KafkaListener with ${app.topics.payment-received}), and billing.payments.received.dlq (send, literal). Payload fields from the records; PaymentReceived requires invoiceId and amountCents. Kafka server host from application.yml. No channel for test.only.topic.",
+      "files": [],
+      "assertions": [
+        "Spec declares asyncapi 3.x (not 2.x)",
+        "Channel billing.invoices.issued.v1 exists with a send operation (resolved from application.yml via the wrapper)",
+        "Channel billing.invoices.voided.v1 exists with a send operation",
+        "Channel billing.payments.received.v1 exists with a receive operation",
+        "Channel billing.payments.received.dlq exists with a send operation",
+        "InvoiceIssued payload has invoiceId, customerId, amountCents, currency and dueDate",
+        "PaymentReceived payload requires invoiceId and amountCents; method and receiptUrl are optional",
+        "Kafka server host is kafka.billing.internal:9092 from application.yml",
+        "No channel generated from test.only.topic in the test file",
+        "Every $ref in the document resolves"
+      ]
+    }
+  ]
+}

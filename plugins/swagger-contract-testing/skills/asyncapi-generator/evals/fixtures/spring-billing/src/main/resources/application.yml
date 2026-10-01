@@ -1,0 +1,8 @@
+spring:
+  kafka:
+    bootstrap-servers: kafka.billing.internal:9092
+app:
+  topics:
+    invoice-issued: billing.invoices.issued.v1
+    invoice-voided: billing.invoices.voided.v1
+    payment-received: billing.payments.received.v1

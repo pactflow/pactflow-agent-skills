@@ -689,6 +689,14 @@ Invoke it when the user says "generate an OpenAPI spec from the code", "the prov
 
 Supports Ruby (Rails/Sinatra), Node.js (Express/Fastify), Python (Flask/FastAPI), and any other ripwire-supported language. The generated spec is always valid OAS; schemas are annotated as `x-schema-source: inferred` or `x-schema-source: stub` where they could not be resolved from handler code. Requires ripwire on PATH.
 
+### asyncapi-generator
+
+Generates an AsyncAPI 3.x YAML spec by statically analysing a service codebase with ripwire — for use when an event-driven service has no spec and an `asyncapi-parser` or Drift workflow is blocked.
+
+Invoke it when the user says "generate an asyncapi spec from the code", "document our Kafka topics as a spec", or any time a workflow needs an AsyncAPI spec that doesn't exist.
+
+Finds producers and consumers across Kafka, SNS/SQS, RabbitMQ, NATS, Google Pub/Sub, MQTT, Redis and WebSocket, and resolves channel names through constants and config files. Each channel is annotated with `x-address-source` (`literal`, `constant`, `config`, `inferred` or `unresolved`) and each payload with `x-schema-source` (`inferred` or `stub`), so the parts needing review are explicit. Requires ripwire on PATH.
+
 ---
 
 ## SmartBear MCP tools

@@ -18,6 +18,7 @@ There are two types of components in this repo. **Skills** are context files tha
 |                                                                           | **bdct-tester**               | Agent: drives a full Bi-Directional Contract Testing flow end-to-end — consumer tests, provider contract verification, publishing, and can-i-deploy.                                                                                                                                                                                                         |
 |                                                                           | **pact-coverage**             | Skill + Agent: measures how completely the consumer's pact files exercise the provider API surface the consumer actually uses. Resolves which OAS, pact files, and consumer codebase to analyse, then runs the pact-coverage agent to report gaps across path/method, status codes, required request/response body fields, and (optionally) consumer code status branches. Uses ripwire to discover which provider routes the consumer calls so coverage is measured against the correct OAS subset. |
 |                                                                           | **oas-generator**             | Skill: generates an OpenAPI 3.x YAML spec by statically analysing a provider codebase with ripwire when no spec exists. Supports Ruby (Rails/Sinatra), Node.js (Express/Fastify), Python (Flask/FastAPI), and any other ripwire-supported language. Produces valid, immediately usable OAS for path-coverage testing; schemas are marked as inferred or stub where they could not be resolved. |
+|                                                                           | **asyncapi-generator**        | Skill: generates an AsyncAPI 3.x YAML spec by statically analysing a service codebase with ripwire when no spec exists. Finds producers and consumers across Kafka, SNS/SQS, RabbitMQ, NATS, Pub/Sub, MQTT and WebSocket in Node.js, Python, Java and other ripwire-supported languages. Valid, immediately usable as input to `asyncapi-parser` and Drift; payloads are marked as inferred or stub and unresolved channel names are flagged. |
 | [`contract-testing-flywheel`](docs/ai-tools/contract-testing-flywheel.md) | **contract-testing-flywheel** | Workflow skill (slash command `/contract-testing-flywheel`): generates a structured onboarding backlog that takes a team from zero to publishing consumer + provider contract tests on PactFlow, modelled on the Contract Testing Flywheel. Scrum-tool-agnostic — drives Jira, GitHub Issues/Projects, or Azure DevOps, or renders a manual markdown export. |
 
 The `swagger-contract-testing` skills work together: **OAS Generator** produces a provider OpenAPI spec from source when one doesn't exist; **OpenAPI Parser** analyses a spec and generates Drift test scaffolding; **Drift** runs, iterates, and publishes those tests; **PactFlow** manages the full contract testing lifecycle — from generating Pact tests with AI to safely deploying services; **Pact Coverage** measures how completely consumer pact files exercise the provider API. The agents handle specialised sub-tasks autonomously.
@@ -50,7 +51,7 @@ The `swagger-contract-testing` skills work together: **OAS Generator** produces 
 | Install with `npx skills`               | Node.js and npm (`npx`)                                                                                                                                                           |
 | Install with `gh skill`                 | GitHub CLI with the `gh-skill` extension                                                                                                                                          |
 | Use the bundled SmartBear MCP server    | Node.js 20+ and a PactFlow account or self-hosted Pact Broker                                                                                                                     |
-| Use `pact-coverage` or `oas-generator`  | [`ripwire`](plugins/swagger-contract-testing/skills/pact-coverage/references/install-ripwire.md) on `PATH`; interactive coverage also requires its MCP server                     |
+| Use `pact-coverage`, `oas-generator` or `asyncapi-generator` | [`ripwire`](plugins/swagger-contract-testing/skills/pact-coverage/references/install-ripwire.md) on `PATH`; interactive coverage also requires its MCP server                     |
 
 The quick installers install skills only. To include the specialised agents and automatically configured SmartBear MCP server, use a plugin installation where the client supports it. Broker credentials are needed only for live PactFlow or Pact Broker operations; authoring and reviewing local tests works without them.
 
@@ -356,6 +357,7 @@ cat plugins/swagger-contract-testing/skills/openapi-parser/SKILL.md plugins/swag
 cat plugins/swagger-contract-testing/skills/pactflow/SKILL.md plugins/swagger-contract-testing/skills/pactflow/references/*.md >> .github/copilot-instructions.md
 cat plugins/swagger-contract-testing/skills/pact-coverage/SKILL.md plugins/swagger-contract-testing/skills/pact-coverage/references/*.md >> .github/copilot-instructions.md
 cat plugins/swagger-contract-testing/skills/oas-generator/SKILL.md >> .github/copilot-instructions.md
+cat plugins/swagger-contract-testing/skills/asyncapi-generator/SKILL.md >> .github/copilot-instructions.md
 ```
 
 **Path-scoped** — loads only when relevant files are open:
@@ -389,6 +391,7 @@ cat plugins/swagger-contract-testing/skills/pactflow/SKILL.md plugins/swagger-co
    cat plugins/swagger-contract-testing/skills/pactflow/SKILL.md plugins/swagger-contract-testing/skills/pactflow/references/*.md > .github/prompts/pactflow.prompt.md
   cat plugins/swagger-contract-testing/skills/pact-coverage/SKILL.md plugins/swagger-contract-testing/skills/pact-coverage/references/*.md > .github/prompts/pact-coverage.prompt.md
   cp plugins/swagger-contract-testing/skills/oas-generator/SKILL.md .github/prompts/oas-generator.prompt.md
+  cp plugins/swagger-contract-testing/skills/asyncapi-generator/SKILL.md .github/prompts/asyncapi-generator.prompt.md
    ```
 3. In Copilot Chat, click **Attach context → Prompt...** and select the skill.
 
@@ -449,6 +452,7 @@ Cursor supports [Agent Skills](https://cursor.com/docs/skills) loaded from `SKIL
   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pactflow`
   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pact-coverage`
   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/oas-generator`
+  - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/asyncapi-generator`
 
 ### Project-level install (manual)
 
@@ -547,6 +551,7 @@ $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing
 $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/pactflow
 $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/pact-coverage
 $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/oas-generator
+$skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/asyncapi-generator
 ```
 
 ### Project-level install (manual)
@@ -592,6 +597,7 @@ Set `PACT_BROKER_BASE_URL` and `PACT_BROKER_TOKEN` in your shell profile or Kiro
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pactflow`
   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pact-coverage`
   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/oas-generator`
+  - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/asyncapi-generator`
 
 Imported skills are copied to your skills directory and work immediately.
 
