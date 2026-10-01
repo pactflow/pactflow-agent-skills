@@ -102,6 +102,41 @@
           "value": "The response explains that the existing GET /payments/{id} 200 interaction needs to have the amount field added to its response body content"
         }
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "I have an AsyncAPI spec at `evals/fixtures/asyncapi.yaml` and a message pact at `evals/fixtures/async-consumer-provider.json`. The consumer only subscribes to orders.created and orders.events. What is not covered?",
+      "expected_output": "The agent runs parse_pact_coverage.py in AsyncAPI mode with --consumer-channels and reports the uncovered OrderCancelled message, the missing carrier field on OrderShipped, and the unmatched 'mystery' pact message.",
+      "files": [
+        "evals/fixtures/asyncapi.yaml",
+        "evals/fixtures/async-consumer-provider.json"
+      ],
+      "assertions": [
+        {
+          "name": "runs_coverage_script_async",
+          "description": "Response invokes parse_pact_coverage.py with the AsyncAPI spec and consumer channels",
+          "type": "llm_judge",
+          "value": "The response runs parse_pact_coverage.py against the AsyncAPI spec, passing --consumer-channels for orders.created and orders.events, rather than computing coverage by hand"
+        },
+        {
+          "name": "reports_uncovered_message",
+          "description": "Response reports the OrderCancelled message as not covered",
+          "type": "llm_judge",
+          "value": "The response identifies the orderCancelled message on orders.events as not covered by any pact message"
+        },
+        {
+          "name": "reports_missing_payload_field",
+          "description": "Response reports the missing carrier field",
+          "type": "llm_judge",
+          "value": "The response identifies that the required payload field 'carrier' is missing for the OrderShipped message"
+        },
+        {
+          "name": "mentions_unmatched_message",
+          "description": "Response mentions the unmatched pact message",
+          "type": "llm_judge",
+          "value": "The response mentions that a pact message ('mystery') did not match any AsyncAPI message and suggests adding channel metadata or removing it"
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,84 @@
+asyncapi: 3.0.0
+info:
+  title: Order Events
+  version: 1.0.0
+channels:
+  orderCreated:
+    address: orders.created
+    messages:
+      orderCreated:
+        name: OrderCreated
+        headers:
+          type: object
+          required: [correlationId]
+          properties:
+            correlationId:
+              type: string
+        payload:
+          $ref: '#/components/schemas/OrderCreated'
+  orderEvents:
+    address: orders.events
+    messages:
+      orderShipped:
+        name: OrderShipped
+        payload:
+          type: object
+          required: [orderId, status, carrier]
+          properties:
+            orderId:
+              type: string
+            status:
+              const: SHIPPED
+            carrier:
+              type: string
+      orderCancelled:
+        name: OrderCancelled
+        payload:
+          type: object
+          required: [orderId, status, reason]
+          properties:
+            orderId:
+              type: string
+            status:
+              const: CANCELLED
+            reason:
+              type: string
+  orderCommands:
+    address: orders.commands
+    messages:
+      placeOrder:
+        payload:
+          type: object
+          required: [sku]
+          properties:
+            sku:
+              type: string
+operations:
+  publishOrderCreated:
+    action: send
+    channel:
+      $ref: '#/channels/orderCreated'
+  publishOrderEvents:
+    action: send
+    channel:
+      $ref: '#/channels/orderEvents'
+    messages:
+      - $ref: '#/channels/orderEvents/messages/orderShipped'
+      - $ref: '#/channels/orderEvents/messages/orderCancelled'
+  consumePlaceOrder:
+    action: receive
+    channel:
+      $ref: '#/channels/orderCommands'
+components:
+  schemas:
+    OrderCreated:
+      type: object
+      required: [orderId, status]
+      properties:
+        orderId:
+          type: string
+        status:
+          type: string
+          enum: [CREATED]
+        note:
+          type: string
