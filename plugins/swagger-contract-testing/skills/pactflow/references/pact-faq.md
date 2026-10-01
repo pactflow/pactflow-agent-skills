@@ -198,7 +198,7 @@ E2E tests verify that a particular combination of versions work together. They d
 
 **"The provider team won't commit to running pact verification."**
 
-Without provider verification, consumer tests are just documentation of assumptions. The value of Pact is in the provider verification step. If you can't get provider buy-in, start with BDCT (Bi-Directional Contract Testing) — the provider publishes an OpenAPI spec, and PactFlow verifies automatically without requiring provider team engagement. See `references/bdct.md`.
+Without provider verification, consumer tests are just documentation of assumptions. The value of Pact is in the provider verification step. If you can't get provider buy-in, start with BDCT (Bi-Directional Contract Testing) — the provider publishes an OpenAPI or AsyncAPI definition, and PactFlow verifies automatically without requiring provider team engagement. See `references/bdct.md`.
 
 **"We use a public/third-party API so we can't control the provider."**
 

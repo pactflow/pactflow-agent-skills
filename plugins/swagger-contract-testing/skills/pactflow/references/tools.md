@@ -75,16 +75,20 @@ Publish consumer pact files to the broker.
 - `tags` — version tags array
 - `buildUrl` — CI build URL
 
-**`contract-testing_publish_provider_contract`** ☁️ Cloud only (BDCT)
-Publish an OpenAPI spec + self-verification results.
+**`contract-testing_publish_provider_contract`** (BDCT)
+Publish a provider API definition + self-verification results.
 
 - `providerName`, `pacticipantVersionNumber` — required
-- `contract.content` — base64-encoded OpenAPI spec
+- `contract.content` — base64-encoded API definition
 - `contract.contentType` — `application/yaml`, `application/json`, or `application/yml`
-- `contract.specification` — must be `oas`
+- `contract.specification` — use a specification value accepted by the connected MCP server; older schemas may expose only `oas`
 - `contract.selfVerificationResults.success` — boolean (required)
 - `contract.selfVerificationResults.verifier` — tool name, e.g. `dredd`, `schemathesis`
 - `branch`, `tags`, `buildUrl` — optional metadata
+
+For AsyncAPI, read `asyncapi.md`. If this tool's input schema accepts only `oas`, publish with the PactFlow CLI instead; never label an AsyncAPI definition as `oas`.
+
+Provider-contract availability depends on the contract type and deployment. AsyncAPI is supported in PactFlow Cloud and PactFlow On-Premises 2.6.0 and later.
 
 **`contract-testing_get_pacts_for_verification`**
 Fetch pacts a provider should verify in its CI run.
@@ -194,7 +198,7 @@ List currently supported (released) versions in an environment. `environmentId` 
 All BDCT tools are **Cloud only**. See `bdct.md` for patterns and investigation workflows.
 
 **`contract-testing_get_bdct_provider_contract`**
-Fetch the published OpenAPI spec for a provider version.
+Fetch the published API definition for a provider version.
 `providerName`, `providerVersionNumber` required.
 
 **`contract-testing_get_bdct_provider_contract_verification_results`**
@@ -206,7 +210,7 @@ Fetch all consumer pacts compared against a provider version.
 `providerName`, `providerVersionNumber` required.
 
 **`contract-testing_get_bdct_consumer_contract_verification_results`**
-Fetch results of comparing all consumer pacts against the provider's OpenAPI spec.
+Fetch results of comparing all consumer pacts against the provider's API definition.
 `providerName`, `providerVersionNumber` required.
 
 **`contract-testing_get_bdct_cross_contract_verification_results`**
