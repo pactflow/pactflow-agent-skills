@@ -9,8 +9,9 @@
 """
 check_coverage.py — Drift test coverage checker.
 
-Reads an OpenAPI spec and one or more Drift test YAML files, then reports which
-operations and response codes are missing test coverage.
+Reads an OpenAPI or AsyncAPI spec and one or more Drift test YAML files. OpenAPI
+coverage tracks operations and response codes; AsyncAPI coverage tracks each
+operation/message target.
 
 Usage:
   python3 check_coverage.py --spec openapi.yaml --test-files drift.yaml
@@ -33,6 +34,8 @@ import sys
 from collections import defaultdict
 from typing import Any
 
+from asyncapi_targets import load_asyncapi_targets
+
 try:
     import yaml
 except ImportError:
@@ -41,6 +44,83 @@ except ImportError:
 
 HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
 DEFAULT_EXCLUDE = {"500", "501", "502", "503"}
+
+
+# ─── AsyncAPI spec support ─────────────────────────────────────────────────────
+
+
+def is_asyncapi_spec(raw: Any) -> bool:
+    """Return True if this is an AsyncAPI document (not OpenAPI)."""
+    return isinstance(raw, dict) and "asyncapi" in raw
+
+
+def _asyncapi_message_ids(operation: dict[str, Any]) -> list[str]:
+    """Return local message IDs from an AsyncAPI operation's message refs."""
+    message_ids: list[str] = []
+    for message in operation.get("messages", []):
+        if not isinstance(message, dict):
+            continue
+        message_ref = message.get("$ref")
+        if isinstance(message_ref, str) and message_ref:
+            message_ids.append(message_ref.split("/")[-1])
+    return message_ids
+
+
+def get_asyncapi_operations(spec_path: str) -> dict[str, Any]:
+    """
+    Parse an AsyncAPI 3.x spec and return a dict of operation descriptors.
+
+    Returns:
+        {
+          "<operationId>": {
+            "action": str,           # send or receive
+            "channel": str,          # topic/queue address
+            "has_reply": bool,
+                        "messages": list[str],   # local message IDs targeted by the operation
+          }
+        }
+
+    Exits 2 if the spec is AsyncAPI 2.x (not supported by Drift).
+    """
+    with open(spec_path) as f:
+        raw = yaml.safe_load(f)
+
+    version = str(raw.get("asyncapi", ""))
+    if not version:
+        print("ERROR: Not an AsyncAPI document (missing 'asyncapi:' field).", file=sys.stderr)
+        sys.exit(2)
+    if not version.startswith("3."):
+        print(
+            f"ERROR: AsyncAPI {version} is not supported by Drift. Only AsyncAPI 3.x is supported.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    operations: dict[str, Any] = {}
+    channels = raw.get("channels", {})
+
+    for op_id, op_body in raw.get("operations", {}).items():
+        if not isinstance(op_body, dict):
+            continue
+        action = op_body.get("action", "")
+        if action not in {"send", "receive"}:
+            print(
+                f"ERROR: Operation {op_id!r} has invalid action {action!r}; expected 'send' or 'receive'.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        channel_val = op_body.get("channel") or {}
+        channel_ref = channel_val.get("$ref", "") if isinstance(channel_val, dict) else ""
+        # "#/channels/orderCreated" → split → [..., "orderCreated"] → last element
+        channel_name = channel_ref.split("/")[-1] if channel_ref else ""
+        channel_address = channels.get(channel_name, {}).get("address", "") if channel_name else ""
+        operations[op_id] = {
+            "action": action,
+            "channel": channel_address,
+            "has_reply": bool(op_body.get("reply")),
+            "messages": _asyncapi_message_ids(op_body),
+        }
+    return operations
 
 
 def _resolve_ref(ref: str, root: dict[str, Any]) -> dict[str, Any]:
@@ -183,6 +263,78 @@ def get_test_coverage(test_files: list[str]) -> dict[str, set[str]]:
     return dict(covered)
 
 
+def get_asyncapi_covered_targets(test_files: list[str]) -> set[tuple[str, str | None]]:
+    """
+    Parse Drift test files and return covered (operationId, messageId) targets.
+
+    An unqualified <source>:<operationId> target uses None as a wildcard for all
+    messages to preserve compatibility with existing test suites.
+    """
+    return load_asyncapi_targets(test_files)
+
+
+def report_asyncapi_coverage(
+    spec_ops: dict[str, Any],
+    covered_targets: set[tuple[str, str | None]],
+    as_json: bool,
+) -> int:
+    """Report AsyncAPI operation/message coverage. Returns 0 when every target is covered."""
+    required_targets = {
+        (op_id, message_id) for op_id, info in spec_ops.items() for message_id in (info["messages"] or [None])
+    }
+    covered = {
+        target for target in required_targets if target in covered_targets or (target[0], None) in covered_targets
+    }
+    missing = sorted(required_targets - covered)
+    covered_operations = {op_id for op_id, _message_id in covered}
+
+    def format_target(target: tuple[str, str | None]) -> str:
+        op_id, message_id = target
+        return f"{op_id}:{message_id}" if message_id else op_id
+
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "spec_type": "asyncapi",
+                    "total_operations": len(spec_ops),
+                    "covered": len(covered_operations),
+                    "covered_operations": len(covered_operations),
+                    "total_targets": len(required_targets),
+                    "covered_targets": len(covered),
+                    "missing": [format_target(target) for target in missing],
+                    "coverage_pct": round(100 * len(covered) / max(len(required_targets), 1), 1),
+                },
+                indent=2,
+            )
+        )
+        return 0 if not missing else 1
+
+    print(f"AsyncAPI targets: {len(required_targets)} total, {len(covered)} covered, {len(missing)} missing\n")
+
+    if covered:
+        print("Covered operation/message targets:")
+        for op_id, message_id in sorted(covered):
+            op = spec_ops[op_id]
+            print(f"  ✓ {format_target((op_id, message_id))}  [{op['action']}]  {op['channel']}")
+        print()
+
+    if missing:
+        print("Missing operation/message targets (no Drift test found):")
+        for op_id, message_id in missing:
+            op = spec_ops[op_id]
+            print(f"  ✗ {format_target((op_id, message_id))}  [{op['action']}]  {op['channel']}")
+        print()
+
+    if not missing:
+        print("✓ Full coverage — all operation/message targets have at least one test.")
+        return 0
+    else:
+        pct = round(100 * len(covered) / max(len(required_targets), 1))
+        print(f"Coverage: {len(covered)}/{len(required_targets)} targets ({pct}%)")
+        return 1
+
+
 # ─── Comparison ────────────────────────────────────────────────────────────────
 
 
@@ -292,11 +444,11 @@ def print_report(report: dict[str, Any], spec_path: str, test_files: list[str], 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Check Drift test coverage against an OpenAPI spec.",
+        description="Check Drift test coverage against an OpenAPI or AsyncAPI spec.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--spec", required=True, help="Path to OpenAPI spec (YAML or JSON)")
+    parser.add_argument("--spec", required=True, help="Path to OpenAPI or AsyncAPI spec (YAML or JSON)")
     parser.add_argument("--test-files", nargs="+", required=True, help="Drift test YAML files or glob patterns")
     parser.add_argument(
         "--exclude-codes",
@@ -312,6 +464,23 @@ def main() -> None:
     for pattern in args.test_files:
         matches = glob.glob(pattern)
         test_files.extend(matches if matches else ([pattern] if os.path.exists(pattern) else []))
+
+    # Auto-detect spec type and dispatch to AsyncAPI path if applicable
+    try:
+        with open(args.spec) as f:
+            raw_spec = yaml.safe_load(f)
+    except (OSError, yaml.YAMLError) as e:
+        print(f"ERROR: Could not read spec '{args.spec}': {e}", file=sys.stderr)
+        sys.exit(2)
+
+    if is_asyncapi_spec(raw_spec):
+        try:
+            async_ops = get_asyncapi_operations(args.spec)
+        except (OSError, yaml.YAMLError) as e:
+            print(f"ERROR: Could not parse AsyncAPI spec: {e}", file=sys.stderr)
+            sys.exit(2)
+        covered_targets = get_asyncapi_covered_targets(test_files)
+        sys.exit(report_asyncapi_coverage(async_ops, covered_targets, args.json))
 
     if not test_files:
         print("ERROR: No test files found.", file=sys.stderr)

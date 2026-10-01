@@ -1,0 +1,55 @@
+asyncapi: 3.1.0
+info:
+  title: Order service
+  version: 1.0.0
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:9092
+    protocol: kafka
+
+channels:
+  orderCreated:
+    address: drift.examples.order-created
+    messages:
+      orderCreated:
+        $ref: "#/components/messages/orderCreated"
+
+operations:
+  sendOrderCreated:
+    action: send
+    title: Send order created
+    summary: Publishes an order.created event.
+    channel:
+      $ref: "#/channels/orderCreated"
+    messages:
+      - $ref: "#/channels/orderCreated/messages/orderCreated"
+
+components:
+  messages:
+    orderCreated:
+      name: orderCreated
+      title: Order created event
+      correlationId:
+        location: "$message.header#/correlation-id"
+      headers:
+        type: object
+        properties:
+          correlation-id:
+            type: string
+        required: [correlation-id]
+      payload:
+        type: object
+        required: [eventType, orderId, customerId, status]
+        properties:
+          eventType:
+            type: string
+            const: order.created
+          orderId:
+            type: string
+          customerId:
+            type: string
+          status:
+            type: string
+            const: created

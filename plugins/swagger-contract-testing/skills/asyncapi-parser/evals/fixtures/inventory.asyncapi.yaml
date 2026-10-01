@@ -1,0 +1,78 @@
+asyncapi: 3.1.0
+info:
+  title: Inventory service
+  version: 1.0.0
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:9092
+    protocol: kafka
+
+channels:
+  inventoryCommand:
+    address: drift.examples.inventory-command
+    messages:
+      adjustmentMsg:
+        $ref: "#/components/messages/AdjustmentCommand"
+      reservationMsg:
+        $ref: "#/components/messages/ReservationCommand"
+
+operations:
+  receiveInventoryCommand:
+    action: receive
+    title: Receive inventory command
+    summary: Consumes an inventory adjustment or reservation command.
+    channel:
+      $ref: "#/channels/inventoryCommand"
+    messages:
+      - $ref: "#/channels/inventoryCommand/messages/adjustmentMsg"
+      - $ref: "#/channels/inventoryCommand/messages/reservationMsg"
+
+components:
+  messages:
+    AdjustmentCommand:
+      name: AdjustmentCommand
+      correlationId:
+        location: "$message.header#/correlation-id"
+      headers:
+        type: object
+        properties:
+          correlation-id:
+            type: string
+        required: [correlation-id]
+      payload:
+        type: object
+        required: [commandType, sku, quantityDelta]
+        properties:
+          commandType:
+            type: string
+            const: inventory.adjusted
+          sku:
+            type: string
+          quantityDelta:
+            type: integer
+          reason:
+            type: string
+
+    ReservationCommand:
+      name: ReservationCommand
+      correlationId:
+        location: "$message.header#/correlation-id"
+      headers:
+        type: object
+        properties:
+          correlation-id:
+            type: string
+        required: [correlation-id]
+      payload:
+        type: object
+        required: [commandType, sku, quantity]
+        properties:
+          commandType:
+            type: string
+            const: inventory.reserve
+          sku:
+            type: string
+          quantity:
+            type: integer

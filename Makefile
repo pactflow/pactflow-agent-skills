@@ -1,5 +1,6 @@
 .PHONY: lint format format-check typecheck test validate changelog-check changelog check fix
 
+
 LINT_PATHS := scripts/ plugins/swagger-contract-testing/skills/
 
 lint:
@@ -20,6 +21,9 @@ test:
 
 validate:
 	uv run --locked python scripts/validate-plugins.py
+
+test:
+	uv run --with pytest --with pyyaml pytest -q plugins/swagger-contract-testing/skills/drift-testing/scripts/tests
 
 changelog-check:
 	git cliff --unreleased --strip all >/dev/null

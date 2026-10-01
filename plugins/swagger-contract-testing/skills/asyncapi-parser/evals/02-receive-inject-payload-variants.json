@@ -1,0 +1,15 @@
+{
+  "skills": ["asyncapi-parser"],
+  "query": "I have this AsyncAPI spec at `evals/fixtures/inventory.asyncapi.yaml`. Generate Drift tests for the `receiveInventoryCommand` operation.",
+  "files": ["evals/fixtures/inventory.asyncapi.yaml"],
+  "expected_behavior": [
+    "Triggers the asyncapi-parser skill to handle spec analysis",
+    "Identifies the operation action as 'receive' and determines the execution mode as async-inject",
+    "Produces an analysis section identifying 2 message types: AdjustmentCommand and ReservationCommand — resulting in 2 test variants",
+    "Generates exactly two Drift operations: one targeting :receiveInventoryCommand:adjustmentMsg and one targeting :receiveInventoryCommand:reservationMsg",
+    "Each operation includes a probe block (executable-type: command or lua-function) with correlation-id passed as argument",
+    "Each operation's parameters.payload includes the appropriate commandType const value: inventory.adjusted for adjustment, inventory.reserve for reservation",
+    "Names operations following {operationId}_{variant} convention — e.g. ReceiveInventoryCommand_adjustment and ReceiveInventoryCommand_reservation",
+    "The expected block for each test matches probe stdout JSON fields, not the AsyncAPI payload schema directly"
+  ]
+}

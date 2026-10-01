@@ -1,0 +1,15 @@
+{
+  "skills": ["asyncapi-parser"],
+  "query": "This 12,000-line AsyncAPI 3.0 spec is at `evals/fixtures/platform.asyncapi.yaml`. Generate Drift tests for the `receiveBillingCommand` operation without overlooking referenced schemas.",
+  "files": ["evals/fixtures/platform.asyncapi.yaml"],
+  "expected_behavior": [
+    "Triggers the asyncapi-parser skill to handle the AsyncAPI spec",
+    "Measures or otherwise recognizes that the document is large and does not attempt to load or paste the entire specification",
+    "Builds a line-number index for top-level sections and locates `receiveBillingCommand` before reading its body",
+    "Reads only bounded ranges for the requested operation and the reachable channel, message, and schema definitions",
+    "Maintains or communicates a compact resolution ledger or queue that deduplicates repeated $ref values",
+    "Resolves every reference reachable from `receiveBillingCommand` that is needed to determine payload variants",
+    "Determines the Drift execution mode from the operation action and reply block",
+    "Produces an analysis and complete Drift operations YAML for the requested operation without generating tests for unrelated operations"
+  ]
+}

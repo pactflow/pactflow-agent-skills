@@ -1,0 +1,127 @@
+asyncapi: 3.1.0
+info:
+  title: Platform events
+  version: 1.0.0
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:9092
+    protocol: kafka
+
+channels:
+  auditEvents:
+    address: platform.audit
+    messages:
+      audit:
+        $ref: "#/components/messages/AuditEvent"
+  billingCommands:
+    address: platform.billing.commands
+    messages:
+      billing:
+        $ref: "#/components/messages/BillingCommand"
+  notificationEvents:
+    address: platform.notifications
+    messages:
+      notification:
+        $ref: "#/components/messages/NotificationEvent"
+
+operations:
+  sendAuditEvent:
+    action: send
+    channel:
+      $ref: "#/channels/auditEvents"
+    messages:
+      - $ref: "#/channels/auditEvents/messages/audit"
+  receiveBillingCommand:
+    action: receive
+    channel:
+      $ref: "#/channels/billingCommands"
+    messages:
+      - $ref: "#/channels/billingCommands/messages/billing"
+  sendNotificationEvent:
+    action: send
+    channel:
+      $ref: "#/channels/notificationEvents"
+    messages:
+      - $ref: "#/channels/notificationEvents/messages/notification"
+
+components:
+  messages:
+    AuditEvent:
+      name: AuditEvent
+      payload:
+        type: object
+        required: [eventType, subject]
+        properties:
+          eventType:
+            const: platform.audit
+          subject:
+            type: string
+    BillingCommand:
+      name: BillingCommand
+      correlationId:
+        location: "$message.header#/correlation-id"
+      headers:
+        type: object
+        required: [correlation-id]
+        properties:
+          correlation-id:
+            type: string
+      payload:
+        $ref: "#/components/schemas/BillingCommandPayload"
+    NotificationEvent:
+      name: NotificationEvent
+      payload:
+        type: object
+        required: [eventType, recipient]
+        properties:
+          eventType:
+            const: platform.notification
+          recipient:
+            type: string
+
+  schemas:
+    CommandBase:
+      type: object
+      required: [commandType, accountId]
+      properties:
+        commandType:
+          type: string
+        accountId:
+          type: string
+        note:
+          type: [string, "null"]
+    ChargeCard:
+      allOf:
+        - $ref: "#/components/schemas/CommandBase"
+        - type: object
+          required: [amount, cardToken]
+          properties:
+            commandType:
+              const: billing.charge-card
+            amount:
+              type: number
+            cardToken:
+              type: string
+    IssueCredit:
+      allOf:
+        - $ref: "#/components/schemas/CommandBase"
+        - type: object
+          required: [amount, reason]
+          properties:
+            commandType:
+              const: billing.issue-credit
+            amount:
+              type: number
+            reason:
+              type: string
+    BillingCommandPayload:
+      oneOf:
+        - $ref: "#/components/schemas/ChargeCard"
+        - $ref: "#/components/schemas/IssueCredit"
+      discriminator:
+        propertyName: commandType
+        mapping:
+          billing.charge-card: "#/components/schemas/ChargeCard"
+          billing.issue-credit: "#/components/schemas/IssueCredit"

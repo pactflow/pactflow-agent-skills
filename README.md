@@ -287,7 +287,7 @@ OpenCode will pick up the skills automatically — no restart required.
 
 VS Code Copilot supports [Agent Skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills)
 natively. Skills are loaded from `SKILL.md` files in named subdirectories and invoked as slash commands
-in Copilot Chat (`/drift-testing`, `/openapi-parser`). Copilot also auto-loads relevant skills based on context.
+in Copilot Chat (`/drift-testing`, `/asyncapi-parser`, `/openapi-parser`). Copilot also auto-loads relevant skills based on context.
 
 ### Project-level install (recommended for teams)
 
@@ -334,6 +334,7 @@ Once installed, open Copilot Chat and invoke a skill by name:
 
 ```claude
 /drift-testing write a test case for POST /orders returning 201
+/asyncapi-parser generate Drift tests for an event-driven service
 /openapi-parser generate Drift tests for the payments spec
 ```
 
@@ -350,6 +351,7 @@ If your version of Copilot doesn't support Agent Skills yet, use custom instruct
 
 ```bash
 cat plugins/swagger-contract-testing/skills/drift-testing/SKILL.md plugins/swagger-contract-testing/skills/drift-testing/references/*.md >> .github/copilot-instructions.md
+cat plugins/swagger-contract-testing/skills/asyncapi-parser/SKILL.md plugins/swagger-contract-testing/skills/asyncapi-parser/references/*.md >> .github/copilot-instructions.md
 cat plugins/swagger-contract-testing/skills/openapi-parser/SKILL.md plugins/swagger-contract-testing/skills/openapi-parser/references/*.md >> .github/copilot-instructions.md
 cat plugins/swagger-contract-testing/skills/pactflow/SKILL.md plugins/swagger-contract-testing/skills/pactflow/references/*.md >> .github/copilot-instructions.md
 cat plugins/swagger-contract-testing/skills/pact-coverage/SKILL.md plugins/swagger-contract-testing/skills/pact-coverage/references/*.md >> .github/copilot-instructions.md
@@ -367,6 +369,10 @@ cat plugins/swagger-contract-testing/skills/drift-testing/SKILL.md plugins/swagg
 echo '---\napplyTo: "**/openapi.yaml,**/openapi.json,**/*.oas.yaml"\n---\n' > .github/instructions/openapi-parser.instructions.md
 cat plugins/swagger-contract-testing/skills/openapi-parser/SKILL.md plugins/swagger-contract-testing/skills/openapi-parser/references/*.md >> .github/instructions/openapi-parser.instructions.md
 
+# AsyncAPI Parser — scoped to AsyncAPI spec files
+echo '---\napplyTo: "**/asyncapi.yaml,**/asyncapi.json,**/*.asyncapi.yaml"\n---\n' > .github/instructions/asyncapi-parser.instructions.md
+cat plugins/swagger-contract-testing/skills/asyncapi-parser/SKILL.md plugins/swagger-contract-testing/skills/asyncapi-parser/references/*.md >> .github/instructions/asyncapi-parser.instructions.md
+
 # PactFlow — scoped to Pact test files and pact config
 echo '---\napplyTo: "**/*.pact.test.*,**/pacts/**,**/.pactrc*"\n---\n' > .github/instructions/pactflow.instructions.md
 cat plugins/swagger-contract-testing/skills/pactflow/SKILL.md plugins/swagger-contract-testing/skills/pactflow/references/*.md >> .github/instructions/pactflow.instructions.md
@@ -378,6 +384,7 @@ cat plugins/swagger-contract-testing/skills/pactflow/SKILL.md plugins/swagger-co
 2. Create prompt files:
    ```bash
    cat plugins/swagger-contract-testing/skills/drift-testing/SKILL.md plugins/swagger-contract-testing/skills/drift-testing/references/*.md > .github/prompts/drift.prompt.md
+  cat plugins/swagger-contract-testing/skills/asyncapi-parser/SKILL.md plugins/swagger-contract-testing/skills/asyncapi-parser/references/*.md > .github/prompts/asyncapi-parser.prompt.md
    cat plugins/swagger-contract-testing/skills/openapi-parser/SKILL.md plugins/swagger-contract-testing/skills/openapi-parser/references/*.md > .github/prompts/openapi-parser.prompt.md
    cat plugins/swagger-contract-testing/skills/pactflow/SKILL.md plugins/swagger-contract-testing/skills/pactflow/references/*.md > .github/prompts/pactflow.prompt.md
   cat plugins/swagger-contract-testing/skills/pact-coverage/SKILL.md plugins/swagger-contract-testing/skills/pact-coverage/references/*.md > .github/prompts/pact-coverage.prompt.md
@@ -437,6 +444,7 @@ Cursor supports [Agent Skills](https://cursor.com/docs/skills) loaded from `SKIL
 3. Select **Remote Rule (GitHub)**
 4. Enter the URL to each skill folder:
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/drift-testing`
+  - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/asyncapi-parser`
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/openapi-parser`
   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pactflow`
   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pact-coverage`
@@ -534,6 +542,7 @@ Get your API token from `https://yourorg.pactflow.io/settings/api-tokens`. For a
 
 ```bash
 $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/drift-testing
+$skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/asyncapi-parser
 $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/openapi-parser
 $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/pactflow
 $skill-installer pactflow/pactflow-agent-skills/plugins/swagger-contract-testing/skills/pact-coverage
@@ -578,6 +587,7 @@ Set `PACT_BROKER_BASE_URL` and `PACT_BROKER_TOKEN` in your shell profile or Kiro
 2. Click **+** → **Import a skill**
 3. Select **GitHub** and paste the URL to each skill folder:
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/drift-testing`
+  - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/asyncapi-parser`
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/openapi-parser`
    - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pactflow`
   - `https://github.com/pactflow/pactflow-agent-skills/tree/main/plugins/swagger-contract-testing/skills/pact-coverage`
