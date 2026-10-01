@@ -27,11 +27,12 @@ Exits 1 with a list of every failure found (not just the first), 0 if clean.
 
 from __future__ import annotations
 
-import json
 import re
 import sys
 from pathlib import Path
 from typing import Any
+
+from plugin_manifest import load_json as read_json
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_PLUGIN_KEYS = ("name", "description", "version")
@@ -47,14 +48,10 @@ def fail(errors: list[str], message: str) -> None:
 
 def load_json(errors: list[str], path: Path) -> dict[str, Any] | None:
     try:
-        data = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError) as error:
-        fail(errors, f"{path.relative_to(REPO_ROOT)}: invalid JSON ({error})")
+        return read_json(path, REPO_ROOT)
+    except ValueError as error:
+        fail(errors, str(error))
         return None
-    if not isinstance(data, dict):
-        fail(errors, f"{path.relative_to(REPO_ROOT)}: top-level JSON value must be an object")
-        return None
-    return data
 
 
 def check_frontmatter(errors: list[str], path: Path, required_keys: tuple[str, ...]) -> None:

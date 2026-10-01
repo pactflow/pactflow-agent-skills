@@ -1,4 +1,4 @@
-.PHONY: lint format format-check typecheck test validate changelog-check changelog check fix
+.PHONY: lint format format-check typecheck test validate changelog-check changelog update-plugin-versions check fix
 
 
 LINT_PATHS := scripts/ plugins/swagger-contract-testing/skills/
@@ -31,6 +31,10 @@ changelog-check:
 changelog:
 	@test -n "$(VERSION)" || (echo "VERSION is required (for example: make changelog VERSION=1.3.0)" && exit 2)
 	git cliff --tag v$(VERSION) $(if $(DRY_RUN),--unreleased,--output CHANGELOG.md)
+
+update-plugin-versions:
+	@test -n "$(VERSION)" || (echo "VERSION is required (for example: make update-plugin-versions VERSION=1.3.0 PLUGINS=swagger-contract-testing)" && exit 2)
+	uv run --locked python scripts/update-plugin-versions.py $(VERSION) $(PLUGINS)
 
 check: lint format-check typecheck test validate changelog-check
 

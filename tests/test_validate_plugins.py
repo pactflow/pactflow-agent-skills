@@ -2,22 +2,29 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from pathlib import Path
 from types import ModuleType
 
 import pytest
 
 
-def load_validator() -> ModuleType:
-    path = Path(__file__).resolve().parent.parent / "scripts" / "validate-plugins.py"
-    spec = importlib.util.spec_from_file_location("validate_plugins", path)
+def load_script(module_name: str, script_name: str) -> ModuleType:
+    scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+    path = scripts_dir / script_name
+    spec = importlib.util.spec_from_file_location(module_name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.path.insert(0, str(scripts_dir))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.pop(0)
     return module
 
 
-validate_plugins = load_validator()
+validate_plugins = load_script("validate_plugins", "validate-plugins.py")
+update_plugin_versions = load_script("update_plugin_versions", "update-plugin-versions.py")
 
 
 def write_json(path: Path, data: object) -> None:
@@ -85,6 +92,24 @@ def test_invalid_eval_shape_is_rejected(tmp_path: Path, monkeypatch: pytest.Monk
     validate_plugins.check_evals(errors, {"example": plugin_dir})
 
     assert any("aggregate eval requires" in error for error in errors)
+
+
+def test_updates_all_manifests_for_a_marketplace_plugin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(update_plugin_versions, "REPO_ROOT", tmp_path)
+    plugin_dir = tmp_path / "plugins" / "example"
+    manifest = {"name": "example", "description": "Example", "version": "1.0.0"}
+    for relative_path in update_plugin_versions.MANIFEST_PATHS:
+        write_json(plugin_dir / relative_path, manifest)
+    write_json(
+        tmp_path / ".claude-plugin" / "marketplace.json",
+        {"plugins": [{"name": "example", "source": "./plugins/example"}]},
+    )
+
+    marketplace_plugins = update_plugin_versions.marketplace_plugins()
+    updated_paths = update_plugin_versions.update_plugin("example", marketplace_plugins["example"], "1.2.3")
+
+    assert updated_paths == [plugin_dir / relative_path for relative_path in update_plugin_versions.MANIFEST_PATHS]
+    assert all(json.loads(path.read_text())["version"] == "1.2.3" for path in updated_paths)
 
 
 def test_repository_assets_are_valid() -> None:

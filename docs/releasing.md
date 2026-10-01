@@ -20,16 +20,14 @@ Use semantic versioning for plugin releases:
 ## Prepare a release
 
 1. Confirm the release version and that `make check` passes on the release branch.
-1. Preview the entries since the latest tag with `make changelog VERSION=1.3.0 DRY_RUN=1`.
-1. Generate the complete changelog with `make changelog VERSION=1.3.0`. This rebuilds `CHANGELOG.md` from Git tags
+2. Preview the entries since the latest tag with `make changelog VERSION=1.3.0 DRY_RUN=1`.
+3. Generate the complete changelog with `make changelog VERSION=1.3.0`. This rebuilds `CHANGELOG.md` from Git tags
    and commits.
-1. Update the version in every manifest for each affected plugin:
-   - `plugins/<name>/plugin.json`
-   - `plugins/<name>/.claude-plugin/plugin.json`
-   - `plugins/<name>/.codex-plugin/plugin.json`
-1. Run `make check` again. The package validator enforces portable/Claude version parity and exact Claude/Codex manifest parity.
-1. Review and commit the changelog and version changes together.
-1. Tag the commit as `v1.3.0`, push the commit and tag, and publish the GitHub release using the generated changelog section as its notes.
+4. Update every manifest for each affected marketplace plugin with `make update-plugin-versions VERSION=1.3.0 PLUGINS=plugin-name`.
+   Omit `PLUGINS=...` only when releasing every plugin at the same version.
+5. Run `make check` again. The package validator enforces portable/Claude version parity and exact Claude/Codex manifest parity.
+6. Review and commit the changelog and version changes together.
+7. Push the commit, then create the tag and GitHub release with `gh skill publish --tag v1.3.0`.
 
 The grouping and filtering rules live in [`cliff.toml`](../cliff.toml). Run `make changelog-check` to validate the
 configuration without changing files.
