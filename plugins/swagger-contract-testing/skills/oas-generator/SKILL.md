@@ -40,37 +40,38 @@ If the framework is still ambiguous after these checks, ask the user.
 
 ## Step 2 — Extract all routes
 
-Use framework-specific grep patterns to find every route registration. Run all applicable
-patterns and deduplicate results.
+Use framework-specific patterns to find every route registration. Run all applicable
+patterns and deduplicate results. Use `--regex=` for these patterns: `--grep=` is a literal
+match, so alternation (`a|b`) silently returns zero hits.
 
 ### Ruby — Rails
 ```bash
-ripwire <root> --grep="resources\|get '\|post '\|put '\|patch '\|delete '\|namespace"
+ripwire <root> --regex="resources|get '|post '|put '|patch '|delete '|namespace"
 ```
 Also expand `config/routes.rb` to get the full route DSL, then trace each action to its
 controller method to find what each path actually maps to.
 
 ### Ruby — Sinatra
 ```bash
-ripwire <root> --grep="get '\|post '\|put '\|patch '\|delete '"
+ripwire <root> --regex="get '|post '|put '|patch '|delete '"
 ```
 Each match is a route; the enclosing block is the handler. Note the `in=` attribute from grep
 hits to get the enclosing symbol name, then `--expand` it for the full handler body.
 
 ### Node.js — Express / Fastify / Koa
 ```bash
-ripwire <root> --grep="\.get(\|\.post(\|\.put(\|\.patch(\|\.delete(\|\.route("
+ripwire <root> --regex='\.get\(|\.post\(|\.put\(|\.patch\(|\.delete\(|\.route\('
 ```
 Also check for `router` objects (e.g. `router.get(`) and `app.use(` with sub-routers.
 
 ### Python — Flask
 ```bash
-ripwire <root> --grep="@app\.route\|@blueprint\.\|@bp\."
+ripwire <root> --regex='@app\.route|@blueprint\.|@bp\.'
 ```
 
 ### Python — FastAPI
 ```bash
-ripwire <root> --grep="@router\.\|@app\.get\|@app\.post\|@app\.put\|@app\.patch\|@app\.delete"
+ripwire <root> --regex='@router\.|@app\.get|@app\.post|@app\.put|@app\.patch|@app\.delete'
 ```
 
 ### Fallback — any language
