@@ -176,6 +176,44 @@
           "value": "The response uses MessagePactBuilder, PactDslJsonBody, or an equivalent DSL to define the expected message body with type matchers"
         }
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "We want to use PactFlow BDCT for an event-driven service. The provider has an AsyncAPI 3.0 document and consumes JSON order events from Kafka; the JavaScript consumer publishes a Pact V4 message interaction. What is supported, how should the Pact interaction reference the AsyncAPI operation, and what gets validated?",
+      "expected_output": "AsyncAPI BDCT guidance covering provider-perspective receive operations, V4 Asynchronous/Messages, the comments.references.AsyncAPI.operationId reference or Pact JS reference method, JSON-only and self-contained definition limitations, exact channel matching, ignored Pact matching rules, asymmetric sender/receiver validation, and the publish/verify/can-i-deploy workflow.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "supports_asyncapi_3",
+          "description": "Response states that AsyncAPI 3.0 and 3.1 are supported and 2.x is not",
+          "type": "llm_judge",
+          "value": "The response says AsyncAPI 3.0 and 3.1 are supported and AsyncAPI 2.x is not supported"
+        },
+        {
+          "name": "maps_receive_interaction",
+          "description": "Response maps provider receive to the asynchronous Pact message interaction",
+          "type": "llm_judge",
+          "value": "The response maps a provider-perspective AsyncAPI receive operation to a Pact V4 Asynchronous/Messages interaction"
+        },
+        {
+          "name": "includes_operation_reference",
+          "description": "Response explains how the Pact interaction references the AsyncAPI operation ID",
+          "type": "contains",
+          "value": "operationId"
+        },
+        {
+          "name": "covers_asyncapi_limits",
+          "description": "Response covers payload, reference, and binding limitations",
+          "type": "llm_judge",
+          "value": "The response states that payload comparison is JSON-only, external references are unsupported, channel/topic names match exactly, and binding-specific behavior is not validated"
+        },
+        {
+          "name": "explains_matching_semantics",
+          "description": "Response explains matching rules and asymmetric validation",
+          "type": "llm_judge",
+          "value": "The response explains that Pact matching rules are ignored and distinguishes exact sender validation from receiver subset validation"
+        }
+      ]
     }
   ]
 }
