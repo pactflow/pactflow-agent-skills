@@ -133,3 +133,26 @@ Pact interactions with paths that match no OAS template are silently ignored.
   "Synchronous/HTTP"` are treated as v4 (body under `content` key); interactions
   with no `type` field are treated as v2/v3 (body is inline JSON). Non-HTTP
   interactions (e.g. `Asynchronous/Messages`) are silently skipped.
+
+## AsyncAPI dimensions
+
+With an AsyncAPI 3.x spec the four dimensions become:
+
+| # | Dimension | Notes |
+|---|-----------|-------|
+| 1 | Channel / operation | Operation covered when ≥1 pact message matches. Only `send` operations by default. |
+| 2 | Message variants | Each message listed by the operation (or on its channel when none is listed). |
+| 3 | Payload required fields | Top-level `required[]`; `allOf`/`anyOf`/`oneOf` unioned (conservative). |
+| 4 | Header required fields | `headers.required[]` compared with pact message `metadata` keys, case-insensitively. |
+
+There are no status-code or status-branch dimensions.
+
+**Matching order:** channel metadata → description/name → payload shape (required fields plus
+`const`/`enum` values). A message on the right channel with missing fields is still a match, so the
+missing fields surface as Section 3 gaps. When several messages fit, the pact message is
+**ambiguous** and is not counted for any of them; add channel metadata or a distinguishing
+`const` field to resolve it.
+
+**Limitations:** AsyncAPI 2.x is not supported; request/reply operations are not measured;
+external (non-`#/`) `$ref`s are not resolved; consumer channels must be supplied with
+`--consumer-channels` (no automatic discovery yet).

@@ -7,7 +7,10 @@ description: >
   by my pacts?", "which endpoints are missing pact tests?", "do my pact files cover
   the full spec?", "how complete is my pact coverage?", "which required fields
   aren't tested?", or any time they have Pact v2/v3/v4 JSON files and want to
-  measure contract test coverage against an OpenAPI spec. Also invoke when they
+  measure contract test coverage against an OpenAPI spec. Also supports AsyncAPI
+  3.x specs with Pact message pacts (Kafka, SNS/SQS, RabbitMQ events): invoke when
+  the user asks which channels, message variants or required payload fields are not
+  covered by their message pacts. Also invoke when they
   say they want to improve pact coverage or find coverage gaps — even if they
   don't say "pact-coverage" explicitly. Do NOT
   invoke for running provider verification, publishing pacts to a broker, or
@@ -25,6 +28,8 @@ four core dimensions: path/method, status codes, request body required fields, a
 response body required fields. An optional fifth dimension — consumer code status
 branch analysis — surfaces status codes the consumer handles in code but hasn't
 tested in any pact. Never modifies files.
+
+When the spec is an AsyncAPI 3.x document the same skill measures Pact **message** pacts instead; see [AsyncAPI mode](#asyncapi-mode).
 
 **Prerequisites:** `ripwire` is required — as an MCP server for interactive use (see [ripwire MCP setup](#ripwire-mcp-setup) above), or as a CLI binary for CI scripts (see [Scripts (CI / advanced)](#scripts-ci--advanced) below). Run `command -v ripwire` to check; see [`references/install-ripwire.md`](references/install-ripwire.md) for install instructions.
 
@@ -74,13 +79,15 @@ Before running the coverage check, resolve which spec file to use:
 ```bash
 find . -maxdepth 4 \( -name "openapi.yaml" -o -name "openapi.json" \
   -o -name "swagger.yaml" -o -name "swagger.json" \
+  -o -name "asyncapi.yaml" -o -name "asyncapi.json" \
+  -o -name "*asyncapi*.yaml" -o -name "*asyncapi*.json" \
   -o -name "*openapi*.yaml" -o -name "*openapi*.json" \
   -o -name "*swagger*.yaml" -o -name "*swagger*.json" \) \
   -not -path "*/node_modules/*" -not -path "*/.git/*"
 ```
 
 After finding candidates, **validate each file is an actual OAS/Swagger document** — open it and
-confirm it has an `openapi`, `swagger`, or `paths` top-level key. Discard files that don't (e.g.
+confirm it has an `openapi`, `swagger`, `asyncapi`, or `paths` top-level key. Discard files that don't (e.g.
 MCP server descriptors, schema files, workflow configs). If discarding reduces the candidate list,
 re-apply the rules below on the validated set.
 
@@ -99,7 +106,7 @@ AskUserQuestion({
     { label: "I'll provide a file path", description: "Enter the local path to the spec" },
     { label: "I'll provide a URL", description: "Enter a URL to fetch the spec from" },
     { label: "Provider has a BDCT contract on PactFlow", description: "Fetch the provider OAS from PactFlow using contract-testing_get_bdct_provider_contract" },
-    { label: "Generate from provider codebase", description: "Use the oas-generator skill to produce a spec from the provider's source code (requires ripwire)" },
+    { label: "Generate from provider codebase", description: "Use the oas-generator skill (OpenAPI) or asyncapi-generator skill (event-driven services) to produce a spec from the provider's source code (requires ripwire)" },
   ]
 })
 ```
@@ -255,6 +262,40 @@ The agent handles all framework-specific patterns (direct HTTP clients, class-ba
 
 ---
 
+## AsyncAPI mode
+
+When `spec_path` is an AsyncAPI 3.x document, `parse_pact_coverage.py` switches to message-pact
+coverage automatically. Pact files must contain message interactions (v3 `messages`, v4
+`Asynchronous/Messages`). Run it directly; ripwire route discovery does not apply in this version, so
+skip the agent's route-discovery steps and pass the channels the consumer subscribes to yourself:
+
+```bash
+uv run scripts/parse_pact_coverage.py \
+  --spec asyncapi.yaml \
+  --pacts "pacts/*.json" \
+  --consumer-channels '["orders.created","orders.events"]'
+```
+
+Ask the user which channels the consumer uses if it is not obvious from the code; without
+`--consumer-channels` every channel in the spec is measured and unused ones show as gaps.
+By default only `send` operations are measured (what the provider publishes);
+`--include-actions send,receive` widens that for specs written from the consumer's side.
+
+| Section | Covered means |
+|---------|---------------|
+| 1 · CHANNEL / OPERATION | ≥1 pact message matches one of the operation's messages |
+| 2 · MESSAGE VARIANTS | Each message (e.g. each `oneOf` variant) has ≥1 matching pact message |
+| 3 · PAYLOAD REQUIRED FIELDS | Every `required[]` payload field appears in ≥1 matching pact message |
+| 4 · HEADER REQUIRED FIELDS | Every `required[]` header field appears in ≥1 matching pact message's metadata (case-insensitive) |
+
+Pact messages are matched by channel metadata (`topic`, `kafka_topic`, `queue`, `routingKey`,
+`channel`), then by description equal to the message key/`messageId`/`name`/`title`, then by payload
+shape. **Ambiguous** and **unmatched** pact messages are listed but do not change the exit code; fix
+them by adding a `topic` (or equivalent) metadata entry to the pact message. Exit codes are as for
+HTTP: `0` full coverage, `1` gaps, `2` error.
+
+---
+
 ## Interpreting the report
 
 | Section | What it measures | Covered means |
@@ -328,8 +369,10 @@ uv run scripts/parse_pact_coverage.py \
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/parse_pact_coverage.py` | Coverage checker (v2/v3/v4). Flags: `--spec`, `--pacts`, `--consumer-routes` (filtered OAS), `--consumer-root` (Section 5), `--exclude-codes`, `--json`, `--broker-url`/`--broker-token`/`--consumer` (broker fetch) |
+| `scripts/parse_pact_coverage.py` | Coverage checker (v2/v3/v4). Flags: `--spec`, `--pacts`, `--consumer-routes` (filtered OAS), `--consumer-root` (Section 5), `--exclude-codes`, `--json`, `--broker-url`/`--broker-token`/`--consumer` (broker fetch), `--consumer-channels` and `--include-actions` (AsyncAPI mode) |
 | `scripts/build_filtered_oas.py` | CI tool: Strategy 1 route discovery only (outputs `--consumer-routes` JSON for `parse_pact_coverage.py`) |
+
+`async_coverage.py` is imported by `parse_pact_coverage.py` and is not run directly.
 
 **Exit codes for `parse_pact_coverage.py`:** `0` = full coverage across all 4 dimensions · `1` = gaps found · `2` = error (spec/pact unparseable, consumer-filtering failed). Section 5 gaps do **not** affect the exit code.
 

@@ -64,6 +64,8 @@ If `pact_glob` is missing or no files match:
 
 ## Route discovery
 
+**AsyncAPI specs:** if `spec_path` has a top-level `asyncapi` key, skip route discovery, enrichment and filtered-OAS construction. Run `parse_pact_coverage.py --spec <spec_path> --pacts "<pact_glob>"` and add `--consumer-channels '[...]'` when the caller supplied channel addresses. See the skill's AsyncAPI mode section.
+
 Try each strategy in order; stop as soon as routes are found.
 
 ### Strategy 1 — direct call sites

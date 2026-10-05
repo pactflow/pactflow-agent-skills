@@ -97,6 +97,8 @@ module = [
     "test_coverage_analysis",
     "test_oas_parsing",
     "test_build_filtered_oas",
+    "test_async_coverage",
+    "test_async_cli",
     "conftest",
 ]
 disallow_untyped_defs = false
