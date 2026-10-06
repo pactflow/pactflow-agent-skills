@@ -4,6 +4,31 @@ All notable changes to this project are documented in this file. The format is b
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-06
+
+### Dependencies
+
+- Update dependency mypy to v2.4.0 (#84)
+- Update dependency boto3 to v1.43.107 (#83)
+
+## [1.0.5] - 2026-10-05
+
+### Added
+
+- Add asyncapi-generator skill
+- Add asyncapi support to pactflow skill (#76)
+- Add asyncapi support to pact coverage (#78)
+### Dependencies
+
+- Update dependency boto3 to v1.43.103 (#77)
+- Update dependency boto3 to v1.43.104 (#79)
+- Lock file maintenance
+- Update dependency boto3 to v1.43.106
+- Update dependency ruff to v0.16.10 (#82)
+### Fixed
+
+- Use --regex for ripwire route patterns
+
 ## [1.0.4] - 2026-10-01
 
 ### Added
