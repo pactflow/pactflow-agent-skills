@@ -22,9 +22,9 @@ package models
 
 type ProviderState struct {
 	Name string
-	Parameters map[string]interface{}
+	Parameters map[string]any
 }
-type ProviderStateResponse map[string]interface{}
+type ProviderStateResponse map[string]any
 type StateHandler func(setup bool, state ProviderState) (ProviderStateResponse, error)
 type StateHandlers map[string]StateHandler
 ```
@@ -50,9 +50,9 @@ File: ./matchers/matcher.go
 ```go
 package matchers
 
-func EachLike(content interface{}, minRequired int) Matcher
+func EachLike(content any, minRequired int) Matcher
 var ArrayMinLike = EachLike
-func Like(content interface{}) Matcher
+func Like(content any) Matcher
 func Term(generate string, matcher string) Matcher
 func HexValue() Matcher
 func Identifier() Matcher
@@ -71,23 +71,23 @@ type Matcher interface {
 
 	// GetValue returns the raw generated value for the matcher
 	// without any of the matching detail context
-	GetValue() interface{}
+	GetValue() any
 }
 type S string
-func (s S) GetValue() interface{}
+func (s S) GetValue() any
 func (s S) MarshalJSON() ([]byte, error)
 type String string
-func (s String) GetValue() interface{}
+func (s String) GetValue() any
 func (s String) MarshalJSON() ([]byte, error)
-type StructMatcher map[string]interface{}
-func (m StructMatcher) GetValue() interface{}
+type StructMatcher map[string]any
+func (m StructMatcher) GetValue() any
 type MapMatcher map[string]Matcher
 type Map MapMatcher
-func (m *MapMatcher) UnmarshalJSON(bytes []byte) (err error)
+func (m *MapMatcher) UnmarshalJSON(bytes []byte) error
 type HeadersMatcher = map[string][]Matcher
 type MetadataMatcher = MapMatcher
 type QueryMatcher map[string][]Matcher
-func MatchV2(src interface{}) Matcher
+func MatchV2(src any) Matcher
 ```
 
 ### V3 Matchers
@@ -100,15 +100,15 @@ package matchers
 func Decimal(example float64) Matcher
 func Integer(example int) Matcher
 type Null struct {}
-func (n Null) GetValue() interface{}
+func (n Null) GetValue() any
 func (n Null) MarshalJSON() ([]byte, error)
-func Equality(content interface{}) Matcher
+func Equality(content any) Matcher
 func Includes(content string) Matcher
 func FromProviderState(expression, example string) Matcher
-func EachKeyLike(key string, template interface{}) Matcher
-func ArrayContaining(variants []interface{}) Matcher
-func ArrayMinMaxLike(content interface{}, min int, max int) Matcher
-func ArrayMaxLike(content interface{}, max int) Matcher
+func EachKeyLike(key string, template any) Matcher
+func ArrayContaining(variants []any) Matcher
+func ArrayMinMaxLike(content any, minCount int, maxCount int) Matcher
+func ArrayMaxLike(content any, maxCount int) Matcher
 func DateGenerated(example string, format string) Matcher
 func TimeGenerated(example string, format string) Matcher
 func DateTimeGenerated(example string, format string) Matcher
@@ -140,22 +140,22 @@ func (i *V2UnconfiguredInteraction) WithRequestPathMatcher(method Method, path m
 func (i *V2RequestBuilder) Query(key string, values ...matchers.Matcher) *V2RequestBuilder
 func (i *V2RequestBuilder) Header(key string, values ...matchers.Matcher) *V2RequestBuilder
 func (i *V2RequestBuilder) Headers(headers matchers.HeadersMatcher) *V2RequestBuilder
-func (i *V2RequestBuilder) JSONBody(body interface{}) *V2RequestBuilder
+func (i *V2RequestBuilder) JSONBody(body any) *V2RequestBuilder
 func (i *V2RequestBuilder) BinaryBody(body []byte) *V2RequestBuilder
 func (i *V2RequestBuilder) MultipartBody(contentType string, filename string, mimePartName string) *V2RequestBuilder
 func (i *V2RequestBuilder) Body(contentType string, body []byte) *V2RequestBuilder
-func (i *V2RequestBuilder) BodyMatch(body interface{}) *V2RequestBuilder
+func (i *V2RequestBuilder) BodyMatch(body any) *V2RequestBuilder
 func (i *V2InteractionWithRequest) WillRespondWith(status int, builders ...V2ResponseBuilderFunc) *V2InteractionWithResponse
 type V2ResponseBuilderFunc func(*V2ResponseBuilder)
 type V2ResponseBuilder struct {}
 type V2InteractionWithResponse struct {}
 func (i *V2ResponseBuilder) Header(key string, values ...matchers.Matcher) *V2ResponseBuilder
 func (i *V2ResponseBuilder) Headers(headers matchers.HeadersMatcher) *V2ResponseBuilder
-func (i *V2ResponseBuilder) JSONBody(body interface{}) *V2ResponseBuilder
+func (i *V2ResponseBuilder) JSONBody(body any) *V2ResponseBuilder
 func (i *V2ResponseBuilder) BinaryBody(body []byte) *V2ResponseBuilder
 func (i *V2ResponseBuilder) MultipartBody(contentType string, filename string, mimePartName string) *V2ResponseBuilder
 func (i *V2ResponseBuilder) Body(contentType string, body []byte) *V2ResponseBuilder
-func (i *V2ResponseBuilder) BodyMatch(body interface{}) *V2ResponseBuilder
+func (i *V2ResponseBuilder) BodyMatch(body any) *V2ResponseBuilder
 ```
 
 ### HTTP V3
@@ -183,22 +183,22 @@ func (i *V3UnconfiguredInteraction) WithRequestPathMatcher(method Method, path m
 func (i *V3RequestBuilder) Query(key string, values ...matchers.Matcher) *V3RequestBuilder
 func (i *V3RequestBuilder) Header(key string, values ...matchers.Matcher) *V3RequestBuilder
 func (i *V3RequestBuilder) Headers(headers matchers.HeadersMatcher) *V3RequestBuilder
-func (i *V3RequestBuilder) JSONBody(body interface{}) *V3RequestBuilder
+func (i *V3RequestBuilder) JSONBody(body any) *V3RequestBuilder
 func (i *V3RequestBuilder) BinaryBody(body []byte) *V3RequestBuilder
 func (i *V3RequestBuilder) MultipartBody(contentType string, filename string, mimePartName string) *V3RequestBuilder
 func (i *V3RequestBuilder) Body(contentType string, body []byte) *V3RequestBuilder
-func (i *V3RequestBuilder) BodyMatch(body interface{}) *V3RequestBuilder
+func (i *V3RequestBuilder) BodyMatch(body any) *V3RequestBuilder
 func (i *V3InteractionWithRequest) WillRespondWith(status int, builders ...V3ResponseBuilderFunc) *V3InteractionWithResponse
 type V3ResponseBuilderFunc func(*V3ResponseBuilder)
 type V3ResponseBuilder struct {}
 type V3InteractionWithResponse struct {}
 func (i *V3ResponseBuilder) Header(key string, values ...matchers.Matcher) *V3ResponseBuilder
 func (i *V3ResponseBuilder) Headers(headers matchers.HeadersMatcher) *V3ResponseBuilder
-func (i *V3ResponseBuilder) JSONBody(body interface{}) *V3ResponseBuilder
+func (i *V3ResponseBuilder) JSONBody(body any) *V3ResponseBuilder
 func (i *V3ResponseBuilder) BinaryBody(body []byte) *V3ResponseBuilder
 func (i *V3ResponseBuilder) MultipartBody(contentType string, filename string, mimePartName string) *V3ResponseBuilder
 func (i *V3ResponseBuilder) Body(contentType string, body []byte) *V3ResponseBuilder
-func (i *V3ResponseBuilder) BodyMatch(body interface{}) *V3ResponseBuilder
+func (i *V3ResponseBuilder) BodyMatch(body any) *V3ResponseBuilder
 ```
 
 ### HTTP V4
@@ -227,22 +227,22 @@ func (i *V4UnconfiguredInteraction) WithRequestPathMatcher(method Method, path m
 func (i *V4RequestBuilder) Query(key string, values ...matchers.Matcher) *V4RequestBuilder
 func (i *V4RequestBuilder) Header(key string, values ...matchers.Matcher) *V4RequestBuilder
 func (i *V4RequestBuilder) Headers(headers matchers.HeadersMatcher) *V4RequestBuilder
-func (i *V4RequestBuilder) JSONBody(body interface{}) *V4RequestBuilder
+func (i *V4RequestBuilder) JSONBody(body any) *V4RequestBuilder
 func (i *V4RequestBuilder) BinaryBody(body []byte) *V4RequestBuilder
 func (i *V4RequestBuilder) MultipartBody(contentType string, filename string, mimePartName string) *V4RequestBuilder
 func (i *V4RequestBuilder) Body(contentType string, body []byte) *V4RequestBuilder
-func (i *V4RequestBuilder) BodyMatch(body interface{}) *V4RequestBuilder
+func (i *V4RequestBuilder) BodyMatch(body any) *V4RequestBuilder
 func (i *V4InteractionWithRequest) WillRespondWith(status int, builders ...V4ResponseBuilderFunc) *V4InteractionWithResponse
 type V4ResponseBuilderFunc func(*V4ResponseBuilder)
 type V4ResponseBuilder struct {}
 type V4InteractionWithResponse struct {}
 func (i *V4ResponseBuilder) Header(key string, values ...matchers.Matcher) *V4ResponseBuilder
 func (i *V4ResponseBuilder) Headers(headers matchers.HeadersMatcher) *V4ResponseBuilder
-func (i *V4ResponseBuilder) JSONBody(body interface{}) *V4ResponseBuilder
+func (i *V4ResponseBuilder) JSONBody(body any) *V4ResponseBuilder
 func (i *V4ResponseBuilder) BinaryBody(body []byte) *V4ResponseBuilder
 func (i *V4ResponseBuilder) MultipartBody(contentType string, filename string, mimePartName string) *V4ResponseBuilder
 func (i *V4ResponseBuilder) Body(contentType string, body []byte) *V4ResponseBuilder
-func (i *V4ResponseBuilder) BodyMatch(body interface{}) *V4ResponseBuilder
+func (i *V4ResponseBuilder) BodyMatch(body any) *V4ResponseBuilder
 type PluginConfig struct {
 	Plugin string
 	Version string
@@ -263,19 +263,19 @@ func (i *V4InteractionWithPluginRequestBuilder) Query(key string, values ...matc
 func (i *V4InteractionWithPluginRequestBuilder) Header(key string, values ...matchers.Matcher) *V4InteractionWithPluginRequestBuilder
 func (i *V4InteractionWithPluginRequestBuilder) Headers(headers matchers.HeadersMatcher) *V4InteractionWithPluginRequestBuilder
 func (i *V4InteractionWithPluginRequestBuilder) PluginContents(contentType string, contents string) *V4InteractionWithPluginRequestBuilder
-func (i *V4InteractionWithPluginRequestBuilder) JSONBody(body interface{}) *V4InteractionWithPluginRequestBuilder
+func (i *V4InteractionWithPluginRequestBuilder) JSONBody(body any) *V4InteractionWithPluginRequestBuilder
 func (i *V4InteractionWithPluginRequestBuilder) BinaryBody(body []byte) *V4InteractionWithPluginRequestBuilder
 func (i *V4InteractionWithPluginRequestBuilder) MultipartBody(contentType string, filename string, mimePartName string) *V4InteractionWithPluginRequestBuilder
 func (i *V4InteractionWithPluginRequestBuilder) Body(contentType string, body []byte) *V4InteractionWithPluginRequestBuilder
-func (i *V4InteractionWithPluginRequestBuilder) BodyMatch(body interface{}) *V4InteractionWithPluginRequestBuilder
+func (i *V4InteractionWithPluginRequestBuilder) BodyMatch(body any) *V4InteractionWithPluginRequestBuilder
 func (i *V4InteractionWithPluginResponseBuilder) Header(key string, values ...matchers.Matcher) *V4InteractionWithPluginResponseBuilder
 func (i *V4InteractionWithPluginResponseBuilder) Headers(headers matchers.HeadersMatcher) *V4InteractionWithPluginResponseBuilder
 func (i *V4InteractionWithPluginResponseBuilder) PluginContents(contentType string, contents string) *V4InteractionWithPluginResponseBuilder
-func (i *V4InteractionWithPluginResponseBuilder) JSONBody(body interface{}) *V4InteractionWithPluginResponseBuilder
+func (i *V4InteractionWithPluginResponseBuilder) JSONBody(body any) *V4InteractionWithPluginResponseBuilder
 func (i *V4InteractionWithPluginResponseBuilder) BinaryBody(body []byte) *V4InteractionWithPluginResponseBuilder
 func (i *V4InteractionWithPluginResponseBuilder) MultipartBody(contentType string, filename string, mimePartName string) *V4InteractionWithPluginResponseBuilder
 func (i *V4InteractionWithPluginResponseBuilder) Body(contentType string, body []byte) *V4InteractionWithPluginResponseBuilder
-func (i *V4InteractionWithPluginResponseBuilder) BodyMatch(body interface{}) *V4InteractionWithPluginResponseBuilder
+func (i *V4InteractionWithPluginResponseBuilder) BodyMatch(body any) *V4InteractionWithPluginResponseBuilder
 ```
 
 ### HTTP Config
@@ -328,7 +328,7 @@ type Request struct {
 	Path matchers.Matcher
 	Query matchers.MapMatcher
 	Headers matchers.MapMatcher
-	Body interface{}
+	Body any
 }
 type Method string
 ```
@@ -341,7 +341,7 @@ package consumer
 type Response struct {
 	Status int
 	Headers matchers.MapMatcher
-	Body interface{}
+	Body any
 }
 ```
 
@@ -352,8 +352,8 @@ File: ./message/message.go
 ```go
 package message
 
-type Body interface{}
-type Metadata map[string]interface{}
+type Body any
+type Metadata map[string]any
 type Handler func([]models.ProviderState) (Body, Metadata, error)
 type Producer Handler
 type Handlers map[string]Handler
@@ -367,7 +367,7 @@ File: ./message/v3/asynchronous_message.go
 package v3
 
 type AsynchronousMessageBuilder struct {
-	Type interface{}
+	Type any
 }
 type UnconfiguredAsynchronousMessageBuilder struct {}
 func (m *AsynchronousMessageBuilder) GivenWithParameter(state models.ProviderState) *AsynchronousMessageBuilder
@@ -377,8 +377,8 @@ func (m *UnconfiguredAsynchronousMessageBuilder) WithMetadata(metadata map[strin
 type AsynchronousMessageBuilderWithContents struct {}
 func (m *UnconfiguredAsynchronousMessageBuilder) WithBinaryContent(contentType string, body []byte) *AsynchronousMessageBuilderWithContents
 func (m *UnconfiguredAsynchronousMessageBuilder) WithContent(contentType string, body []byte) *AsynchronousMessageBuilderWithContents
-func (m *UnconfiguredAsynchronousMessageBuilder) WithJSONContent(content interface{}) *AsynchronousMessageBuilderWithContents
-func (m *AsynchronousMessageBuilderWithContents) AsType(t interface{}) *AsynchronousMessageBuilderWithContents
+func (m *UnconfiguredAsynchronousMessageBuilder) WithJSONContent(content any) *AsynchronousMessageBuilderWithContents
+func (m *AsynchronousMessageBuilderWithContents) AsType(t any) *AsynchronousMessageBuilderWithContents
 type AsynchronousMessageBuilderWithConsumer struct {}
 func (m *AsynchronousMessageBuilderWithContents) ConsumedBy(handler AsynchronousConsumer) *AsynchronousMessageBuilderWithConsumer
 func (m *AsynchronousMessageBuilderWithConsumer) Verify(t *testing.T) error
@@ -397,8 +397,8 @@ File: ./message/v3/message.go
 ```go
 package v3
 
-type Body interface{}
-type Metadata map[string]interface{}
+type Body any
+type Metadata map[string]any
 type AsynchronousConsumer func(MessageContents) error
 type MessageContents struct {
 	Content Body
@@ -436,18 +436,18 @@ type RequestBuilderFunc func(*SynchronousMessageWithRequestBuilder)
 type SynchronousMessageWithRequestBuilder struct {}
 func (m *SynchronousMessageWithRequestBuilder) WithMetadata(metadata map[string]string) *SynchronousMessageWithRequestBuilder
 func (m *SynchronousMessageWithRequestBuilder) WithContent(contentType string, body []byte) *SynchronousMessageWithRequestBuilder
-func (m *SynchronousMessageWithRequestBuilder) WithJSONContent(content interface{}) *SynchronousMessageWithRequestBuilder
+func (m *SynchronousMessageWithRequestBuilder) WithJSONContent(content any) *SynchronousMessageWithRequestBuilder
 func (m *SynchronousMessageWithRequest) WithResponse(builder ResponseBuilderFunc) *SynchronousMessageWithResponse
 type SynchronousMessageWithResponse struct {}
 type ResponseBuilderFunc func(*SynchronousMessageWithResponseBuilder)
 type SynchronousMessageWithResponseBuilder struct {}
 func (m *SynchronousMessageWithResponseBuilder) WithMetadata(metadata map[string]string) *SynchronousMessageWithResponseBuilder
 func (m *SynchronousMessageWithResponseBuilder) WithContent(contentType string, body []byte) *SynchronousMessageWithResponseBuilder
-func (m *SynchronousMessageWithResponseBuilder) WithJSONContent(content interface{}) *SynchronousMessageWithResponseBuilder
+func (m *SynchronousMessageWithResponseBuilder) WithJSONContent(content any) *SynchronousMessageWithResponseBuilder
 type SynchronousMessageWithPlugin struct {}
-func (s *SynchronousMessageWithPlugin) WithContents(contents string, contentType string) *SynchronousMessageWithPluginContents
+func (m *SynchronousMessageWithPlugin) WithContents(contents string, contentType string) *SynchronousMessageWithPluginContents
 type SynchronousMessageWithPluginContents struct {}
-func (s *SynchronousMessageWithPluginContents) StartTransport(transport string, address string, config map[string][]interface{}) *SynchronousMessageWithTransport
+func (m *SynchronousMessageWithPluginContents) StartTransport(transport string, address string, config map[string][]any) *SynchronousMessageWithTransport
 type SynchronousMessageWithTransport struct {}
 type PluginConfig struct {
 	Plugin string
@@ -465,7 +465,7 @@ File: ./message/v4/asynchronous_message.go
 package v4
 
 type AsynchronousMessageBuilder struct {
-	Type interface{}
+	Type any
 }
 func (m *AsynchronousMessageBuilder) Given(state string) *AsynchronousMessageBuilder
 func (m *AsynchronousMessageBuilder) GivenWithParameter(state models.ProviderState) *AsynchronousMessageBuilder
@@ -476,13 +476,13 @@ func (m *UnconfiguredAsynchronousMessageBuilder) UsingPlugin(config PluginConfig
 type AsynchronousMessageWithPlugin struct {}
 func (s *AsynchronousMessageWithPlugin) WithContents(contents string, contentType string) *AsynchronousMessageWithPluginContents
 type AsynchronousMessageWithPluginContents struct {}
-func (s *AsynchronousMessageWithPluginContents) StartTransport(transport string, address string, config map[string][]interface{}) *AsynchronousMessageWithTransport
+func (s *AsynchronousMessageWithPluginContents) StartTransport(transport string, address string, config map[string][]any) *AsynchronousMessageWithTransport
 type AsynchronousMessageWithTransport struct {}
 func (m *UnconfiguredAsynchronousMessageBuilder) WithMetadata(metadata map[string]string) *UnconfiguredAsynchronousMessageBuilder
 type AsynchronousMessageWithContents struct {}
 func (m *UnconfiguredAsynchronousMessageBuilder) WithContent(contentType string, body []byte) *AsynchronousMessageWithContents
-func (m *UnconfiguredAsynchronousMessageBuilder) WithJSONContent(content interface{}) *AsynchronousMessageWithContents
-func (m *AsynchronousMessageWithContents) AsType(t interface{}) *AsynchronousMessageWithContents
+func (m *UnconfiguredAsynchronousMessageBuilder) WithJSONContent(content any) *AsynchronousMessageWithContents
+func (m *AsynchronousMessageWithContents) AsType(t any) *AsynchronousMessageWithContents
 func (m *AsynchronousMessageWithContents) ConsumedBy(handler AsynchronousConsumer) *AsynchronousMessageWithConsumer
 type AsynchronousMessageWithConsumer struct {}
 func (m *AsynchronousMessageWithConsumer) Verify(t *testing.T) error
@@ -574,7 +574,7 @@ type ConsumerVersionSelector struct {
 	Branch string
 }
 func (c *ConsumerVersionSelector) IsSelector()
-type UntypedConsumerVersionSelector map[string]interface{}
+type UntypedConsumerVersionSelector map[string]any
 func (c *UntypedConsumerVersionSelector) IsSelector()
 type Selector interface {
 	IsSelector()
