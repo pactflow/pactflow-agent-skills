@@ -49,7 +49,7 @@ The `swagger-contract-testing` skills work together: **OAS Generator** produces 
 | Capability                              | Prerequisite                                                                                                                                                                      |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Install with `npx skills`               | Node.js and npm (`npx`)                                                                                                                                                           |
-| Install with `gh skill`                 | GitHub CLI with the `gh-skill` extension                                                                                                                                          |
+| Install with `gh skill`                 | GitHub CLI v2.90.0 or later                                                                                                                                          |
 | Use the bundled SmartBear MCP server    | Node.js 20+ and a PactFlow account or self-hosted Pact Broker                                                                                                                     |
 | Use `pact-coverage`, `oas-generator` or `asyncapi-generator` | [`ripwire`](plugins/swagger-contract-testing/skills/pact-coverage/references/install-ripwire.md) on `PATH`; interactive coverage also requires its MCP server                     |
 
@@ -67,7 +67,7 @@ This installs the `swagger-contract-testing` skills for all detected agents in y
 
 ## Quick install with `gh skill`
 
-The [`gh skill`](https://github.com/github/gh-skill) GitHub CLI extension installs agent skills directly from any GitHub repository. It works with any tool that reads skills from a standard location (Claude Code, Copilot, Cursor, Windsurf, Kiro, Codex, and more).
+The [`gh skill`](https://cli.github.com/manual/gh_skill) command, built into GitHub CLI v2.90.0 and later, installs agent skills directly from any GitHub repository. It works with any tool that reads skills from a standard location (Claude Code, Copilot, Cursor, Windsurf, Kiro, Codex, and more).
 
 ```bash
 gh skill install pactflow/pactflow-agent-skills
