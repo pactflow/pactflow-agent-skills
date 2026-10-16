@@ -567,7 +567,7 @@ def _section_examples(repo: Path) -> str:
         "- Call `with_request` before `will_respond_with`. Headers/body added"
         " _before_ `will_respond_with` target the request; _after_ it, the response.\n"
         "- `pact.serve()` is a context manager; access the mock server URL"
-        " via `srv.url` (a `yarl.URL`).\n"
+        " via `srv.url` (a `str` subclass).\n"
         "- Always provide example values in matchers (`match.int(1)` not"
         " `match.int()`) to keep tests deterministic."
     )
