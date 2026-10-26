@@ -31,7 +31,7 @@ tested in any pact. Never modifies files.
 
 When the spec is an AsyncAPI 3.x document the same skill measures Pact **message** pacts instead; see [AsyncAPI mode](#asyncapi-mode).
 
-**Prerequisites:** `ripwire` is required — as an MCP server for interactive use (see [ripwire MCP setup](#ripwire-mcp-setup) above), or as a CLI binary for CI scripts (see [Scripts (CI / advanced)](#scripts-ci--advanced) below). Run `command -v ripwire` to check; see [`references/install-ripwire.md`](references/install-ripwire.md) for install instructions.
+**Prerequisites:** a code-intelligence tool is recommended but not required. Any knowledge-graph / repo-map tool works (ripwire, codebase-memory-mcp, repowise, graphify, Aider repo-map, …); ripwire is preferred when installed (see [ripwire MCP setup](#ripwire-mcp-setup) below, or [`references/install-ripwire.md`](references/install-ripwire.md)). Without any graph tool the agent falls back to `Grep`/`Glob`/`Read`, with lower route-discovery confidence. The CI scripts take routes explicitly via `--consumer-routes`, so they work with output from any tool.
 
 ---
 
@@ -42,15 +42,15 @@ Pact coverage answers one question: **do the consumer's pact files exercise ever
 The provider's OAS describes its full surface — but the consumer only calls a subset of it. Measuring coverage against the full OAS produces false gaps (unused provider endpoints appearing as uncovered). The correct denominator is the *consumer-filtered provider OAS*: the slice of the provider's OAS that the consumer actually calls.
 
 Flow:
-1. **ripwire scans the consumer codebase** → discovers which provider paths/methods the consumer calls
+1. **A code-intelligence tool (or plain search) scans the consumer codebase** → discovers which provider paths/methods the consumer calls
 2. **The provider OAS is filtered** to only those routes (removing unused endpoints)
 3. **Pact files are compared** against the filtered OAS → gaps = operations/codes/fields the consumer calls but hasn't exercised in any pact interaction
 
 ---
 
-## ripwire MCP setup
+## Code-intelligence tool setup
 
-The `swagger-contract-testing:pact-coverage` agent uses ripwire via MCP tools for adaptive route discovery. The ripwire MCP server must be connected before running coverage interactively.
+The `swagger-contract-testing:pact-coverage` agent uses whichever code-graph MCP tools are connected for adaptive route discovery, preferring ripwire. Connect one before running coverage interactively for best results; register other tools per their own docs. Example for ripwire:
 
 **Register in one command:**
 ```bash
@@ -184,7 +184,7 @@ Env vars `PACT_BROKER_BASE_URL`, `PACT_BROKER_TOKEN`, `PACT_CONSUMER` are read a
 
 **Run consumer tests now**
 1. Locate pact test files — search for `*pact*` / `*contract*` in test directories, or use
-   ripwire: `ripwire . --for="pact consumer test setup"`.
+   a connected code-graph tool (e.g. ripwire: `ripwire . --for="pact consumer test setup"`).
 2. Determine the exact run command from the project's build config (`package.json` scripts,
    `pyproject.toml`, `pom.xml` surefire, `build.gradle`, etc.).
    Examples: `npm run test:pact`, `pytest tests/pact/`, `mvn test -Dtest=*PactTest`.
@@ -252,7 +252,7 @@ Pass the three resolved inputs to the `swagger-contract-testing:pact-coverage` a
 - `pact_glob` — glob or list of pact files (resolved in Pact file selection)
 
 The agent will:
-1. Use ripwire MCP tools to discover which provider routes the consumer calls
+1. Use the available code-intelligence tools (ripwire preferred, else any code-graph tool, else Grep/Glob) to discover which provider routes the consumer calls
 2. Build a consumer-filtered provider OAS
 3. Run `parse_pact_coverage.py` and report the gaps
 
@@ -266,7 +266,7 @@ The agent handles all framework-specific patterns (direct HTTP clients, class-ba
 
 When `spec_path` is an AsyncAPI 3.x document, `parse_pact_coverage.py` switches to message-pact
 coverage automatically. Pact files must contain message interactions (v3 `messages`, v4
-`Asynchronous/Messages`). Run it directly; ripwire route discovery does not apply in this version, so
+`Asynchronous/Messages`). Run it directly; code-graph route discovery does not apply in this version, so
 skip the agent's route-discovery steps and pass the channels the consumer subscribes to yourself:
 
 ```bash
@@ -370,10 +370,10 @@ uv run scripts/parse_pact_coverage.py \
 | Script | Purpose |
 |--------|---------|
 | `scripts/parse_pact_coverage.py` | Coverage checker (v2/v3/v4). Flags: `--spec`, `--pacts`, `--consumer-routes` (filtered OAS), `--consumer-root` (Section 5), `--exclude-codes`, `--json`, `--broker-url`/`--broker-token`/`--consumer` (broker fetch), `--consumer-channels` and `--include-actions` (AsyncAPI mode) |
-| `scripts/build_filtered_oas.py` | CI tool: Strategy 1 route discovery only (outputs `--consumer-routes` JSON for `parse_pact_coverage.py`) |
+| `scripts/build_filtered_oas.py` | CI tool: single-strategy route discovery (outputs `--consumer-routes` JSON for `parse_pact_coverage.py`). `--tool ripwire\|codebase-memory\|graphify\|repowise\|aider\|grep\|auto` (`repowise` runs `repowise ask`, which makes an LLM call; `codebase-memory` indexes in fast mode then regex-searches); for any other tool pass `--tool-cmd '<command>'` (`{root}`, `{query}` substituted). Non-ripwire output is free text, so routes are extracted heuristically — review them |
 
 `async_coverage.py` is imported by `parse_pact_coverage.py` and is not run directly.
 
 **Exit codes for `parse_pact_coverage.py`:** `0` = full coverage across all 4 dimensions · `1` = gaps found · `2` = error (spec/pact unparseable, consumer-filtering failed). Section 5 gaps do **not** affect the exit code.
 
-**Note:** `build_filtered_oas.py` runs Strategy 1 only. For consumers with class-based HTTP clients or unusual patterns, use the interactive agent which tries all strategies.
+**Note:** `build_filtered_oas.py` runs one discovery pass only; non-ripwire tools give lower-confidence routes. For consumers with class-based HTTP clients or unusual patterns, use the interactive agent which tries all strategies.
