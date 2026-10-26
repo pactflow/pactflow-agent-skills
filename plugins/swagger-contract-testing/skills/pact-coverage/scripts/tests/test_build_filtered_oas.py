@@ -184,3 +184,102 @@ class TestMain:
             ripwire_side_effect=RuntimeError("binary not found"),
         )
         assert exit_code == 2
+
+
+class TestGenericTools:
+    def test_extract_verb_and_path(self):
+        from build_filtered_oas import extract_routes_from_text
+
+        routes = extract_routes_from_text('fetch("GET", "/orders/123?x=1")\nclient.post("/orders")')
+        assert {(r["method"], r["path"]) for r in routes} == {("GET", "/orders/123"), ("POST", "/orders")}
+
+    def test_template_vars_normalised_and_deduped(self):
+        from build_filtered_oas import extract_routes_from_text
+
+        text = 'api.get(`/orders/${id}`)\napi.get(f"/orders/{oid}")'
+        routes = extract_routes_from_text(text)
+        assert [(r["method"], r["path"]) for r in routes] == [("GET", "/orders/{id}")]
+
+    def test_grep_tool_scans_sources(self, tmp_path):
+        (tmp_path / "client.py").write_text('requests.get("/products")\n')
+        (tmp_path / "node_modules").mkdir()
+        (tmp_path / "node_modules" / "x.js").write_text('a.get("/ignored")')
+        with (
+            mock.patch.object(sys, "argv", ["b.py", "--consumer-root", str(tmp_path), "--tool", "grep"]),
+            mock.patch("sys.stdout", io.StringIO()) as out,
+        ):
+            from build_filtered_oas import main
+
+            with pytest.raises(SystemExit) as exc:
+                main()
+        assert exc.value.code == 0
+        assert json.loads(out.getvalue()) == [{"method": "GET", "path": "/products"}]
+
+    def test_graphify_tool_uses_query_output(self):
+        with (
+            mock.patch.object(sys, "argv", ["b.py", "--consumer-root", "/src", "--tool", "graphify"]),
+            mock.patch("build_filtered_oas.run_command", return_value='GET "/users"') as rc,
+            mock.patch("sys.stdout", io.StringIO()) as out,
+        ):
+            from build_filtered_oas import main
+
+            with pytest.raises(SystemExit):
+                main()
+        assert rc.call_args.args[0][:2] == ["graphify", "query"]
+        assert json.loads(out.getvalue()) == [{"method": "GET", "path": "/users"}]
+
+    def test_repowise_uses_ask(self):
+        with (
+            mock.patch.object(sys, "argv", ["b.py", "--consumer-root", "/src", "--tool", "repowise"]),
+            mock.patch("build_filtered_oas.run_command", return_value='PUT "/a/b"') as rc,
+            mock.patch("sys.stdout", io.StringIO()) as out,
+        ):
+            from build_filtered_oas import main
+
+            with pytest.raises(SystemExit) as exc:
+                main()
+        assert rc.call_args.args[0][:2] == ["repowise", "ask"]
+        assert exc.value.code == 0
+        assert json.loads(out.getvalue()) == [{"method": "PUT", "path": "/a/b"}]
+
+    def test_codebase_memory_indexes_then_searches(self):
+        outputs = ["indexed", '  return requests.get("/orders/1")']
+        with (
+            mock.patch.object(sys, "argv", ["b.py", "--consumer-root", "/src", "--tool", "codebase-memory"]),
+            mock.patch("build_filtered_oas.run_command", side_effect=outputs) as rc,
+            mock.patch("sys.stdout", io.StringIO()) as out,
+        ):
+            from build_filtered_oas import main
+
+            with pytest.raises(SystemExit) as exc:
+                main()
+        assert "index_repository" in rc.call_args_list[0].args[0]
+        assert "search_code" in rc.call_args_list[1].args[0]
+        assert exc.value.code == 0
+        assert json.loads(out.getvalue()) == [{"method": "GET", "path": "/orders/1"}]
+
+    def test_unknown_builtin_without_tool_cmd_exits_2(self):
+        with (
+            mock.patch.object(sys, "argv", ["b.py", "--consumer-root", "/src", "--tool", "auto"]),
+            mock.patch("build_filtered_oas.resolve_tool", return_value="nope"),
+        ):
+            from build_filtered_oas import main
+
+            with pytest.raises(SystemExit) as exc:
+                main()
+        assert exc.value.code == 2
+
+    def test_tool_cmd_substitutes_root(self):
+        with (
+            mock.patch.object(
+                sys, "argv", ["b.py", "--consumer-root", "/src", "--tool", "repowise", "--tool-cmd", "rw search {root}"]
+            ),
+            mock.patch("build_filtered_oas.run_command", return_value="DELETE '/a'") as rc,
+            mock.patch("sys.stdout", io.StringIO()),
+        ):
+            from build_filtered_oas import main
+
+            with pytest.raises(SystemExit) as exc:
+                main()
+        assert rc.call_args.args[0] == ["rw", "search", "/src"]
+        assert exc.value.code == 0

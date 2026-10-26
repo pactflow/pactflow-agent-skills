@@ -147,3 +147,4 @@ write_file_no_gil.c
 .vscode/
 
 *venv*
+.repowise/
