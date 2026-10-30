@@ -4,6 +4,39 @@ All notable changes to this project are documented in this file. The format is b
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-30
+
+### Added
+
+- Add support for other kg tools as well as no tool (#107)
+### Dependencies
+
+- Update dependency boto3 to v1.43.108 (#85)
+- Update dependency boto3 to v1.43.109 (#88)
+- Update actions/download-artifact digest to 9000827 (#86)
+- Update actions/upload-artifact digest to cf430e0 (#87)
+- Lock file maintenance (#89)
+- Update dependency boto3 to v1.43.110 (#91)
+- Update dependency ruff to v0.17.0 (#94)
+- Update astral-sh/setup-uv action to v10.3.0 (#93)
+- Update dependency boto3 to v1.43.111 (#92)
+- Lock file maintenance
+- Update actions/create-github-app-token digest to 64ab729
+- Update dependency boto3 to v1.43.114
+- Update dependency zizmor to v1.31.1 (#100)
+- Update dependency ruff to v0.17.1 (#101)
+- Update dependency boto3 to v1.43.116 (#103)
+- Lock file maintenance (#104)
+- Update astral-sh/setup-uv action to v10.3.1 (#105)
+- Update dependency boto3 to v1.43.117 (#106)
+- Update astral-sh/setup-uv action to v10.3.2 (#108)
+- Update dependency ruff to v0.17.2 (#109)
+- Update dependency boto3 to v1.43.118 (#110)
+### Documentation
+
+- Fix gh skill installation link and prerequisites (#95)
+- Describe the pact-python 4.1 URL type
+
 ## [1.3.0] - 2026-10-06
 
 ### Dependencies
