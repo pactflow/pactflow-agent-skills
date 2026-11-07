@@ -19,7 +19,7 @@ dev = [
     "pytest-cov~=7.0",
     "pyyaml~=6.0",
     "ruff==0.17.3",
-    "zizmor==1.31.1",
+    "zizmor==1.32.0",
 ]
 
 [tool.ruff]
