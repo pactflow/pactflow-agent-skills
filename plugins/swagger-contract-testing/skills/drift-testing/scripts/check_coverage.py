@@ -9,9 +9,10 @@
 """
 check_coverage.py — Drift test coverage checker.
 
-Reads an OpenAPI or AsyncAPI spec and one or more Drift test YAML files. OpenAPI
+Reads an OpenAPI, AsyncAPI or MCP (.mcp.yaml/.yml/.json) definition and one or more Drift test YAML files. OpenAPI
 coverage tracks operations and response codes; AsyncAPI coverage tracks each
-operation/message target.
+operation/message target; MCP coverage tracks drift checks and each declared
+tool, resource and prompt.
 
 Usage:
   python3 check_coverage.py --spec openapi.yaml --test-files drift.yaml
@@ -35,6 +36,7 @@ from collections import defaultdict
 from typing import Any
 
 from asyncapi_targets import load_asyncapi_targets
+from mcp_targets import is_covered, is_mcp_path, load_mcp_items, load_mcp_targets, required_targets
 
 try:
     import yaml
@@ -335,6 +337,44 @@ def report_asyncapi_coverage(
         return 1
 
 
+def report_mcp_coverage(spec_path: str, test_files: list[str], as_json: bool) -> int:
+    """Report MCP coverage. Returns 0 when every declared item has a test."""
+    items = load_mcp_items(spec_path)
+    covered_targets = load_mcp_targets(test_files)
+    required = required_targets(items)
+    missing = [t for t in required if not is_covered(t, covered_targets)]
+
+    def fmt(t: tuple[str, str]) -> str:
+        return f"{t[0]}/{t[1]}"
+
+    covered = [t for t in required if t not in missing]
+    pct = round(100 * len(covered) / max(len(required), 1), 1)
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "spec_type": "mcp",
+                    "total_targets": len(required),
+                    "covered_targets": len(covered),
+                    "missing": [fmt(t) for t in missing],
+                    "coverage_pct": pct,
+                },
+                indent=2,
+            )
+        )
+        return 0 if not missing else 1
+    print(f"MCP targets: {len(required)} total, {len(covered)} covered, {len(missing)} missing\n")
+    for t in covered:
+        print(f"  ✓ {fmt(t)}")
+    for t in missing:
+        print(f"  ✗ {fmt(t)}")
+    if not missing:
+        print("\n✓ Full coverage — drift checks and all declared tools/resources/prompts have a test.")
+        return 0
+    print(f"\nCoverage: {len(covered)}/{len(required)} targets ({round(pct)}%)")
+    return 1
+
+
 # ─── Comparison ────────────────────────────────────────────────────────────────
 
 
@@ -464,6 +504,13 @@ def main() -> None:
     for pattern in args.test_files:
         matches = glob.glob(pattern)
         test_files.extend(matches if matches else ([pattern] if os.path.exists(pattern) else []))
+
+    if is_mcp_path(args.spec):
+        try:
+            sys.exit(report_mcp_coverage(args.spec, test_files, args.json))
+        except (OSError, yaml.YAMLError, ValueError) as e:
+            print(f"ERROR: Could not parse MCP definition: {e}", file=sys.stderr)
+            sys.exit(2)
 
     # Auto-detect spec type and dispatch to AsyncAPI path if applicable
     try:

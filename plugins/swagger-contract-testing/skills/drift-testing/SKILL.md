@@ -14,6 +14,8 @@ description: >
   Also use when the user mentions AsyncAPI, event-driven API testing, Kafka
   contract testing, SNS or SQS testing, async message contracts, or wants to
   verify that a service publishes or consumes messages matching an AsyncAPI spec.
+  Also use when the user mentions MCP, Model Context Protocol, MCP server testing,
+  `.mcp.yaml` definitions, or verifying an MCP server's tools, resources or prompts.
 
 argument-hint: "[path/to/oas|path/to/drift-test]"
 metadata: 
@@ -32,6 +34,7 @@ Never modify the openapi spec that you are testing.
 - [`references/mock-server.md`](references/mock-server.md) — Local testing with Prism: setup, Prefer header, spec quality issues
 - [`references/lua-api.md`](references/lua-api.md) — Complete Lua API: lifecycle events, `http()`, `dbg()`, exported functions
 - [`references/cli-reference.md`](references/cli-reference.md) — All CLI commands/flags, configuration, parallel execution, exit codes
+- [`references/mcp-plugin.md`](references/mcp-plugin.md) — MCP plugin: drift checks, tool/resource/prompt tests, transports, config, BDCT publishing
 - [`references/pactflow-and-cicd.md`](references/pactflow-and-cicd.md) — BDCT publishing workflow, GitHub Actions, GitLab CI
 
 ## Scripts
@@ -503,6 +506,12 @@ The AsyncAPI `servers` block declares the broker connection; Drift uses it unles
 
 ---
 
+## MCP Server Testing
+
+Drift's `mcp` plugin verifies an MCP server against a SmartBear Studio MCP definition (`.mcp.yaml`/`.mcp.yml`/`.mcp.json`). Declare `- name: mcp` under `plugins:` (plus `- name: json` when tools declare schemas), targets like `<source>:drift/all`, `<source>:tool/<name>`, `<source>:resource/<uri>`, `<source>:prompt/<name>`. Supports Streamable HTTP and stdio; **no auth support**. Publish to PactFlow with `--specification mcp`. Full details: `references/mcp-plugin.md`.
+
+---
+
 ## Quick Reference
 
 | Scenario                           | Approach                                       |
@@ -521,6 +530,7 @@ The AsyncAPI `servers` block declares the broker connection; Drift uses it unles
 | AsyncAPI send operation (observe) | `async-observe` mode — add `trigger` hook |
 | AsyncAPI receive operation (inject) | `async-inject` mode — add `probe` hook or use `probe-topic` |
 | AsyncAPI request/reply | `async-request-reply` mode — no trigger needed |
+| Verify an MCP server | `mcp` plugin — see `references/mcp-plugin.md` |
 | Parse complex AsyncAPI message schemas | asyncapi-parser skill |
 | Scaffold AsyncAPI test stubs | `extract_channels.py --scaffold` |
 | Check AsyncAPI coverage | `check_coverage.py` (auto-detects spec type) |
