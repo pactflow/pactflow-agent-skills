@@ -1,0 +1,8 @@
+{
+  "consumer": {"name": "mobile-app"}, "provider": {"name": "loyalty-api"},
+  "metadata": {"pactSpecification": {"version": "3.0.0"}},
+  "interactions": [
+    {"description": "points for a member", "request": {"method": "GET", "path": "/members/42/points"},
+     "response": {"status": 200, "body": {"balance": 120, "tier": "gold"}}}
+  ]
+}

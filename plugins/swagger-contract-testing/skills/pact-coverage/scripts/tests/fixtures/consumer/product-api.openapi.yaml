@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info: {title: Product API, version: 2.1.0}
+paths:
+  /products:
+    get: {responses: {"200": {description: ok}, "400": {description: bad}}}
+  /products/{productId}:
+    get: {responses: {"200": {description: ok}, "404": {description: nf}, "5XX": {description: err}, default: {description: d}}}
+  /orders:
+    post: {responses: {"201": {description: ok}, "422": {description: bad}, "301": {description: moved}}}
+  /orders/{id}:
+    get: {responses: {"200": {description: never called by checkout-web}}}

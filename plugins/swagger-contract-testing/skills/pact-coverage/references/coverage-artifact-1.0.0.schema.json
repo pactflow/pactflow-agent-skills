@@ -1,0 +1,615 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pactflow.io/schemas/coverage-artifact-1.0.0.schema.json",
+  "title": "Coverage artifact 1.0.0 (draft)",
+  "description": "Shared by provider (Drift) and consumer (Pact) coverage producers. PactFlow owns the schema; Drift keeps a copy it tests against.\n\nCONSUMER MODEL (participant.role = consumer). The code sets the denominator: coverage items come from the provider operations the consumer's code calls. A provider specification, when present, adds detail to those items and never adds operations the code does not call. Levels: operations (operations the code calls); responses (the success response plus each status the handling code checks; first release uses this 'handled' model only); validInputs (parameters, body fields and values the code sends); responseFields (response fields the code reads - consumer only; a oneOf variant's fields count only once that variant is reached); inputResponse (pact interactions); invalid inputs are not measured (totals.inputs.invalid is null). States: tested (a pact interaction covers it), notTested (the code relies on it, no interaction covers it), excluded (left out on purpose, with excludedReason). 'failing' and 'notTestedDirectly' are provider states and are not used for consumers in v1: pact files hold only passing interactions and a failed provider verification is a compatibility problem the matrix already shows, so it does not change coverage. Unresolved calls (and pact interactions matching no operation) are listed in 'unresolved', never dropped, and are left out of every percentage; totals.unresolved shows the count. Nothing is excluded silently: items the default model leaves out (5xx, 3xx, default responses, status ranges) are listed as excluded with a reason. A response field a pact interaction includes but the code never reads is an 'observation': no denominator, no state, no percentage. Percentages are tested / (tested + notTested); excluded items are outside the denominator; percent is null when the denominator is 0. Locations are carried in the report-level 'locations' table and referenced by id from derivedFrom, nearestTests and tests[].location; code snippets and function bodies are never published. The same commit always gives the same result: no timestamps or random ids are emitted.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "participant",
+    "source",
+    "policy",
+    "operations",
+    "totals"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.\\d+\\.\\d+$"
+    },
+    "participant": {
+      "type": "object",
+      "required": [
+        "role",
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "enum": [
+            "provider",
+            "consumer"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "counterparty": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "commit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repository": {
+          "type": "string"
+        },
+        "specification": {
+          "description": "Provider specification used to add detail. Absent when none was available.",
+          "type": "object",
+          "required": [
+            "format"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "format": {
+              "enum": [
+                "openapi",
+                "asyncapi"
+              ]
+            },
+            "title": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        },
+        "analysis": {
+          "description": "How the consumer code was analysed (discovery). Consumer only.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool": {
+              "type": "string"
+            },
+            "manifestVersion": {
+              "type": "string"
+            },
+            "manifestSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "responses": {
+          "description": "Consumer only. 'handled' is the only value in the first release; 'declared' arrives with PACT-7918.",
+          "enum": [
+            "handled",
+            "declared"
+          ]
+        },
+        "excludeStatuses": {
+          "description": "Status codes the producer excluded from the denominator.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "locations": {
+          "enum": [
+            "full",
+            "hashed",
+            "none"
+          ]
+        },
+        "pairwiseCap": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "largeEnumLimit": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "locations": {
+      "description": "Report-level table of code and specification locations, keyed by id. Omitted when policy.locations is 'none'.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/location"
+      }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/operation"
+      }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/unresolved"
+      }
+    },
+    "totals": {
+      "type": "object",
+      "required": [
+        "operations",
+        "responses",
+        "inputs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "operations": {
+          "$ref": "#/$defs/levelTotal"
+        },
+        "responses": {
+          "$ref": "#/$defs/levelTotal"
+        },
+        "inputs": {
+          "type": "object",
+          "required": [
+            "valid",
+            "invalid"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "valid": {
+              "$ref": "#/$defs/levelTotal"
+            },
+            "invalid": {
+              "description": "Not measured for consumers: null, no percentage.",
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/levelTotal"
+                }
+              ]
+            }
+          }
+        },
+        "responseFields": {
+          "$ref": "#/$defs/levelTotal"
+        },
+        "inputResponse": {
+          "$ref": "#/$defs/levelTotal"
+        },
+        "unresolved": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "$defs": {
+    "location": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "call-site",
+            "handler",
+            "test",
+            "specification"
+          ]
+        },
+        "file": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string"
+        },
+        "hash": {
+          "description": "Hash of the call (never its source), so an agent can find it again after lines move.",
+          "type": "string"
+        }
+      }
+    },
+    "levelTotal": {
+      "type": "object",
+      "required": [
+        "tested",
+        "notTested",
+        "excluded",
+        "total",
+        "percent"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tested": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "notTested": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "notTestedDirectly": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "excluded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "description": "All items at this level, including excluded.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "percent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "testRef": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "testcase"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "drift"
+            },
+            "testcase": {
+              "type": "string"
+            },
+            "operation": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "pact",
+            "description"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "pact"
+            },
+            "pact": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "providerStates": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "location": {
+              "type": "string"
+            },
+            "verification": {
+              "description": "Link to the provider verification result; a failed verification does not change coverage.",
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "item": {
+      "type": "object",
+      "required": [
+        "id",
+        "level",
+        "label",
+        "state"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "operation",
+            "response",
+            "validInput",
+            "invalidInput",
+            "responseField",
+            "inputResponse"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "tested",
+            "notTested",
+            "excluded",
+            "failing",
+            "notTestedDirectly"
+          ]
+        },
+        "excludedReason": {
+          "type": "string"
+        },
+        "derivedFrom": {
+          "description": "Location ids (call site or handler) the item comes from.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nearestTests": {
+          "description": "Location ids of the nearest existing tests.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/testRef"
+          }
+        },
+        "status": {
+          "description": "Response and response-field items: the HTTP status.",
+          "type": "string"
+        },
+        "detail": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "excluded"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "required": [
+              "excludedReason"
+            ]
+          }
+        }
+      ]
+    },
+    "operation": {
+      "type": "object",
+      "required": [
+        "id",
+        "method",
+        "path",
+        "state",
+        "items"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "path": {
+          "description": "Path template.",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "tested",
+            "notTested",
+            "excluded",
+            "failing",
+            "notTestedDirectly"
+          ]
+        },
+        "matchedBy": {
+          "description": "Consumer only. 'spec' when the operation was matched to the provider specification, 'code' when identified by the method and path template in the code.",
+          "enum": [
+            "spec",
+            "code"
+          ]
+        },
+        "callSites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        },
+        "suggestions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "coveringArray": {
+              "type": "object",
+              "required": [
+                "strength",
+                "parameters",
+                "rows",
+                "truncated"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "const": 2
+                },
+                "parameters": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "cap": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "description": "True when the cap cut the array short.",
+                  "type": "boolean"
+                },
+                "valuesLimited": {
+                  "description": "True when a parameter had more values than the large-enum limit and was cut.",
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "required": [
+        "kind",
+        "operation",
+        "interaction"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "overSpecifiedResponseField"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "field": {
+          "type": "string"
+        },
+        "interaction": {
+          "$ref": "#/$defs/testRef"
+        },
+        "handlerChecked": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "unresolved": {
+      "type": "object",
+      "required": [
+        "kind",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "call",
+            "interaction"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "interaction": {
+          "$ref": "#/$defs/testRef"
+        },
+        "method": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -296,6 +296,30 @@ HTTP: `0` full coverage, `1` gaps, `2` error.
 
 ---
 
+## Consumer coverage artifact (schema 1.0.0)
+
+Publishes the shared coverage artifact (`participant.role: consumer`) using the **consumer model**: the
+consumer's code sets the denominator, pacts say what is Tested, a provider spec (optional) only adds detail.
+Levels: operations, responses (success + statuses the handling code checks), valid inputs, response fields the
+code reads, input → response (interactions). Invalid inputs are not measured. States: Tested / Not tested /
+Excluded. Unresolved calls and unmatched interactions are listed, never dropped; over-specified pact fields are
+observations. Model, samples and schema: [`references/coverage-artifact-1.0.0-README.md`](references/coverage-artifact-1.0.0-README.md).
+
+1. **Discover** (agent): write a manifest tied to the commit — [`references/consumer-manifest.md`](references/consumer-manifest.md).
+   Check status codes in the code that handles each call, not across the repo. Record reads, not the spec's `required[]`.
+2. **Calculate** (plain script, deterministic, **always exits 0**; never fails the build):
+
+```bash
+uv run scripts/consumer_coverage.py --manifest consumer-manifest.json --pacts "pacts/*.json" \
+  [--spec provider-openapi.yaml] [--locations full|hashed|none] [--exclude-statuses 418] \
+  [--pairwise-cap 20] --out coverage-artifact.json
+```
+
+Gap closing: where the code really varies inputs, `operations[].suggestions.coveringArray` lists the fewest new
+interactions covering every uncovered pair (capped; `truncated` says when it was cut short).
+
+---
+
 ## Interpreting the report
 
 | Section | What it measures | Covered means |

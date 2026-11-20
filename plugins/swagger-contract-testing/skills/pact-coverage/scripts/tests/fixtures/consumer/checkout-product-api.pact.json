@@ -1,0 +1,17 @@
+{
+  "consumer": {"name": "checkout-web"}, "provider": {"name": "product-api"},
+  "metadata": {"pactSpecification": {"version": "3.0.0"}},
+  "interactions": [
+    {"description": "a request for product 1", "providerStates": [{"name": "product 1 exists"}],
+     "request": {"method": "GET", "path": "/products/1"},
+     "response": {"status": 200, "body": {"id": 1, "name": "Pact book", "price": {"amount": 10}, "sku": "B-1"}}},
+    {"description": "a request for a missing product", "providerStates": [{"name": "product 99 does not exist"}],
+     "request": {"method": "GET", "path": "/products/99"},
+     "response": {"status": 404, "body": {"message": "not found"}}},
+    {"description": "list books by price", "request": {"method": "GET", "path": "/products", "query": {"category": ["books"], "sort": ["price"]}},
+     "response": {"status": 200, "body": {"items": []}}},
+    {"description": "create an order", "request": {"method": "POST", "path": "/orders", "body": {"productId": 1, "quantity": 2}},
+     "response": {"status": 201, "body": {"orderId": "o-1"}}},
+    {"description": "ping", "request": {"method": "GET", "path": "/healthz"}, "response": {"status": 200}}
+  ]
+}

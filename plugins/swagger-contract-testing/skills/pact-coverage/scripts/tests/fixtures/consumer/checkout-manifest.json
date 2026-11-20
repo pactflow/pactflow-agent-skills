@@ -1,0 +1,46 @@
+{
+  "manifestVersion": "1.0.0",
+  "tool": "ripwire",
+  "commit": "9f2c1ab",
+  "consumer": {"name": "checkout-web", "repository": "github.com/example/checkout-web"},
+  "provider": {"name": "product-api"},
+  "calls": [
+    {
+      "method": "GET", "path": "/products/{id}",
+      "callSite": {"file": "src/api/products.ts", "line": 14, "symbol": "getProduct", "hash": "c0ffee01a1b2c3d4"},
+      "successStatus": "200",
+      "handledStatuses": ["404", "503"],
+      "handlers": [{"file": "src/api/products.ts", "line": 21, "symbol": "getProduct", "hash": "c0ffee02a1b2c3d4"}],
+      "nearestTest": {"file": "tests/products.pact.test.ts", "line": 10, "symbol": "get product"},
+      "inputs": {"parameters": [{"name": "id", "in": "path"}]},
+      "responseFields": {"200": ["id", "name", "price.amount"], "404": ["message"]}
+    },
+    {
+      "method": "GET", "path": "/products",
+      "callSite": {"file": "src/api/products.ts", "line": 40, "symbol": "listProducts", "hash": "c0ffee03a1b2c3d4"},
+      "successStatus": "200",
+      "handledStatuses": [],
+      "inputs": {"parameters": [
+        {"name": "category", "in": "query", "values": ["books", "games"]},
+        {"name": "sort", "in": "query", "values": ["price", "name"]}
+      ]},
+      "responseFields": {"200": ["items"]}
+    },
+    {
+      "method": "POST", "path": "/orders",
+      "callSite": {"file": "src/api/orders.ts", "line": 9, "symbol": "createOrder", "hash": "c0ffee04a1b2c3d4"},
+      "successStatus": "201",
+      "handledStatuses": ["422"],
+      "inputs": {"body": [{"name": "productId"}, {"name": "quantity"}, {"name": "giftNote"}]},
+      "responseFields": {"201": ["orderId"], "422": ["errors"]}
+    },
+    {
+      "unresolvedReason": "request URL is built from a runtime string the analysis cannot resolve",
+      "callSite": {"file": "src/api/dynamic.ts", "line": 5, "symbol": "callDynamic", "hash": "c0ffee05a1b2c3d4"}
+    }
+  ],
+  "tests": {
+    "a request for product 1": {"file": "tests/products.pact.test.ts", "line": 10, "symbol": "get product"},
+    "a request for a missing product": {"file": "tests/products.pact.test.ts", "line": 30, "symbol": "get missing product"}
+  }
+}

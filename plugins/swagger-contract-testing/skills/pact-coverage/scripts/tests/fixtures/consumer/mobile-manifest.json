@@ -1,0 +1,24 @@
+{
+  "manifestVersion": "1.0.0",
+  "tool": "codebase-memory-mcp",
+  "commit": "4be7d20",
+  "consumer": {"name": "mobile-app", "repository": "github.com/example/mobile-app"},
+  "provider": {"name": "loyalty-api"},
+  "calls": [
+    {
+      "method": "GET", "path": "/members/{memberId}/points",
+      "callSite": {"file": "app/loyalty/PointsRepo.kt", "line": 31, "symbol": "PointsRepo.fetch"},
+      "handledStatuses": ["404"],
+      "handlers": [{"file": "app/loyalty/PointsRepo.kt", "line": 38, "symbol": "PointsRepo.fetch"}],
+      "inputs": {"parameters": [{"name": "memberId", "in": "path"}]},
+      "responseFields": {"2XX": ["balance"], "404": []}
+    },
+    {
+      "method": "POST", "path": "/members/{memberId}/redemptions",
+      "callSite": {"file": "app/loyalty/RedeemRepo.kt", "line": 12, "symbol": "RedeemRepo.redeem"},
+      "handledStatuses": [],
+      "inputs": {"body": [{"name": "rewardId"}]},
+      "responseFields": {"2XX": ["redemptionId"]}
+    }
+  ]
+}
