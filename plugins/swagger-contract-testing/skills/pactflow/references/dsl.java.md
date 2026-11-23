@@ -74,6 +74,7 @@ class LambdaDslObject {
     public LambdaDslObject datetime(String name, String format, Instant example);
     public LambdaDslObject datetime(String name, String format, Date example, TimeZone timeZone);
     public LambdaDslObject datetime(String name, String format, ZonedDateTime example);
+    public LambdaDslObject datetime(String name, String format, LocalDateTime example);
     public LambdaDslObject ipV4Address(String name);
     public LambdaDslObject valueFromProviderState(String name, String expression, Object example);
     public LambdaDslObject and(String name, Object value, MatchingRule... rules);

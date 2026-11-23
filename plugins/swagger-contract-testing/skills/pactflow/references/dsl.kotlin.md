@@ -1207,6 +1207,13 @@ class PactDslJsonBody : DslPart {
     */
     fun localDate(name: String, format: String, vararg examples: LocalDate): PactDslJsonBody
     /**
+    * Attribute that must match the given datetime format
+    * @param name attribute name
+    * @param format datetime format. It must not use zone or offset pattern letters, as a local datetime has no zone
+    * @param examples example local dates and times to use for generated bodies
+    */
+    fun localDateTime(name: String, format: String, vararg examples: LocalDateTime): PactDslJsonBody
+    /**
     * Attribute named 'time' that must be an ISO formatted time
     */
     fun time(name: String = "time"): PactDslJsonBody
