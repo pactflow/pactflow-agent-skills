@@ -6,7 +6,6 @@
   "type": "object",
   "required": [
     "schemaVersion",
-    "participant",
     "source",
     "policy",
     "operations",
@@ -38,6 +37,9 @@
         },
         "version": {
           "type": "string"
+        },
+        "branch": {
+          "type": "string"
         }
       }
     },
@@ -59,9 +61,7 @@
     },
     "source": {
       "type": "object",
-      "required": [
-        "commit"
-      ],
+      "required": [],
       "additionalProperties": false,
       "properties": {
         "commit": {
@@ -109,6 +109,83 @@
               "pattern": "^[0-9a-f]{64}$"
             }
           }
+        },
+        "tool": {
+          "description": "Producer name and version, e.g. 'drift-generate-results@0.3.0'.",
+          "type": "string"
+        },
+        "generationMethod": {
+          "description": "Provider. How the tests were produced. Not used to decide a state.",
+          "enum": [
+            "generated",
+            "organic",
+            "sampled",
+            "production-observed",
+            "production-sampled"
+          ]
+        },
+        "coverageModelRef": {
+          "description": "Provider and consumer. The rules in force when the report was produced, so a report can be interpreted later.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "namespace": {
+              "type": "string"
+            },
+            "spec": {
+              "type": "string"
+            },
+            "specHash": {
+              "type": "string"
+            },
+            "modelVersion": {
+              "type": "string"
+            },
+            "policy": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "largeEnumLimit": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "maxDepth": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxFieldPairs": {
+                  "description": "Defaults to 200 when left out.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "fieldLimits": {
+                  "description": "Enum limits that replace largeEnumLimit for single fields.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "operation",
+                      "location",
+                      "largeEnumLimit"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "operation": {
+                        "type": "string"
+                      },
+                      "location": {
+                        "type": "string"
+                      },
+                      "largeEnumLimit": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -147,6 +224,40 @@
         "largeEnumLimit": {
           "type": "integer",
           "minimum": 1
+        },
+        "maxDepth": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxFieldPairs": {
+          "description": "Defaults to 200 when left out.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "fieldLimits": {
+          "description": "Enum limits that replace largeEnumLimit for single fields.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "operation",
+              "location",
+              "largeEnumLimit"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "largeEnumLimit": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
         }
       }
     },
@@ -176,55 +287,10 @@
       }
     },
     "totals": {
-      "type": "object",
-      "required": [
-        "operations",
-        "responses",
-        "inputs"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "operations": {
-          "$ref": "#/$defs/levelTotal"
-        },
-        "responses": {
-          "$ref": "#/$defs/levelTotal"
-        },
-        "inputs": {
-          "type": "object",
-          "required": [
-            "valid",
-            "invalid"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "valid": {
-              "$ref": "#/$defs/levelTotal"
-            },
-            "invalid": {
-              "description": "Not measured for consumers: null, no percentage.",
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/$defs/levelTotal"
-                }
-              ]
-            }
-          }
-        },
-        "responseFields": {
-          "$ref": "#/$defs/levelTotal"
-        },
-        "inputResponse": {
-          "$ref": "#/$defs/levelTotal"
-        },
-        "unresolved": {
-          "type": "integer",
-          "minimum": 0
-        }
-      }
+      "$ref": "#/$defs/totals"
+    },
+    "crossCoverage": {
+      "$ref": "#/$defs/crossCoverage"
     }
   },
   "$defs": {
@@ -304,7 +370,8 @@
             "null"
           ],
           "minimum": 0,
-          "maximum": 100
+          "maximum": 100,
+          "description": "(tested + failing) / (total - excluded) * 100. A failing test still counts as covered; notTested and notTestedDirectly stay in the denominator. null when the denominator is 0. For consumers failing is absent, so this is tested / (tested + notTested)."
         }
       }
     },
@@ -426,11 +493,99 @@
           }
         },
         "status": {
-          "description": "Response and response-field items: the HTTP status.",
-          "type": "string"
+          "description": "Response and response-field items: the HTTP status key as declared (200, 4XX, default).",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "detail": {
           "type": "object"
+        },
+        "kind": {
+          "description": "Provider. What the item is.",
+          "enum": [
+            "operation",
+            "response",
+            "mediaType",
+            "param",
+            "field"
+          ]
+        },
+        "in": {
+          "description": "Provider. Where an input is.",
+          "enum": [
+            "query",
+            "path",
+            "header",
+            "cookie",
+            "body",
+            null
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "class": {
+          "description": "Provider. The class of the input.",
+          "enum": [
+            "present",
+            "absent",
+            "null",
+            "value",
+            "variant",
+            "supported",
+            "missing",
+            "invalid",
+            "empty",
+            "non-empty",
+            null
+          ]
+        },
+        "value": {
+          "description": "Provider. The value, for the classes that have one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variant": {
+          "description": "Provider. oneOf/anyOf variant the item belongs to.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parent": {
+          "description": "Provider. Id of the item this one qualifies; the parent rule depends on it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mediaType": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "occurrenceCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "generation": {
+          "description": "Provider. How the tests that gave the evidence were produced. Not used to decide a state.",
+          "enum": [
+            "generated",
+            "organic",
+            "sampled",
+            "production-observed",
+            "production-sampled",
+            null
+          ]
         }
       },
       "allOf": [
@@ -545,6 +700,25 @@
               }
             }
           }
+        },
+        "totals": {
+          "description": "Per-operation totals, same shape as the report totals.",
+          "$ref": "#/$defs/totals"
+        },
+        "pairs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pair"
+          }
+        },
+        "crossCoverage": {
+          "$ref": "#/$defs/crossCoverage"
+        },
+        "notMeasured": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/notMeasured"
+          }
         }
       }
     },
@@ -608,6 +782,221 @@
         },
         "path": {
           "type": "string"
+        }
+      }
+    },
+    "crossCoverage": {
+      "description": "Pairwise (strength 2) measured coverage of field value combinations.",
+      "type": "object",
+      "required": [
+        "strength",
+        "totals"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "strength": {
+          "const": 2
+        },
+        "totals": {
+          "$ref": "#/$defs/levelTotal"
+        },
+        "fieldPairs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "fields",
+              "total",
+              "covered"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "total": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "covered": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "values",
+                    "state"
+                  ],
+                  "properties": {
+                    "values": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    },
+                    "state": {
+                      "enum": [
+                        "tested",
+                        "notTested",
+                        "excluded",
+                        "failing",
+                        "notTestedDirectly"
+                      ]
+                    },
+                    "generation": {
+                      "enum": [
+                        "generated",
+                        "organic",
+                        "sampled",
+                        "production-observed",
+                        "production-sampled",
+                        null
+                      ]
+                    },
+                    "tests": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/testRef"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "pair": {
+      "description": "Provider. An input combination and the response it produced.",
+      "type": "object",
+      "required": [
+        "id",
+        "inputs",
+        "response",
+        "state"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "response": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "tested",
+            "notTested",
+            "excluded",
+            "failing",
+            "notTestedDirectly"
+          ]
+        },
+        "generation": {
+          "enum": [
+            "generated",
+            "organic",
+            "sampled",
+            "production-observed",
+            "production-sampled",
+            null
+          ]
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/testRef"
+          }
+        }
+      }
+    },
+    "notMeasured": {
+      "description": "Provider. Places the model deliberately does not measure.",
+      "type": "object",
+      "required": [
+        "location",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "location": {
+          "type": "string"
+        },
+        "reason": {
+          "description": "Why: depth, variants, variantNegative, cookie, unreadable or maxFieldPairs. A reader treats an unknown reason as not measured.",
+          "type": "string"
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "operation": {
+          "type": "string"
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "required": [
+        "operations",
+        "responses",
+        "inputs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "operations": {
+          "$ref": "#/$defs/levelTotal"
+        },
+        "responses": {
+          "$ref": "#/$defs/levelTotal"
+        },
+        "inputs": {
+          "type": "object",
+          "required": [
+            "valid",
+            "invalid"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "valid": {
+              "$ref": "#/$defs/levelTotal"
+            },
+            "invalid": {
+              "description": "Not measured for consumers: null, no percentage.",
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/levelTotal"
+                }
+              ]
+            }
+          }
+        },
+        "responseFields": {
+          "$ref": "#/$defs/levelTotal"
+        },
+        "inputResponse": {
+          "$ref": "#/$defs/levelTotal"
+        },
+        "unresolved": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     }

@@ -211,3 +211,15 @@ def test_h8_example_four_interactions_cover_every_pair():
     assert len(arr["rows"]) == 4 and arr["truncated"] is False
     pairs = {(a, b) for r in arr["rows"] for a, b in __import__("itertools").combinations(sorted(r.items()), 2)}
     assert len(pairs) == 12  # 2x2 + 2x2 + 2x2 pairs, all covered
+
+
+def test_provider_sample_validates_against_schema():
+    import json
+    from pathlib import Path
+
+    import jsonschema
+
+    refs = Path(__file__).resolve().parents[2] / "references"
+    schema = json.loads((refs / "coverage-artifact-1.0.0.schema.json").read_text())
+    sample = json.loads((refs / "samples" / "provider-coverage-artifact-sample-1.0.0.json").read_text())
+    jsonschema.Draft202012Validator(schema).validate(sample)
