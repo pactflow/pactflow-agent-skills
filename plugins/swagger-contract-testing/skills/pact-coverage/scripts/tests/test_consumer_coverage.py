@@ -217,8 +217,7 @@ def test_provider_sample_validates_against_schema():
     import json
     from pathlib import Path
 
-    import jsonschema
-
+    jsonschema = pytest.importorskip("jsonschema")
     refs = Path(__file__).resolve().parents[2] / "references"
     schema = json.loads((refs / "coverage-artifact-1.0.0.schema.json").read_text())
     sample = json.loads((refs / "samples" / "provider-coverage-artifact-sample-1.0.0.json").read_text())
