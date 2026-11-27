@@ -96,6 +96,8 @@ commit, not to uncommitted edits.
 - **Test symbols**: the test's own name: `it()` title (JS), test function name (pytest, JUnit), or the `uponReceiving`
   line when there is none. Say which in `notes`. Match pact descriptions exactly (interpolated values resolved).
   `<description>#<providerState>` uses the provider state's `name`.
+- **Where descriptions live**: `uponReceiving(...)`, or the object field / helper argument that sets `description`. Use
+  the pact's resolved text as the `tests` key; read it from the pact file, not the template literal.
 - **Stale pact** (interaction with no test in the repo): the script warns. Treat the pact as stale, not the code as
   untested, and say so in `notes`.
 - **`passThrough` with `responseFields`**: both may be set. `responseFields` records what the code reads before the body is
@@ -124,8 +126,9 @@ commit, not to uncommitted edits.
 - A pact from another consumer version than the manifest commit gives a `commitMismatch` warning. Accept it and keep the
   manifest (discovery reads HEAD); the warning is for the reader. Re-discover only if the code changed in the area.
 - No pacts at all: `--no-pacts` (every item is Not tested; that reflects missing pacts, not test quality).
-- No spec: try `get_bdct_provider_contract` once; on 404 or no provider version, run without `--spec`. A BDCT contract
-  returned inline can be written to a file as is (do not hand-trim it).
+- No spec: try `get_bdct_provider_contract` once; on 404 or no provider version, run without `--spec`. A BDCT result saved by the MCP
+  holds the OAS text at `_embedded.providerContract.content`: extract it with `jq -r` (YAML or JSON), do not hand-trim it.
+  A spec version that differs from the pacts' is fine: the spec only adds detail to operations the code calls.
 - Folders may hold pacts for other consumers or providers; the script skips them by name.
 
 ## Script checks
