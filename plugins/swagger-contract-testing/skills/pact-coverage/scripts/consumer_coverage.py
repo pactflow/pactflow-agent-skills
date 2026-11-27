@@ -72,6 +72,11 @@ KNOWN_PARAM_KEYS = {"name", "in", "values", "optional", "notes"}
 Json = dict[str, Any]
 
 
+def _scalar(v: Any) -> str:
+    """A value as the manifest writes it: booleans are lowercase JSON text."""
+    return "true" if v is True else "false" if v is False else str(v)
+
+
 # ─── helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -494,12 +499,12 @@ def _merge_calls(
         for p in [*(inputs.get("parameters") or []), *({**h, "in": "header"} for h in inputs.get("headers") or [])]:
             key = f"{p.get('in', 'query')}:{p['name']}"
             vals = op["params"].setdefault(key, [])
-            vals.extend(str(v) for v in p.get("values") or [] if str(v) not in vals)
+            vals.extend(_scalar(v) for v in p.get("values") or [] if _scalar(v) not in vals)
             if p.get("optional"):
                 op["optional"].add(key)
         for b in inputs.get("body") or []:
             vals = op["body"].setdefault(b["name"], [])
-            vals.extend(str(v) for v in b.get("values") or [] if str(v) not in vals)
+            vals.extend(_scalar(v) for v in b.get("values") or [] if _scalar(v) not in vals)
             if b.get("optional"):
                 op["optional"].add(f"body:{b['name']}")
         for status, fields in (call.get("responseFields") or {}).items():
@@ -524,10 +529,10 @@ def _ix_sends(ix: Json, key: str, value: str | None) -> bool:
         return vals is not None and (value is None or value in vals)
     if where == "header":
         v = ix["headers"].get(name.lower())
-        return v is not None and (value is None or str(v) == value)
+        return v is not None and (value is None or _scalar(v) == value)
     if where == "body":
         found, v = _get_path(ix["reqBody"], name)
-        return found and (value is None or str(v) == value)
+        return found and (value is None or _scalar(v) == value)
     return False
 
 
@@ -991,7 +996,7 @@ def _axis_value(
     if name in optional and not values.get(name):
         return "present" if _ix_sends(ix, name, None) else "absent"
     v = _value_sent(ix, name)
-    return None if v is None else str(v)
+    return None if v is None else _scalar(v)
 
 
 def _value_sent(ix: Json, key: str) -> Any:

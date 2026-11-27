@@ -618,6 +618,13 @@ def test_top_level_array_field_has_no_leading_dot(tmp_path):
     assert any(i.endswith("field:200:login") for i in ids) and not any(".login" in i and ":." in i for i in ids)
 
 
+def test_boolean_body_values_match_lowercase_manifest_text():
+    assert cc._scalar(True) == "true" and cc._scalar(False) == "false" and cc._scalar(3) == "3"
+    ix = {"reqBody": {"active": True}, "query": {}, "headers": {}}
+    assert cc._ix_sends(ix, "body:active", "true")
+    assert not cc._ix_sends(ix, "body:active", "false")
+
+
 def Path_read(path):
     return open(path).read()
 
