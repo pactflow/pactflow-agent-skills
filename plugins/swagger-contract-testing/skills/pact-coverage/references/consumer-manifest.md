@@ -120,6 +120,13 @@ commit, not to uncommitted edits.
 - **Top-level array request body**: write `[].op`, as for responses.
 - **`passThrough` when the downstream caller is outside the pair**: use `passThrough`.
 - **Provider and consumer names**: copy the exact casing from the pact or broker (`Pactflow-Platform-Service-Organisation`).
+- **Nested array members in `inputs.body`**: write them as in responses (`roles[].name`).
+- **Optional request header** set only when a value exists (a token): `optional: true`.
+- **One shared path serving several operations** (a generic `result<T>`): one call, fields unioned. Split it only if the
+  code reads different fields per caller and you can name them.
+- **Spec narrower than the pacts**: items outside the spec's declared codes are dropped from the responses level; the
+  interactions stay listed as observations. Prefer no `--spec` over a consumer-filtered spec you have not verified.
+- **A repo that is a consumer and a provider**: run once per consumer role, naming the consumer as the pact does.
 - **Several providers**: one manifest and one script run per pair. Name guessed providers in `notes`.
 - **`notes`** (manifest-level or per call) is for the next reader: allowed, ignored by the script, never published.
 
