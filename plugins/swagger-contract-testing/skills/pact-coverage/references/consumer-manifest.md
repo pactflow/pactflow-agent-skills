@@ -127,6 +127,14 @@ commit, not to uncommitted edits.
 - **Spec narrower than the pacts**: items outside the spec's declared codes are dropped from the responses level; the
   interactions stay listed as observations. Prefer no `--spec` over a consumer-filtered spec you have not verified.
 - **A repo that is a consumer and a provider**: run once per consumer role, naming the consumer as the pact does.
+- **Parent containers in `responseFields`**: list the leaf fields the code reads (`users[].id`), not the container
+  (`users`). A listed parent marks its whole subtree as read and hides every over-specified field under it.
+- **Reads in sibling processes** (a Step Functions state read by other lambdas in the same repo): count them as reads;
+  they are the consumer's own code.
+- **Retry-only statuses** (`axios-retry` on 504 or 429): not handled statuses, unless the code also checks them after
+  the retries run out.
+- **Guessed provider names**: prefer a pacticipant that already exists on the broker; say in `notes` that the name is
+  unconfirmed. The artifact does not publish that.
 - **Several providers**: one manifest and one script run per pair. Name guessed providers in `notes`.
 - **`notes`** (manifest-level or per call) is for the next reader: allowed, ignored by the script, never published.
 
