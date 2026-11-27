@@ -151,7 +151,7 @@
           "notTestedDirectly": 0,
           "excluded": 0,
           "total": 1,
-          "percent": 100.0
+          "percent": null
         }
       },
       "pairs": [
@@ -347,7 +347,7 @@
       "notTestedDirectly": 0,
       "excluded": 0,
       "total": 1,
-      "percent": 100.0
+      "percent": null
     }
   }
 }

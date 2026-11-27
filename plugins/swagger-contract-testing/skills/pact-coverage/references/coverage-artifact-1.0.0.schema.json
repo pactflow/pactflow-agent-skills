@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pactflow.io/schemas/coverage-artifact-1.0.0.schema.json",
   "title": "Coverage artifact 1.0.0 (draft)",
-  "description": "Shared by provider (Drift) and consumer (Pact) coverage producers. PactFlow owns the schema; Drift keeps a copy it tests against.\n\nCONSUMER MODEL (participant.role = consumer). The code sets the denominator: coverage items come from the provider operations the consumer's code calls. A provider specification, when present, adds detail to those items and never adds operations the code does not call. Levels: operations (operations the code calls); responses (the success response plus each status the handling code checks; first release uses this 'handled' model only); validInputs (parameters, body fields and values the code sends); responseFields (response fields the code reads - consumer only; a oneOf variant's fields count only once that variant is reached); inputResponse (pact interactions); invalid inputs are not measured (totals.inputs.invalid is null). States: tested (a pact interaction covers it), notTested (the code relies on it, no interaction covers it), excluded (left out on purpose, with excludedReason). 'failing' and 'notTestedDirectly' are provider states and are not used for consumers in v1: pact files hold only passing interactions and a failed provider verification is a compatibility problem the matrix already shows, so it does not change coverage. Unresolved calls (and pact interactions matching no operation) are listed in 'unresolved', never dropped, and are left out of every percentage; totals.unresolved shows the count. Nothing is excluded silently: items the default model leaves out (5xx, 3xx, default responses, status ranges) are listed as excluded with a reason. A response field a pact interaction includes but the code never reads is an 'observation': no denominator, no state, no percentage. Percentages are tested / (tested + notTested); excluded items are outside the denominator; percent is null when the denominator is 0. Locations are carried in the report-level 'locations' table and referenced by id from derivedFrom, nearestTests and tests[].location; code snippets and function bodies are never published. The same commit always gives the same result: no timestamps or random ids are emitted.",
+  "description": "Shared by provider (Drift) and consumer (Pact) coverage producers. PactFlow owns the schema; Drift keeps a copy it tests against.\n\nCONSUMER MODEL (participant.role = consumer). The code sets the denominator: coverage items come from the provider operations the consumer's code calls. A provider specification, when present, adds detail to those items and never adds operations the code does not call. Levels: operations (operations the code calls); responses (the success response plus each status the handling code checks; first release uses this 'handled' model only); validInputs (parameters, body fields and values the code sends); responseFields (response fields the code reads - consumer only; a oneOf variant's fields count only once that variant is reached); inputResponse (pact interactions); invalid inputs are not measured (totals.inputs.invalid is null). States: tested (a pact interaction covers it), notTested (the code relies on it, no interaction covers it), excluded (left out on purpose, with excludedReason). 'failing' and 'notTestedDirectly' are provider states and are not used for consumers in v1: pact files hold only passing interactions and a failed provider verification is a compatibility problem the matrix already shows, so it does not change coverage. Unresolved calls (and pact interactions matching no operation) are listed in 'unresolved', never dropped, and are left out of every percentage; totals.unresolved shows the count. Nothing is excluded silently: items the default model leaves out (5xx, 3xx, default responses, status ranges) are listed as excluded with a reason. A response field a pact interaction includes but the code never reads is an 'observation': no denominator, no state, no percentage. Percentages are (tested + failing) / (total - excluded); consumers have no failing items, so for them this is tested / (tested + notTested). Excluded items are outside the denominator; percent is null when the denominator is 0. Input -> response has no percentage (percent is null): it only exists where a test made it, so there is no denominator. Locations are carried in the report-level 'locations' table and referenced by id from derivedFrom, nearestTests and tests[].location; code snippets and function bodies are never published. The same commit always gives the same result: no timestamps or random ids are emitted.\n\nEXTENSIBILITY: readers and producers must ignore fields they do not know. The schema allows extra fields at every level so the format can grow without breaking a publish; a coverage part must never be rejected for carrying one.\n\nINPUT -> RESPONSE: providers list pairs in operations[].pairs; consumers list them as items with level 'inputResponse'. Totals use totals.inputResponse for both, and readers handle both places.\n\nEXCLUSIONS: an excluded item keeps only excludedReason. Drift's waiver also has optional by, at and source; Drift does not fill them today, and they are deliberately not carried.\n\nREQUIRED FIELDS: policy is required and repeats source.coverageModelRef.policy, so a producer that has both writes both. label is required; a producer without a label (Drift) writes the item id.",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -11,7 +11,6 @@
     "operations",
     "totals"
   ],
-  "additionalProperties": false,
   "properties": {
     "schemaVersion": {
       "type": "string",
@@ -23,7 +22,6 @@
         "role",
         "name"
       ],
-      "additionalProperties": false,
       "properties": {
         "role": {
           "enum": [
@@ -48,7 +46,6 @@
       "required": [
         "name"
       ],
-      "additionalProperties": false,
       "properties": {
         "name": {
           "type": "string",
@@ -62,7 +59,6 @@
     "source": {
       "type": "object",
       "required": [],
-      "additionalProperties": false,
       "properties": {
         "commit": {
           "type": "string",
@@ -77,7 +73,6 @@
           "required": [
             "format"
           ],
-          "additionalProperties": false,
           "properties": {
             "format": {
               "enum": [
@@ -96,7 +91,6 @@
         "analysis": {
           "description": "How the consumer code was analysed (discovery). Consumer only.",
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "tool": {
               "type": "string"
@@ -127,7 +121,6 @@
         "coverageModelRef": {
           "description": "Provider and consumer. The rules in force when the report was produced, so a report can be interpreted later.",
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "namespace": {
               "type": "string"
@@ -143,7 +136,6 @@
             },
             "policy": {
               "type": "object",
-              "additionalProperties": false,
               "properties": {
                 "largeEnumLimit": {
                   "type": "integer",
@@ -168,7 +160,6 @@
                       "location",
                       "largeEnumLimit"
                     ],
-                    "additionalProperties": false,
                     "properties": {
                       "operation": {
                         "type": "string"
@@ -191,7 +182,6 @@
     },
     "policy": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "model": {
           "type": "string"
@@ -244,7 +234,6 @@
               "location",
               "largeEnumLimit"
             ],
-            "additionalProperties": false,
             "properties": {
               "operation": {
                 "type": "string"
@@ -291,6 +280,13 @@
     },
     "crossCoverage": {
       "$ref": "#/$defs/crossCoverage"
+    },
+    "notMeasured": {
+      "description": "Report-level: things the model does not measure that are not tied to one operation.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/notMeasured"
+      }
     }
   },
   "$defs": {
@@ -299,7 +295,6 @@
       "required": [
         "kind"
       ],
-      "additionalProperties": false,
       "properties": {
         "kind": {
           "enum": [
@@ -337,7 +332,6 @@
         "total",
         "percent"
       ],
-      "additionalProperties": false,
       "properties": {
         "tested": {
           "type": "integer",
@@ -383,7 +377,6 @@
             "type",
             "testcase"
           ],
-          "additionalProperties": false,
           "properties": {
             "type": {
               "const": "drift"
@@ -406,7 +399,6 @@
             "pact",
             "description"
           ],
-          "additionalProperties": false,
           "properties": {
             "type": {
               "const": "pact"
@@ -442,7 +434,6 @@
         "label",
         "state"
       ],
-      "additionalProperties": false,
       "properties": {
         "id": {
           "type": "string"
@@ -455,7 +446,8 @@
             "invalidInput",
             "responseField",
             "inputResponse"
-          ]
+          ],
+          "description": "'inputResponse' is used by consumers; providers use operations[].pairs."
         },
         "label": {
           "type": "string"
@@ -617,7 +609,6 @@
         "state",
         "items"
       ],
-      "additionalProperties": false,
       "properties": {
         "id": {
           "type": "string"
@@ -659,7 +650,6 @@
         },
         "suggestions": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "coveringArray": {
               "type": "object",
@@ -669,7 +659,6 @@
                 "rows",
                 "truncated"
               ],
-              "additionalProperties": false,
               "properties": {
                 "strength": {
                   "const": 2
@@ -709,7 +698,8 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/pair"
-          }
+          },
+          "description": "Provider. Input -> response pairs. Consumers use items with level 'inputResponse' instead."
         },
         "crossCoverage": {
           "$ref": "#/$defs/crossCoverage"
@@ -729,7 +719,6 @@
         "operation",
         "interaction"
       ],
-      "additionalProperties": false,
       "properties": {
         "kind": {
           "const": "overSpecifiedResponseField"
@@ -760,7 +749,6 @@
         "kind",
         "reason"
       ],
-      "additionalProperties": false,
       "properties": {
         "kind": {
           "enum": [
@@ -792,7 +780,6 @@
         "strength",
         "totals"
       ],
-      "additionalProperties": false,
       "properties": {
         "strength": {
           "const": 2
@@ -809,7 +796,6 @@
               "total",
               "covered"
             ],
-            "additionalProperties": false,
             "properties": {
               "fields": {
                 "type": "array",
@@ -827,7 +813,6 @@
                 "type": "array",
                 "items": {
                   "type": "object",
-                  "additionalProperties": false,
                   "required": [
                     "values",
                     "state"
@@ -883,7 +868,6 @@
         "response",
         "state"
       ],
-      "additionalProperties": false,
       "properties": {
         "id": {
           "type": "string"
@@ -931,7 +915,6 @@
         "location",
         "reason"
       ],
-      "additionalProperties": false,
       "properties": {
         "location": {
           "type": "string"
@@ -956,7 +939,6 @@
         "responses",
         "inputs"
       ],
-      "additionalProperties": false,
       "properties": {
         "operations": {
           "$ref": "#/$defs/levelTotal"
@@ -970,7 +952,6 @@
             "valid",
             "invalid"
           ],
-          "additionalProperties": false,
           "properties": {
             "valid": {
               "$ref": "#/$defs/levelTotal"
@@ -992,13 +973,27 @@
           "$ref": "#/$defs/levelTotal"
         },
         "inputResponse": {
-          "$ref": "#/$defs/levelTotal"
+          "$ref": "#/$defs/inputResponseTotal"
         },
         "unresolved": {
           "type": "integer",
           "minimum": 0
         }
       }
+    },
+    "inputResponseTotal": {
+      "description": "Totals for input -> response. percent is always null: pairs only exist where a test made them, so there is no denominator.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/levelTotal"
+        }
+      ],
+      "properties": {
+        "percent": {
+          "type": "null"
+        }
+      }
     }
-  }
+  },
+  "additionalProperties": true
 }

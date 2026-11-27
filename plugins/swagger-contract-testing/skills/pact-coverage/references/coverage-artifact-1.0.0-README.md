@@ -52,3 +52,12 @@ provider result can leave them to the publish.
 
 Open decisions for the PM: the artifact carries states and percentages (Drift's agreed Q8 was evidence only, with states derived on read);
 `participant`/`counterparty` are named `counterparty` here (Drift's schema still says `counterpart`).
+
+## Extensibility and notes
+
+- Extra fields are allowed at every level, and readers ignore fields they do not know, so a new field never blocks a publish.
+- `notMeasured` exists per operation and at report level (for things not tied to one operation).
+- Input → response has no percentage on either side (`totals.inputResponse.percent` is `null`). Providers list pairs in
+  `operations[].pairs`; consumers list items with `level: inputResponse`.
+- An excluded item keeps only `excludedReason`; Drift's optional waiver `by`/`at`/`source` are deliberately not carried.
+- `policy` is required and repeats `source.coverageModelRef.policy`; `label` is required (Drift writes the item id).
