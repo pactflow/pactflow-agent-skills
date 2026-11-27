@@ -355,7 +355,7 @@ uv run scripts/consumer_coverage.py --manifest consumer-manifest.json --pacts "p
 - A failure prints `consumer coverage skipped: ...` on stderr and exits 0, so a broken manifest looks like zero
   coverage. `--strict` exits 1 instead; use it in CI if you want a gate.
 - It prints a self-check: locations, items without `derivedFrom`, and why a level is n/a. `--check` also validates the
-  artifact against the schema (needs `jsonschema`, for example `uv run --with jsonschema`). Its `warnings` list names
+  artifact against the schema (`jsonschema` is a script dependency, so plain `uv run` works). Its `warnings` list names
   unknown manifest keys, template syntax left in a path (`${id}`), call sites without a symbol, `tests` keys that
   match no interaction, interactions with no `tests` entry, and pacts built from another commit.
 - `--pacts` files for another provider or consumer than the manifest names are skipped and reported.

@@ -37,6 +37,7 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -343,8 +344,15 @@ def fetch_broker_pact(
     request = urllib.request.Request(
         url, headers={"Accept": "application/hal+json", "Authorization": f"Bearer {token}"}
     )
-    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - https broker URL given by the caller
-        raw = response.read()
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - https broker URL given by the caller
+            raw = response.read()
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            raise ValueError(
+                f"the broker has no pact for {consumer} -> {provider}; rerun with --no-pacts if that is expected"
+            ) from exc
+        raise
     pact = json.loads(raw)
     name = f"{consumer}-{provider}.json"
     if save_dir:
@@ -541,7 +549,15 @@ def build_artifact(
     locs = Locations(locations_mode, commit)
     test_locs: Json = manifest.get("tests") or {}
     warnings: list[str] = list(extra_warnings or [])
-    ops, unresolved_calls = _merge_calls(manifest.get("calls") or [], warnings)
+    raw_defaults = manifest.get("defaults")
+    defaults: Json = raw_defaults if isinstance(raw_defaults, dict) else {}
+    calls_in = [
+        {**{k: v for k, v in defaults.items() if k in ("handledStatuses", "handlers")}, **c}
+        if isinstance(c, dict) and "unresolvedReason" not in c
+        else c
+        for c in (manifest.get("calls") or [])
+    ]
+    ops, unresolved_calls = _merge_calls(calls_in, warnings)
 
     # Match pact interactions to operations the code calls (never to spec-only operations).
     regexes = {key: _template_regex(key[1]) for key in ops}

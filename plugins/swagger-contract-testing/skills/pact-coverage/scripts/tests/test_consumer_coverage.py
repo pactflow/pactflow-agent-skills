@@ -580,6 +580,33 @@ def test_broker_fetch_reads_the_latest_pact_and_records_it(tmp_path, monkeypatch
     assert json.loads(out.read_text())["warnings"] == [] or isinstance(json.loads(out.read_text())["warnings"], list)
 
 
+def test_broker_404_says_to_use_no_pacts(tmp_path, monkeypatch, capsys):
+    def fake_urlopen(request, timeout=0):
+        raise cc.urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)
+
+    monkeypatch.setattr(cc.urllib.request, "urlopen", fake_urlopen)
+    cc.main(["--manifest", _manifest_file(tmp_path), "--broker-url", "https://b.example", "--broker-token", "T"])
+    assert "rerun with --no-pacts" in capsys.readouterr().err
+
+
+def test_manifest_defaults_fill_handled_statuses_and_handlers(tmp_path):
+    manifest = json.loads(Path_read(_manifest_file(tmp_path)))
+    for call in manifest["calls"]:
+        call.pop("handledStatuses", None)
+        call.pop("handlers", None)
+    manifest["defaults"] = {
+        "handledStatuses": ["non-2XX"],
+        "handlers": [{"file": "src/http.ts", "line": 5, "symbol": "fetch"}],
+    }
+    path = tmp_path / "with-defaults.json"
+    path.write_text(json.dumps(manifest))
+    out = tmp_path / "d.json"
+    assert cc.main(["--manifest", str(path), "--no-pacts", "--quiet", "--out", str(out)]) == 0
+    artifact = json.loads(out.read_text())
+    assert any("http.ts" in str(loc) for loc in artifact["locations"].values())
+    assert not any("defaults" in w for w in artifact["warnings"])
+
+
 def Path_read(path):
     return open(path).read()
 
