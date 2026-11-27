@@ -1,0 +1,239 @@
+{
+  "schemaVersion": "1.0.0",
+  "participant": {
+    "role": "consumer",
+    "name": "mobile-app"
+  },
+  "counterparty": {
+    "name": "loyalty-api"
+  },
+  "source": {
+    "commit": "4be7d20",
+    "repository": "github.com/example/mobile-app",
+    "analysis": {
+      "tool": "codebase-memory-mcp",
+      "manifestVersion": "1.0.0",
+      "manifestSha256": "d949f5f5b69dcc886000a01fd188efd5edf698c6588c235da05f53dec6bb6c77",
+      "configSha256": "3084e2d264053a2b24260c6d9603ce008d13bb46b48fc5c9d6772039f9f18f6f"
+    },
+    "pacts": [
+      {
+        "name": "mobile-loyalty-api.pact.json",
+        "from": "file",
+        "sha256": "fbe4a341be67514388a473ac3c4b4032516f097904c8e8788c46cee69694b6db",
+        "interactions": 1
+      }
+    ]
+  },
+  "policy": {
+    "model": "consumer-fixed-1",
+    "responses": "handled",
+    "excludeStatuses": [],
+    "locations": "hashed",
+    "pairwiseCap": 20,
+    "largeEnumLimit": 5
+  },
+  "locations": {
+    "loc-1f956c8b3d48": {
+      "kind": "call-site",
+      "commit": "4be7d20",
+      "hash": "0ebfe1a554e070ed",
+      "fileHash": "706c409370cc3959",
+      "symbolHash": "36b38cba7d42a050"
+    },
+    "loc-c79d9c725c91": {
+      "kind": "handler",
+      "commit": "4be7d20",
+      "hash": "3e8401e83440666f",
+      "fileHash": "706c409370cc3959",
+      "symbolHash": "36b38cba7d42a050"
+    },
+    "loc-ca7403e86d98": {
+      "kind": "call-site",
+      "commit": "4be7d20",
+      "hash": "1e163a4a14cfa11a",
+      "fileHash": "8fc1727038feb77d",
+      "symbolHash": "1c4a2bc4c6b98d5a"
+    }
+  },
+  "operations": [
+    {
+      "id": "GET /members/{memberId}/points",
+      "method": "GET",
+      "path": "/members/{memberId}/points",
+      "state": "tested",
+      "matchedBy": "code",
+      "items": [
+        {
+          "id": "GET /members/{memberId}/points#response:2XX",
+          "level": "response",
+          "label": "2XX success response",
+          "state": "tested",
+          "status": "2XX",
+          "derivedFrom": [
+            "loc-1f956c8b3d48"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "mobile-loyalty-api.pact.json",
+              "description": "points for a member",
+              "providerStates": []
+            }
+          ]
+        },
+        {
+          "id": "GET /members/{memberId}/points#response:404",
+          "level": "response",
+          "label": "404 handled response",
+          "state": "notTested",
+          "status": "404",
+          "derivedFrom": [
+            "loc-c79d9c725c91"
+          ]
+        },
+        {
+          "id": "GET /members/{memberId}/points#field:2XX:balance",
+          "level": "responseField",
+          "label": "2XX balance",
+          "state": "tested",
+          "status": "2XX",
+          "derivedFrom": [
+            "loc-c79d9c725c91"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "mobile-loyalty-api.pact.json",
+              "description": "points for a member",
+              "providerStates": []
+            }
+          ]
+        },
+        {
+          "id": "GET /members/{memberId}/points#interaction:mobile-loyalty-api.pact.json:points for a member",
+          "level": "inputResponse",
+          "label": "points for a member -> 200",
+          "state": "tested",
+          "derivedFrom": [
+            "loc-1f956c8b3d48"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "mobile-loyalty-api.pact.json",
+              "description": "points for a member",
+              "providerStates": []
+            }
+          ]
+        }
+      ],
+      "callSites": [
+        "loc-1f956c8b3d48"
+      ]
+    },
+    {
+      "id": "POST /members/{memberId}/redemptions",
+      "method": "POST",
+      "path": "/members/{memberId}/redemptions",
+      "state": "notTested",
+      "matchedBy": "code",
+      "items": [
+        {
+          "id": "POST /members/{memberId}/redemptions#response:2XX",
+          "level": "response",
+          "label": "2XX success response",
+          "state": "notTested",
+          "status": "2XX",
+          "derivedFrom": [
+            "loc-ca7403e86d98"
+          ]
+        },
+        {
+          "id": "POST /members/{memberId}/redemptions#input:body:rewardId",
+          "level": "validInput",
+          "label": "body:rewardId",
+          "state": "notTested",
+          "derivedFrom": [
+            "loc-ca7403e86d98"
+          ]
+        },
+        {
+          "id": "POST /members/{memberId}/redemptions#field:2XX:redemptionId",
+          "level": "responseField",
+          "label": "2XX redemptionId",
+          "state": "notTested",
+          "status": "2XX",
+          "derivedFrom": [
+            "loc-ca7403e86d98"
+          ]
+        }
+      ],
+      "callSites": [
+        "loc-ca7403e86d98"
+      ]
+    }
+  ],
+  "observations": [
+    {
+      "kind": "overSpecifiedResponseField",
+      "operation": "GET /members/{memberId}/points",
+      "status": "200",
+      "field": "tier",
+      "interaction": {
+        "type": "pact",
+        "pact": "mobile-loyalty-api.pact.json",
+        "description": "points for a member",
+        "providerStates": []
+      },
+      "handlerChecked": [
+        "loc-c79d9c725c91"
+      ]
+    }
+  ],
+  "unresolved": [],
+  "warnings": [
+    "1 pact interaction(s) have no tests entry, so no test location: points for a member"
+  ],
+  "totals": {
+    "operations": {
+      "tested": 1,
+      "notTested": 1,
+      "excluded": 0,
+      "total": 2,
+      "percent": 50.0
+    },
+    "responses": {
+      "tested": 1,
+      "notTested": 2,
+      "excluded": 0,
+      "total": 3,
+      "percent": 33.3
+    },
+    "inputs": {
+      "valid": {
+        "tested": 0,
+        "notTested": 1,
+        "excluded": 0,
+        "total": 1,
+        "percent": 0.0
+      },
+      "invalid": null
+    },
+    "responseFields": {
+      "tested": 1,
+      "notTested": 1,
+      "excluded": 0,
+      "total": 2,
+      "percent": 50.0
+    },
+    "inputResponse": {
+      "tested": 1,
+      "notTested": 0,
+      "excluded": 0,
+      "total": 1,
+      "percent": null
+    },
+    "unresolved": 0
+  }
+}

@@ -1,0 +1,724 @@
+{
+  "schemaVersion": "1.0.0",
+  "participant": {
+    "role": "consumer",
+    "name": "checkout-web"
+  },
+  "counterparty": {
+    "name": "product-api"
+  },
+  "source": {
+    "commit": "9f2c1ab",
+    "repository": "github.com/example/checkout-web",
+    "specification": {
+      "format": "openapi",
+      "file": "product-api.openapi.yaml",
+      "sha256": "b766de14526c40d75152815661722d79e3ac8ee95139ebf21a13b2e2d2c94d39",
+      "title": "Product API",
+      "version": "2.1.0"
+    },
+    "analysis": {
+      "tool": "ripwire",
+      "manifestVersion": "1.0.0",
+      "manifestSha256": "566d49e08148694bea6c35523ab7524ec8ed43df9cfaefbf998d4567d8d9b05d",
+      "configSha256": "24974f5c8be0ba5f96e450beccef54d01e1214079ead69947ce3172f7193b452"
+    },
+    "pacts": [
+      {
+        "name": "checkout-product-api.pact.json",
+        "from": "file",
+        "sha256": "22cd7e78894000cf1d3b317d908059a4521ff4968561d3b4b4675748e56868c3",
+        "interactions": 5
+      }
+    ]
+  },
+  "policy": {
+    "model": "consumer-fixed-1",
+    "responses": "handled",
+    "excludeStatuses": [],
+    "locations": "full",
+    "pairwiseCap": 20,
+    "largeEnumLimit": 5
+  },
+  "locations": {
+    "loc-242fa4222f91": {
+      "kind": "call-site",
+      "commit": "9f2c1ab",
+      "hash": "c0ffee04a1b2c3d4",
+      "file": "src/api/orders.ts",
+      "line": 9,
+      "symbol": "createOrder"
+    },
+    "loc-3b6ac4d6e8cb": {
+      "kind": "test",
+      "commit": "9f2c1ab",
+      "hash": "8f5725545dcdc16f",
+      "file": "tests/products.pact.test.ts",
+      "line": 30,
+      "symbol": "get missing product"
+    },
+    "loc-4e19eac84d8f": {
+      "kind": "test",
+      "commit": "9f2c1ab",
+      "hash": "b38b9e97f572780d",
+      "file": "tests/products.pact.test.ts",
+      "line": 10,
+      "symbol": "get product"
+    },
+    "loc-4e9cd2782e52": {
+      "kind": "call-site",
+      "commit": "9f2c1ab",
+      "hash": "c0ffee05a1b2c3d4",
+      "file": "src/api/dynamic.ts",
+      "line": 5,
+      "symbol": "callDynamic"
+    },
+    "loc-5a6915eebab0": {
+      "kind": "call-site",
+      "commit": "9f2c1ab",
+      "hash": "c0ffee03a1b2c3d4",
+      "file": "src/api/products.ts",
+      "line": 40,
+      "symbol": "listProducts"
+    },
+    "loc-75c4582da953": {
+      "kind": "handler",
+      "commit": "9f2c1ab",
+      "hash": "c0ffee02a1b2c3d4",
+      "file": "src/api/products.ts",
+      "line": 21,
+      "symbol": "getProduct"
+    },
+    "loc-c66858cf72fc": {
+      "kind": "call-site",
+      "commit": "9f2c1ab",
+      "hash": "c0ffee01a1b2c3d4",
+      "file": "src/api/products.ts",
+      "line": 14,
+      "symbol": "getProduct"
+    }
+  },
+  "operations": [
+    {
+      "id": "POST /orders",
+      "method": "POST",
+      "path": "/orders",
+      "state": "tested",
+      "matchedBy": "spec",
+      "items": [
+        {
+          "id": "POST /orders#response:201",
+          "level": "response",
+          "label": "201 success response",
+          "state": "tested",
+          "status": "201",
+          "derivedFrom": [
+            "loc-242fa4222f91"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "create an order",
+              "providerStates": []
+            }
+          ]
+        },
+        {
+          "id": "POST /orders#response:422",
+          "level": "response",
+          "label": "422 handled response",
+          "state": "notTested",
+          "status": "422",
+          "derivedFrom": [
+            "loc-242fa4222f91"
+          ]
+        },
+        {
+          "id": "POST /orders#response:301",
+          "level": "response",
+          "label": "301 declared response",
+          "state": "excluded",
+          "excludedReason": "3xx response: redirects are excluded by the default model",
+          "status": "301",
+          "derivedFrom": [
+            "loc-242fa4222f91"
+          ]
+        },
+        {
+          "id": "POST /orders#input:body:giftNote",
+          "level": "validInput",
+          "label": "body:giftNote",
+          "state": "notTested",
+          "derivedFrom": [
+            "loc-242fa4222f91"
+          ]
+        },
+        {
+          "id": "POST /orders#input:body:productId",
+          "level": "validInput",
+          "label": "body:productId",
+          "state": "tested",
+          "derivedFrom": [
+            "loc-242fa4222f91"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "create an order",
+              "providerStates": []
+            }
+          ]
+        },
+        {
+          "id": "POST /orders#input:body:quantity",
+          "level": "validInput",
+          "label": "body:quantity",
+          "state": "tested",
+          "derivedFrom": [
+            "loc-242fa4222f91"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "create an order",
+              "providerStates": []
+            }
+          ]
+        },
+        {
+          "id": "POST /orders#field:201:orderId",
+          "level": "responseField",
+          "label": "201 orderId",
+          "state": "tested",
+          "status": "201",
+          "derivedFrom": [
+            "loc-242fa4222f91"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "create an order",
+              "providerStates": []
+            }
+          ]
+        },
+        {
+          "id": "POST /orders#field:422:errors",
+          "level": "responseField",
+          "label": "422 errors",
+          "state": "notTested",
+          "status": "422",
+          "derivedFrom": [
+            "loc-242fa4222f91"
+          ]
+        },
+        {
+          "id": "POST /orders#interaction:checkout-product-api.pact.json:create an order",
+          "level": "inputResponse",
+          "label": "create an order -> 201",
+          "state": "tested",
+          "derivedFrom": [
+            "loc-242fa4222f91"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "create an order",
+              "providerStates": []
+            }
+          ]
+        }
+      ],
+      "callSites": [
+        "loc-242fa4222f91"
+      ]
+    },
+    {
+      "id": "GET /products",
+      "method": "GET",
+      "path": "/products",
+      "state": "tested",
+      "matchedBy": "spec",
+      "items": [
+        {
+          "id": "GET /products#response:200",
+          "level": "response",
+          "label": "200 success response",
+          "state": "tested",
+          "status": "200",
+          "derivedFrom": [
+            "loc-5a6915eebab0"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "list books by price",
+              "providerStates": []
+            }
+          ]
+        },
+        {
+          "id": "GET /products#input:query:category=books",
+          "level": "validInput",
+          "label": "query:category = books",
+          "state": "tested",
+          "derivedFrom": [
+            "loc-5a6915eebab0"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "list books by price",
+              "providerStates": []
+            }
+          ]
+        },
+        {
+          "id": "GET /products#input:query:category=games",
+          "level": "validInput",
+          "label": "query:category = games",
+          "state": "notTested",
+          "derivedFrom": [
+            "loc-5a6915eebab0"
+          ]
+        },
+        {
+          "id": "GET /products#input:query:sort=price",
+          "level": "validInput",
+          "label": "query:sort = price",
+          "state": "tested",
+          "derivedFrom": [
+            "loc-5a6915eebab0"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "list books by price",
+              "providerStates": []
+            }
+          ]
+        },
+        {
+          "id": "GET /products#input:query:sort=name",
+          "level": "validInput",
+          "label": "query:sort = name",
+          "state": "notTested",
+          "derivedFrom": [
+            "loc-5a6915eebab0"
+          ]
+        },
+        {
+          "id": "GET /products#field:200:items",
+          "level": "responseField",
+          "label": "200 items",
+          "state": "tested",
+          "status": "200",
+          "derivedFrom": [
+            "loc-5a6915eebab0"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "list books by price",
+              "providerStates": []
+            }
+          ]
+        },
+        {
+          "id": "GET /products#interaction:checkout-product-api.pact.json:list books by price",
+          "level": "inputResponse",
+          "label": "list books by price -> 200",
+          "state": "tested",
+          "derivedFrom": [
+            "loc-5a6915eebab0"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "list books by price",
+              "providerStates": []
+            }
+          ]
+        }
+      ],
+      "callSites": [
+        "loc-5a6915eebab0"
+      ],
+      "crossCoverage": {
+        "strength": 2,
+        "fieldPairs": [
+          {
+            "fields": [
+              "query:category",
+              "query:sort"
+            ],
+            "total": 4,
+            "covered": [
+              {
+                "values": [
+                  "books",
+                  "price"
+                ],
+                "state": "tested",
+                "tests": [
+                  {
+                    "type": "pact",
+                    "pact": "checkout-product-api.pact.json",
+                    "description": "list books by price",
+                    "providerStates": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "totals": {
+          "tested": 1,
+          "notTested": 3,
+          "excluded": 0,
+          "total": 4,
+          "percent": 25.0
+        }
+      },
+      "suggestions": {
+        "coveringArray": {
+          "strength": 2,
+          "parameters": [
+            "query:category",
+            "query:sort"
+          ],
+          "rows": [
+            {
+              "query:category": "books",
+              "query:sort": "name"
+            },
+            {
+              "query:category": "games",
+              "query:sort": "name"
+            },
+            {
+              "query:category": "games",
+              "query:sort": "price"
+            }
+          ],
+          "cap": 20,
+          "truncated": false
+        }
+      }
+    },
+    {
+      "id": "GET /products/{id}",
+      "method": "GET",
+      "path": "/products/{id}",
+      "state": "tested",
+      "matchedBy": "spec",
+      "items": [
+        {
+          "id": "GET /products/{id}#response:200",
+          "level": "response",
+          "label": "200 success response",
+          "state": "tested",
+          "status": "200",
+          "derivedFrom": [
+            "loc-c66858cf72fc"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "a request for product 1",
+              "providerStates": [
+                "product 1 exists"
+              ],
+              "location": "loc-4e19eac84d8f"
+            }
+          ]
+        },
+        {
+          "id": "GET /products/{id}#response:404",
+          "level": "response",
+          "label": "404 handled response",
+          "state": "tested",
+          "status": "404",
+          "derivedFrom": [
+            "loc-75c4582da953"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "a request for a missing product",
+              "providerStates": [
+                "product 99 does not exist"
+              ],
+              "location": "loc-3b6ac4d6e8cb"
+            }
+          ]
+        },
+        {
+          "id": "GET /products/{id}#response:503",
+          "level": "response",
+          "label": "503 handled response",
+          "state": "excluded",
+          "excludedReason": "5xx response: server errors are excluded by the default model",
+          "status": "503",
+          "derivedFrom": [
+            "loc-75c4582da953"
+          ]
+        },
+        {
+          "id": "GET /products/{id}#response:5XX",
+          "level": "response",
+          "label": "5XX declared response",
+          "state": "excluded",
+          "excludedReason": "status-code range 5XX: not measured by the default model",
+          "status": "5XX",
+          "derivedFrom": [
+            "loc-c66858cf72fc"
+          ]
+        },
+        {
+          "id": "GET /products/{id}#response:default",
+          "level": "response",
+          "label": "default declared response",
+          "state": "excluded",
+          "excludedReason": "default response: not a specific status the code can handle (default model)",
+          "status": "default",
+          "derivedFrom": [
+            "loc-c66858cf72fc"
+          ]
+        },
+        {
+          "id": "GET /products/{id}#field:200:id",
+          "level": "responseField",
+          "label": "200 id",
+          "state": "tested",
+          "status": "200",
+          "derivedFrom": [
+            "loc-75c4582da953"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "a request for product 1",
+              "providerStates": [
+                "product 1 exists"
+              ],
+              "location": "loc-4e19eac84d8f"
+            }
+          ]
+        },
+        {
+          "id": "GET /products/{id}#field:200:name",
+          "level": "responseField",
+          "label": "200 name",
+          "state": "tested",
+          "status": "200",
+          "derivedFrom": [
+            "loc-75c4582da953"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "a request for product 1",
+              "providerStates": [
+                "product 1 exists"
+              ],
+              "location": "loc-4e19eac84d8f"
+            }
+          ]
+        },
+        {
+          "id": "GET /products/{id}#field:200:price.amount",
+          "level": "responseField",
+          "label": "200 price.amount",
+          "state": "tested",
+          "status": "200",
+          "derivedFrom": [
+            "loc-75c4582da953"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "a request for product 1",
+              "providerStates": [
+                "product 1 exists"
+              ],
+              "location": "loc-4e19eac84d8f"
+            }
+          ]
+        },
+        {
+          "id": "GET /products/{id}#field:404:message",
+          "level": "responseField",
+          "label": "404 message",
+          "state": "tested",
+          "status": "404",
+          "derivedFrom": [
+            "loc-75c4582da953"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "a request for a missing product",
+              "providerStates": [
+                "product 99 does not exist"
+              ],
+              "location": "loc-3b6ac4d6e8cb"
+            }
+          ]
+        },
+        {
+          "id": "GET /products/{id}#interaction:checkout-product-api.pact.json:a request for product 1",
+          "level": "inputResponse",
+          "label": "a request for product 1 -> 200",
+          "state": "tested",
+          "derivedFrom": [
+            "loc-c66858cf72fc"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "a request for product 1",
+              "providerStates": [
+                "product 1 exists"
+              ],
+              "location": "loc-4e19eac84d8f"
+            }
+          ]
+        },
+        {
+          "id": "GET /products/{id}#interaction:checkout-product-api.pact.json:a request for a missing product",
+          "level": "inputResponse",
+          "label": "a request for a missing product -> 404",
+          "state": "tested",
+          "derivedFrom": [
+            "loc-c66858cf72fc"
+          ],
+          "tests": [
+            {
+              "type": "pact",
+              "pact": "checkout-product-api.pact.json",
+              "description": "a request for a missing product",
+              "providerStates": [
+                "product 99 does not exist"
+              ],
+              "location": "loc-3b6ac4d6e8cb"
+            }
+          ]
+        }
+      ],
+      "callSites": [
+        "loc-c66858cf72fc"
+      ]
+    }
+  ],
+  "crossCoverage": {
+    "strength": 2,
+    "totals": {
+      "tested": 1,
+      "notTested": 3,
+      "excluded": 0,
+      "total": 4,
+      "percent": 25.0
+    }
+  },
+  "observations": [
+    {
+      "kind": "overSpecifiedResponseField",
+      "operation": "GET /products/{id}",
+      "status": "200",
+      "field": "sku",
+      "interaction": {
+        "type": "pact",
+        "pact": "checkout-product-api.pact.json",
+        "description": "a request for product 1",
+        "providerStates": [
+          "product 1 exists"
+        ],
+        "location": "loc-4e19eac84d8f"
+      },
+      "handlerChecked": [
+        "loc-75c4582da953"
+      ]
+    }
+  ],
+  "unresolved": [
+    {
+      "kind": "call",
+      "reason": "request URL is built from a runtime string the analysis cannot resolve",
+      "location": "loc-4e9cd2782e52"
+    },
+    {
+      "kind": "interaction",
+      "reason": "pact interaction path matches no operation the consumer code calls",
+      "interaction": {
+        "type": "pact",
+        "pact": "checkout-product-api.pact.json",
+        "description": "ping",
+        "providerStates": []
+      },
+      "method": "GET",
+      "path": "/healthz"
+    }
+  ],
+  "warnings": [
+    "3 pact interaction(s) have no tests entry, so no test location: create an order, list books by price, ping"
+  ],
+  "totals": {
+    "operations": {
+      "tested": 3,
+      "notTested": 0,
+      "excluded": 0,
+      "total": 3,
+      "percent": 100.0
+    },
+    "responses": {
+      "tested": 4,
+      "notTested": 1,
+      "excluded": 4,
+      "total": 9,
+      "percent": 80.0
+    },
+    "inputs": {
+      "valid": {
+        "tested": 4,
+        "notTested": 3,
+        "excluded": 0,
+        "total": 7,
+        "percent": 57.1
+      },
+      "invalid": null
+    },
+    "responseFields": {
+      "tested": 6,
+      "notTested": 1,
+      "excluded": 0,
+      "total": 7,
+      "percent": 85.7
+    },
+    "inputResponse": {
+      "tested": 4,
+      "notTested": 0,
+      "excluded": 0,
+      "total": 4,
+      "percent": null
+    },
+    "unresolved": 2
+  }
+}

@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 
 [dependency-groups]
 dev = [
+    "jsonschema~=4.0",
     "jsonref~=1.0",
     "mdformat==1.0.0",
     "mypy==2.4.1",
@@ -99,6 +100,7 @@ module = [
     "test_build_filtered_oas",
     "test_async_coverage",
     "test_async_cli",
+    "test_consumer_coverage",
     "conftest",
 ]
 disallow_untyped_defs = false

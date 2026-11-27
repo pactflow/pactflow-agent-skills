@@ -1,0 +1,353 @@
+{
+  "schemaVersion": "1.0.0",
+  "source": {
+    "tool": "drift-generate-results@0.3.0",
+    "generationMethod": "organic",
+    "coverageModelRef": {
+      "namespace": "payments-oas",
+      "spec": "OAS 3.0.4 'Payments API (coverage example C2, oneOf branches)' basic mode (normalized)",
+      "specHash": "sha256:fabe61fe93a463fd3a4779da852fb82b5aa3bc6ce212da112204b61f9dffd4f5",
+      "modelVersion": "oas-coverage/5",
+      "policy": {
+        "largeEnumLimit": 5,
+        "maxDepth": 1,
+        "maxFieldPairs": 200
+      }
+    }
+  },
+  "policy": {
+    "largeEnumLimit": 5,
+    "maxDepth": 1,
+    "maxFieldPairs": 200
+  },
+  "operations": [
+    {
+      "id": "createPayment",
+      "method": "post",
+      "path": "/payments",
+      "state": "tested",
+      "items": [
+        {
+          "id": "createPayment",
+          "kind": "operation",
+          "occurrenceCount": 1,
+          "level": "operation",
+          "label": "createPayment",
+          "state": "tested",
+          "generation": "organic",
+          "tests": [
+            {
+              "type": "drift",
+              "testcase": "C2: oneOf branch coverage",
+              "operation": "createPayment_Card"
+            }
+          ]
+        },
+        {
+          "id": "createPayment:response:200:application/json",
+          "kind": "response",
+          "status": "200",
+          "mediaType": "application/json",
+          "occurrenceCount": 1,
+          "level": "response",
+          "label": "createPayment:response:200:application/json",
+          "state": "tested",
+          "generation": "organic",
+          "tests": [
+            {
+              "type": "drift",
+              "testcase": "C2: oneOf branch coverage",
+              "operation": "createPayment_Card"
+            }
+          ]
+        },
+        {
+          "id": "createPayment:response:400",
+          "kind": "response",
+          "status": "400",
+          "occurrenceCount": 0,
+          "level": "response",
+          "label": "createPayment:response:400",
+          "state": "notTested",
+          "generation": null,
+          "tests": []
+        },
+        {
+          "id": "createPayment:body:variant=CardPayment",
+          "kind": "field",
+          "variant": "CardPayment",
+          "in": "body",
+          "class": "variant",
+          "occurrenceCount": 1,
+          "level": "validInput",
+          "label": "createPayment:body:variant=CardPayment",
+          "state": "tested",
+          "generation": "organic",
+          "tests": [
+            {
+              "type": "drift",
+              "testcase": "C2: oneOf branch coverage",
+              "operation": "createPayment_Card"
+            }
+          ]
+        },
+        {
+          "id": "createPayment:body:variant=BankTransferPayment",
+          "kind": "field",
+          "variant": "BankTransferPayment",
+          "in": "body",
+          "class": "variant",
+          "occurrenceCount": 0,
+          "level": "validInput",
+          "label": "createPayment:body:variant=BankTransferPayment",
+          "state": "notTested",
+          "generation": null,
+          "tests": []
+        }
+      ],
+      "totals": {
+        "operations": {
+          "tested": 1,
+          "notTested": 0,
+          "failing": 0,
+          "notTestedDirectly": 0,
+          "excluded": 0,
+          "total": 1,
+          "percent": 100.0
+        },
+        "responses": {
+          "tested": 1,
+          "notTested": 1,
+          "failing": 0,
+          "notTestedDirectly": 0,
+          "excluded": 0,
+          "total": 2,
+          "percent": 50.0
+        },
+        "inputs": {
+          "valid": {
+            "tested": 1,
+            "notTested": 1,
+            "failing": 0,
+            "notTestedDirectly": 0,
+            "excluded": 0,
+            "total": 2,
+            "percent": 50.0
+          },
+          "invalid": {
+            "tested": 0,
+            "notTested": 0,
+            "failing": 0,
+            "notTestedDirectly": 0,
+            "excluded": 0,
+            "total": 0,
+            "percent": null
+          }
+        },
+        "inputResponse": {
+          "tested": 1,
+          "notTested": 0,
+          "failing": 0,
+          "notTestedDirectly": 0,
+          "excluded": 0,
+          "total": 1,
+          "percent": null
+        }
+      },
+      "pairs": [
+        {
+          "id": "createPayment:pair:1",
+          "inputs": [
+            "createPayment:body:variant=CardPayment"
+          ],
+          "response": "createPayment:response:200:application/json",
+          "state": "tested",
+          "generation": "organic",
+          "tests": [
+            {
+              "type": "drift",
+              "testcase": "C2: oneOf branch coverage",
+              "operation": "createPayment_Card"
+            }
+          ]
+        }
+      ],
+      "notMeasured": [
+        {
+          "location": "body(CardPayment).amount",
+          "reason": "variantNegative"
+        },
+        {
+          "location": "body(CardPayment).card",
+          "reason": "variantNegative"
+        },
+        {
+          "location": "body(CardPayment).card",
+          "reason": "depth",
+          "depth": 1
+        },
+        {
+          "location": "body(CardPayment).type",
+          "reason": "variantNegative"
+        },
+        {
+          "location": "body(BankTransferPayment).amount",
+          "reason": "variantNegative"
+        },
+        {
+          "location": "body(BankTransferPayment).iban",
+          "reason": "variantNegative"
+        },
+        {
+          "location": "body(BankTransferPayment).type",
+          "reason": "variantNegative"
+        }
+      ]
+    },
+    {
+      "id": "getPayment",
+      "method": "get",
+      "path": "/payments/{id}",
+      "state": "tested",
+      "items": [
+        {
+          "id": "getPayment",
+          "kind": "operation",
+          "occurrenceCount": 1,
+          "level": "operation",
+          "label": "getPayment",
+          "state": "tested",
+          "generation": "organic",
+          "tests": [
+            {
+              "type": "drift",
+              "testcase": "C2: oneOf branch coverage",
+              "operation": "getPayment_Success"
+            }
+          ]
+        },
+        {
+          "id": "getPayment:response:200:application/json:variant=SuccessShape",
+          "kind": "response",
+          "status": "200",
+          "mediaType": "application/json",
+          "variant": "SuccessShape",
+          "occurrenceCount": 1,
+          "level": "response",
+          "label": "getPayment:response:200:application/json:variant=SuccessShape",
+          "state": "tested",
+          "generation": "organic",
+          "tests": [
+            {
+              "type": "drift",
+              "testcase": "C2: oneOf branch coverage",
+              "operation": "getPayment_Success"
+            }
+          ]
+        },
+        {
+          "id": "getPayment:response:200:application/json:variant=ErrorShape",
+          "kind": "response",
+          "status": "200",
+          "mediaType": "application/json",
+          "variant": "ErrorShape",
+          "occurrenceCount": 0,
+          "level": "response",
+          "label": "getPayment:response:200:application/json:variant=ErrorShape",
+          "state": "notTested",
+          "generation": null,
+          "tests": []
+        }
+      ],
+      "totals": {
+        "operations": {
+          "tested": 1,
+          "notTested": 0,
+          "failing": 0,
+          "notTestedDirectly": 0,
+          "excluded": 0,
+          "total": 1,
+          "percent": 100.0
+        },
+        "responses": {
+          "tested": 1,
+          "notTested": 1,
+          "failing": 0,
+          "notTestedDirectly": 0,
+          "excluded": 0,
+          "total": 2,
+          "percent": 50.0
+        },
+        "inputs": {
+          "valid": {
+            "tested": 0,
+            "notTested": 0,
+            "failing": 0,
+            "notTestedDirectly": 0,
+            "excluded": 0,
+            "total": 0,
+            "percent": null
+          },
+          "invalid": {
+            "tested": 0,
+            "notTested": 0,
+            "failing": 0,
+            "notTestedDirectly": 0,
+            "excluded": 0,
+            "total": 0,
+            "percent": null
+          }
+        }
+      }
+    }
+  ],
+  "totals": {
+    "operations": {
+      "tested": 2,
+      "notTested": 0,
+      "failing": 0,
+      "notTestedDirectly": 0,
+      "excluded": 0,
+      "total": 2,
+      "percent": 100.0
+    },
+    "responses": {
+      "tested": 2,
+      "notTested": 2,
+      "failing": 0,
+      "notTestedDirectly": 0,
+      "excluded": 0,
+      "total": 4,
+      "percent": 50.0
+    },
+    "inputs": {
+      "valid": {
+        "tested": 1,
+        "notTested": 1,
+        "failing": 0,
+        "notTestedDirectly": 0,
+        "excluded": 0,
+        "total": 2,
+        "percent": 50.0
+      },
+      "invalid": {
+        "tested": 0,
+        "notTested": 0,
+        "failing": 0,
+        "notTestedDirectly": 0,
+        "excluded": 0,
+        "total": 0,
+        "percent": null
+      }
+    },
+    "inputResponse": {
+      "tested": 1,
+      "notTested": 0,
+      "failing": 0,
+      "notTestedDirectly": 0,
+      "excluded": 0,
+      "total": 1,
+      "percent": null
+    }
+  }
+}

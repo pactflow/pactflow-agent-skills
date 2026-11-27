@@ -33,6 +33,7 @@ jobs:
           --cov-fail-under=60
           --cov=build_filtered_oas
           --cov=async_coverage
+          --cov=consumer_coverage
           --cov-report=term-missing
           --cov-fail-under=75
           plugins/swagger-contract-testing/skills/pact-coverage/scripts/tests/
