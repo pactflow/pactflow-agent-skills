@@ -12,9 +12,9 @@ SAMPLES = sorted((REFS / "samples").glob("consumer-coverage-artifact-sample*.jso
 
 def run(manifest, pact, spec=None, mode="full", **kw):
     m = json.loads((FIX / manifest).read_text())
-    ixs = cc.load_interactions([str(FIX / pact)])
+    ixs, infos = cc.load_pacts([str(FIX / pact)])
     info, ops = cc.load_spec_operations(str(FIX / spec)) if spec else (None, None)
-    return cc.build_artifact(m, ixs, info, ops, mode, **kw)
+    return cc.build_artifact(m, ixs, info, ops, mode, pact_meta=infos, **kw)
 
 
 @pytest.fixture
@@ -332,3 +332,264 @@ def test_verifications_flag_reads_json_file(tmp_path):
     args = ["--manifest", str(FIX / "checkout-manifest.json"), "--pacts", str(FIX / "checkout-product-api.pact.json")]
     assert cc.main([*args, "--verifications", str(v), "--out", str(out), "--quiet"]) == 0
     assert "https://broker/v/9" in out.read_text()
+
+
+# ─── Rule H alignment round 2: fixes found by running the skill on nine projects ───────────────
+
+
+def mk_ix(
+    method="GET", path="/products", status=200, query=None, headers=None, req=None, resp=None, desc="d", states=None
+):
+    return {
+        "pact": "p.json",
+        "description": desc,
+        "providerStates": states or [],
+        "method": method,
+        "path": path,
+        "query": query or {},
+        "headers": headers or {},
+        "reqBody": req,
+        "status": status,
+        "respBody": resp,
+    }
+
+
+def call(path="/products", method="GET", **kw):
+    site = {"file": "src/a.ts", "line": 3, "symbol": "load"}
+    return {"method": method, "path": path, "callSite": site, "successStatus": "200", **kw}
+
+
+def build(calls, ixs, tests=None, **kw):
+    manifest = {"commit": "c1", "calls": calls, "tests": tests or {}}
+    return cc.build_artifact(manifest, ixs, **kw)
+
+
+def resp_items(a):
+    return {i["label"]: i for o in a["operations"] for i in o["items"] if i["level"] == "response"}
+
+
+def test_handled_4xx_class_is_tested_by_any_client_error_interaction():
+    a = build([call(handledStatuses=["4XX", "5XX"])], [mk_ix(), mk_ix(status=404, desc="missing")])
+    items = resp_items(a)
+    assert items["4XX handled response"]["state"] == "tested"
+    assert items["5XX handled response"]["state"] == "excluded"  # 5xx stays Excluded (Rule H5)
+
+
+def test_blanket_non_2xx_handling_is_tested_by_any_error_interaction():
+    covered = build([call(handledStatuses=["non-2XX"])], [mk_ix(), mk_ix(status=422, desc="bad")])
+    assert resp_items(covered)["non-2XX handled response"]["state"] == "tested"
+    uncovered = build([call(handledStatuses=["non-2XX"])], [mk_ix()])
+    assert resp_items(uncovered)["non-2XX handled response"]["state"] == "notTested"
+
+
+def test_headers_inputs_are_measured_and_unknown_keys_warn():
+    c = call(inputs={"headers": [{"name": "x-api-key"}], "bogus": []})
+    a = build([c], [mk_ix(headers={"x-api-key": "k"})])
+    item = next(i for o in a["operations"] for i in o["items"] if i["id"].endswith("input:header:x-api-key"))
+    assert item["state"] == "tested"
+    assert any("unknown inputs key 'bogus'" in w for w in a["warnings"])
+
+
+def test_tests_map_can_key_by_provider_state_and_item_ids_stay_unique():
+    ixs = [mk_ix(desc="a request", states=["ok"]), mk_ix(status=404, desc="a request", states=["gone"])]
+    tests = {
+        "a request#ok": {"file": "t.ts", "line": 10, "symbol": "ok"},
+        "a request#gone": {"file": "t.ts", "line": 20, "symbol": "gone"},
+    }
+    a = build([call()], ixs, tests)
+    lines = sorted(loc["line"] for loc in a["locations"].values() if loc["kind"] == "test")
+    assert lines == [10, 20]
+    ids = [i["id"] for o in a["operations"] for i in o["items"]]
+    assert len(ids) == len(set(ids))
+
+
+def test_pass_through_and_reads_nothing_control_observations():
+    body = {"id": 1, "extra": 2}
+    plain = build([call()], [mk_ix(resp=body)])
+    forwarded = build([call(passThrough=True)], [mk_ix(resp=body)])
+    nothing = build([call(readsNothing=True)], [mk_ix(resp=body)])
+    assert plain["observations"] == [] and forwarded["observations"] == []  # unknown reads / forwarded: no claim
+    assert {o["field"] for o in nothing["observations"]} == {"id", "extra"}
+
+
+def test_over_specified_fields_are_found_at_any_depth():
+    body = {"users": [{"id": 1, "roles": [{"name": "a"}]}]}
+    assert cc._over_specified(body, {"users.id"}) == ["users.roles"]
+    assert cc._over_specified(body, {"users"}) == []
+    assert cc._over_specified(body, set()) == ["users"]
+
+
+def test_pact_status_the_code_does_not_handle_is_an_observation():
+    a = build([call()], [mk_ix(), mk_ix(status=400, desc="bad token")])
+    kinds = [(o["kind"], o["status"]) for o in a["observations"]]
+    assert ("unhandledResponseStatus", "400") in kinds and len(kinds) == 1
+
+
+def test_form_urlencoded_request_bodies_are_parsed_into_fields():
+    part = {"headers": {"Content-Type": ["application/x-www-form-urlencoded"]}, "body": "a=1&b=two&a=3"}
+    assert cc._body_of(part, False) == {"a": ["1", "3"], "b": "two"}
+    c = call("/token", "POST", inputs={"body": [{"name": "grant_type"}, {"name": "code"}]})
+    ix = mk_ix("POST", "/token", req={"grant_type": "authorization_code", "code": "x"})
+    a = build([c], [ix])
+    states = {i["label"]: i["state"] for o in a["operations"] for i in o["items"] if i["level"] == "validInput"}
+    assert set(states.values()) == {"tested"}
+
+
+def test_any_documented_2xx_the_pact_returns_is_the_success_response(tmp_path):
+    spec = tmp_path / "s.yaml"
+    spec.write_text(
+        "openapi: 3.0.0\ninfo: {title: t, version: '1'}\n"
+        "paths:\n  /jobs:\n    post:\n      responses:\n        '200': {}\n        '202': {}\n"
+    )
+    info, ops = cc.load_spec_operations(str(spec))
+    c = call("/jobs", "POST")
+    del c["successStatus"]
+    a = build([c], [mk_ix("POST", "/jobs", status=202)], spec_info=info, spec_ops=ops)
+    assert resp_items(a)["202 success response"]["state"] == "tested"
+
+
+def test_success_key_aliases_merge_into_one_field_item():
+    calls = [call(responseFields={"200": ["id"]}), call(responseFields={"2XX": ["id"]})]
+    a = build(calls, [mk_ix(resp={"id": 1})])
+    ids = [i["id"] for o in a["operations"] for i in o["items"] if i["level"] == "responseField"]
+    assert ids == ["GET /products#field:200:id"]
+
+
+def test_path_parameters_are_not_counted_as_valid_inputs():
+    c = call("/products/{id}", inputs={"parameters": [{"name": "id", "in": "path"}]})
+    a = build([c], [mk_ix(path="/products/7")])
+    assert a["totals"]["inputs"]["valid"]["total"] == 0
+
+
+def test_shared_handler_is_one_location_across_operations():
+    handler = {"file": "src/h.ts", "line": 9, "symbol": "check"}
+    a = build([call("/a", handlers=[handler]), call("/b", handlers=[handler])], [])
+    assert sum(1 for loc in a["locations"].values() if loc["kind"] == "handler") == 1
+
+
+def test_warnings_for_template_paths_thin_call_sites_and_test_keys():
+    thin = {"method": "GET", "path": "/x/${id}", "callSite": {"file": "src/a.ts", "line": 1}}
+    a = build([thin], [mk_ix(path="/x/1")], {"never used": {"file": "t.ts", "line": 1, "symbol": "s"}})
+    text = " | ".join(a["warnings"])
+    assert "template syntax" in text and "callSite lacks symbol" in text
+    assert "tests key 'never used' matches no pact interaction" in text
+    assert "no tests entry" in text
+
+
+def test_summary_checks_report_locations_and_why_fields_are_na():
+    a = build([call()], [mk_ix()])
+    summary = cc.format_summary(a)
+    assert "Locations:" in summary and "Items without derivedFrom: 0 of" in summary
+    assert "Response fields n/a" in summary
+
+
+def _write_pact(tmp_path, name, consumer="app", provider="svc", version=None, messages=0):
+    pact = {
+        "consumer": {"name": consumer},
+        "provider": {"name": provider},
+        "interactions": [
+            {"description": "list", "request": {"method": "GET", "path": "/products"}, "response": {"status": 200}}
+        ],
+    }
+    if messages:
+        pact["messages"] = [{"description": "event"}] * messages
+    if version:
+        pact["_links"] = {"pb:consumer-version": {"name": version}}
+    path = tmp_path / name
+    path.write_text(json.dumps(pact))
+    return str(path)
+
+
+def _manifest_file(tmp_path, provider="svc"):
+    m = {"commit": "abc1234", "consumer": {"name": "app"}, "provider": {"name": provider}, "calls": [call()]}
+    path = tmp_path / "m.json"
+    path.write_text(json.dumps(m))
+    return str(path)
+
+
+def test_pact_provenance_records_version_and_flags_a_commit_mismatch(tmp_path):
+    pact = _write_pact(tmp_path, "p.json", version="ffff999", messages=2)
+    out = tmp_path / "a.json"
+    assert cc.main(["--manifest", _manifest_file(tmp_path), "--pacts", pact, "--out", str(out), "--quiet"]) == 0
+    a = json.loads(out.read_text())
+    [info] = a["source"]["pacts"]
+    assert info["consumerVersion"] == "ffff999" and info["commitMismatch"] is True and len(info["sha256"]) == 64
+    assert a["notMeasured"][0]["reason"] == "messagePacts"
+    assert any("not the manifest commit" in w for w in a["warnings"])
+
+
+def test_pacts_for_another_provider_are_skipped(tmp_path, capsys):
+    mine = _write_pact(tmp_path, "mine.json")
+    other = _write_pact(tmp_path, "other.json", provider="different")
+    out = tmp_path / "a.json"
+    cc.main(["--manifest", _manifest_file(tmp_path), "--pacts", mine, other, "--out", str(out), "--quiet"])
+    a = json.loads(out.read_text())
+    assert [p["name"] for p in a["source"]["pacts"]] == ["mine.json"]
+    assert "other.json skipped" in capsys.readouterr().err
+
+
+def test_no_pacts_mode_needs_no_pacts_flag_and_stays_quiet(tmp_path, capsys):
+    out = tmp_path / "a.json"
+    assert cc.main(["--manifest", _manifest_file(tmp_path), "--no-pacts", "--out", str(out), "--quiet"]) == 0
+    assert json.loads(out.read_text())["totals"]["operations"]["tested"] == 0
+    assert "no pact files matched" not in capsys.readouterr().err
+    cc.main(["--manifest", _manifest_file(tmp_path), "--out", str(out), "--quiet"])
+    assert "no pact files matched" in capsys.readouterr().err
+
+
+class _Response:
+    def __init__(self, body):
+        self.body = body
+
+    def read(self):
+        return self.body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_broker_fetch_reads_the_latest_pact_and_records_it(tmp_path, monkeypatch):
+    seen = {}
+    pact = json.loads(Path_read(_write_pact(tmp_path, "src.json", version="abc1234")))
+
+    def fake_urlopen(request, timeout=0):
+        seen["url"], seen["auth"] = request.full_url, request.get_header("Authorization")
+        return _Response(json.dumps(pact).encode())
+
+    monkeypatch.setattr(cc.urllib.request, "urlopen", fake_urlopen)
+    out = tmp_path / "a.json"
+    argv = [
+        "--manifest",
+        _manifest_file(tmp_path),
+        "--broker-url",
+        "https://b.example/",
+        "--broker-token",
+        "T",
+        "--quiet",
+    ]
+    assert cc.main([*argv, "--out", str(out)]) == 0
+    assert seen["url"] == "https://b.example/pacts/provider/svc/consumer/app/latest" and seen["auth"] == "Bearer T"
+    a = json.loads(out.read_text())
+    assert a["source"]["pacts"][0]["from"] == "broker" and "commitMismatch" not in a["source"]["pacts"][0]
+    assert a["totals"]["operations"]["tested"] == 1
+
+
+def Path_read(path):
+    return open(path).read()
+
+
+def test_strict_exits_one_on_failure_default_exits_zero(tmp_path):
+    missing = str(tmp_path / "nope.json")
+    assert cc.main(["--manifest", missing, "--no-pacts", "--quiet"]) == 0
+    assert cc.main(["--manifest", missing, "--no-pacts", "--quiet", "--strict"]) == 1
+
+
+def test_check_flag_validates_against_the_schema(tmp_path, capsys):
+    pytest.importorskip("jsonschema")
+    cc.main(
+        ["--manifest", _manifest_file(tmp_path), "--no-pacts", "--out", str(tmp_path / "a.json"), "--check", "--quiet"]
+    )
+    assert "schema check: valid" in capsys.readouterr().err

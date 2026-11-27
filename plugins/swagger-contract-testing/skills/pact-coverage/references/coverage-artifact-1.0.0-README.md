@@ -71,3 +71,20 @@ Open decisions for the PM: the artifact carries states and percentages (Drift's 
 - `source.analysis.configSha256`: hash of the policy settings, next to `manifestSha256`.
 - `tests[].verification` (pact refs): link to the provider verification result, set from `--verifications`. A failed verification leaves
   the item Tested.
+
+## Reading the artifact
+
+- **Operations and items.** `operations[]` are the operations the code calls; each has a `state` and `callSites` (location ids). An operation
+  is not an item. `operations[].items[]` are the measured items (responses, valid inputs, response fields, input → response), and every item
+  carries `derivedFrom` (the call site or handler it comes from). To check locations, count items, not operations.
+- **n/a.** A level with a total of 0 shows `percent: null`. For Response fields it means the manifest recorded no reads (discovery did not
+  record them, or the code reads nothing: `readsNothing` / `passThrough` say it is deliberate). It is not a gap.
+- **Observations** have no denominator, state or percentage: `overSpecifiedResponseField` (a pact field the code never reads, at any
+  depth) and `unhandledResponseStatus` (a pact status the code does not handle).
+- **Responses.** A handled `4XX` or `non-2XX` is Tested by any matching interaction; 5xx, 3xx, other ranges and `default` stay Excluded.
+  With a spec and no pinned success status, the documented 2xx that an interaction returns is the success response.
+- **Valid inputs** do not include path parameters (they are part of the operation's identity). Form-urlencoded request bodies are parsed.
+- **Provenance.** `source.pacts` lists each pact read (`from: file | broker`, `sha256`, `consumerVersion` when the pact says,
+  `commitMismatch` when it is not the manifest commit); `source.analysis` holds the manifest and config hashes.
+- **`warnings`** lists what the script noticed in its inputs. `notMeasured` reports skipped message pacts. Neither changes a percentage.
+- **Locations** with the default hash are one entry per kind, file, line and symbol, so a handler shared by several operations is one location.

@@ -182,6 +182,41 @@
               }
             }
           }
+        },
+        "pacts": {
+          "description": "The pacts the coverage was calculated from, so a pact for another commit is visible.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "from": {
+                "enum": [
+                  "file",
+                  "broker"
+                ]
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "consumerVersion": {
+                "type": "string"
+              },
+              "interactions": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "commitMismatch": {
+                "type": "boolean"
+              }
+            }
+          }
         }
       }
     },
@@ -291,6 +326,13 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/notMeasured"
+      }
+    },
+    "warnings": {
+      "description": "Problems the producer noticed in its inputs (unknown manifest keys, template syntax in a path, missing locations, pacts for another commit). Never affects a percentage.",
+      "type": "array",
+      "items": {
+        "type": "string"
       }
     }
   },
@@ -734,7 +776,11 @@
       ],
       "properties": {
         "kind": {
-          "const": "overSpecifiedResponseField"
+          "enum": [
+            "overSpecifiedResponseField",
+            "unhandledResponseStatus"
+          ],
+          "description": "overSpecifiedResponseField: a pact field the code never reads. unhandledResponseStatus: a pact status the code does not handle."
         },
         "operation": {
           "type": "string"

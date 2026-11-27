@@ -15,7 +15,15 @@
       "manifestVersion": "1.0.0",
       "manifestSha256": "d949f5f5b69dcc886000a01fd188efd5edf698c6588c235da05f53dec6bb6c77",
       "configSha256": "3084e2d264053a2b24260c6d9603ce008d13bb46b48fc5c9d6772039f9f18f6f"
-    }
+    },
+    "pacts": [
+      {
+        "name": "mobile-loyalty-api.pact.json",
+        "from": "file",
+        "sha256": "fbe4a341be67514388a473ac3c4b4032516f097904c8e8788c46cee69694b6db",
+        "interactions": 1
+      }
+    ]
   },
   "policy": {
     "model": "consumer-fixed-1",
@@ -26,26 +34,26 @@
     "largeEnumLimit": 5
   },
   "locations": {
-    "loc-a319acc6c025": {
+    "loc-1f956c8b3d48": {
       "kind": "call-site",
       "commit": "4be7d20",
-      "hash": "e0190947d31e5d40",
+      "hash": "0ebfe1a554e070ed",
       "fileHash": "706c409370cc3959",
       "symbolHash": "36b38cba7d42a050"
     },
-    "loc-b9a419448986": {
-      "kind": "call-site",
-      "commit": "4be7d20",
-      "hash": "7b9bf4ca8f628179",
-      "fileHash": "8fc1727038feb77d",
-      "symbolHash": "1c4a2bc4c6b98d5a"
-    },
-    "loc-c883d68c6984": {
+    "loc-c79d9c725c91": {
       "kind": "handler",
       "commit": "4be7d20",
-      "hash": "506f3255fed0804c",
+      "hash": "3e8401e83440666f",
       "fileHash": "706c409370cc3959",
       "symbolHash": "36b38cba7d42a050"
+    },
+    "loc-ca7403e86d98": {
+      "kind": "call-site",
+      "commit": "4be7d20",
+      "hash": "1e163a4a14cfa11a",
+      "fileHash": "8fc1727038feb77d",
+      "symbolHash": "1c4a2bc4c6b98d5a"
     }
   },
   "operations": [
@@ -63,7 +71,7 @@
           "state": "tested",
           "status": "2XX",
           "derivedFrom": [
-            "loc-a319acc6c025"
+            "loc-1f956c8b3d48"
           ],
           "tests": [
             {
@@ -81,24 +89,7 @@
           "state": "notTested",
           "status": "404",
           "derivedFrom": [
-            "loc-c883d68c6984"
-          ]
-        },
-        {
-          "id": "GET /members/{memberId}/points#input:path:memberId",
-          "level": "validInput",
-          "label": "path:memberId",
-          "state": "tested",
-          "derivedFrom": [
-            "loc-a319acc6c025"
-          ],
-          "tests": [
-            {
-              "type": "pact",
-              "pact": "mobile-loyalty-api.pact.json",
-              "description": "points for a member",
-              "providerStates": []
-            }
+            "loc-c79d9c725c91"
           ]
         },
         {
@@ -108,7 +99,7 @@
           "state": "tested",
           "status": "2XX",
           "derivedFrom": [
-            "loc-c883d68c6984"
+            "loc-c79d9c725c91"
           ],
           "tests": [
             {
@@ -125,7 +116,7 @@
           "label": "points for a member -> 200",
           "state": "tested",
           "derivedFrom": [
-            "loc-a319acc6c025"
+            "loc-1f956c8b3d48"
           ],
           "tests": [
             {
@@ -138,7 +129,7 @@
         }
       ],
       "callSites": [
-        "loc-a319acc6c025"
+        "loc-1f956c8b3d48"
       ]
     },
     {
@@ -155,7 +146,7 @@
           "state": "notTested",
           "status": "2XX",
           "derivedFrom": [
-            "loc-b9a419448986"
+            "loc-ca7403e86d98"
           ]
         },
         {
@@ -164,7 +155,7 @@
           "label": "body:rewardId",
           "state": "notTested",
           "derivedFrom": [
-            "loc-b9a419448986"
+            "loc-ca7403e86d98"
           ]
         },
         {
@@ -174,12 +165,12 @@
           "state": "notTested",
           "status": "2XX",
           "derivedFrom": [
-            "loc-b9a419448986"
+            "loc-ca7403e86d98"
           ]
         }
       ],
       "callSites": [
-        "loc-b9a419448986"
+        "loc-ca7403e86d98"
       ]
     }
   ],
@@ -196,11 +187,14 @@
         "providerStates": []
       },
       "handlerChecked": [
-        "loc-c883d68c6984"
+        "loc-c79d9c725c91"
       ]
     }
   ],
   "unresolved": [],
+  "warnings": [
+    "1 pact interaction(s) have no tests entry, so no test location: points for a member"
+  ],
   "totals": {
     "operations": {
       "tested": 1,
@@ -218,11 +212,11 @@
     },
     "inputs": {
       "valid": {
-        "tested": 1,
+        "tested": 0,
         "notTested": 1,
         "excluded": 0,
-        "total": 2,
-        "percent": 50.0
+        "total": 1,
+        "percent": 0.0
       },
       "invalid": null
     },

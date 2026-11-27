@@ -23,6 +23,15 @@ metadata:
 
 # Pact Coverage
 
+> **Two flows live in this file.**
+> - **Consumer coverage artifact** (`scripts/consumer_coverage.py`): the consumer's code sets the denominator, a spec is
+>   optional, the script always exits 0 and publishes the shared artifact. Start at
+>   [Consumer coverage artifact](#consumer-coverage-artifact-schema-100). The spec and pact selection steps in this file
+>   (`AskUserQuestion` prompts, "you MUST follow one of these paths") do **not** apply to it.
+> - **Spec-driven report** (`scripts/parse_pact_coverage.py`): the provider spec sets the denominator and the exit code is
+>   0, 1 or 2. Everything from [OpenAPI spec selection](#openapi-spec-selection) to the end of the file belongs to it,
+>   except the consumer section.
+
 Analyses Pact v2/v3/v4 interactions against an OpenAPI spec and reports gaps across
 four core dimensions: path/method, status codes, request body required fields, and
 response body required fields. An optional fifth dimension — consumer code status
@@ -302,26 +311,68 @@ Publishes the shared coverage artifact (`participant.role: consumer`) using the 
 consumer's code sets the denominator, pacts say what is Tested, a provider spec (optional) only adds detail.
 Levels: operations, responses (success + statuses the handling code checks), valid inputs, response fields the
 code reads, input → response (interactions). Invalid inputs are not measured. States: Tested / Not tested /
-Excluded. Unresolved calls and unmatched interactions are listed, never dropped; over-specified pact fields are
-observations. Model, samples and schema: [`references/coverage-artifact-1.0.0-README.md`](references/coverage-artifact-1.0.0-README.md).
+Excluded. Unresolved calls and unmatched interactions are listed, never dropped; over-specified pact fields and pact
+statuses the code does not handle are observations. Model, samples and schema:
+[`references/coverage-artifact-1.0.0-README.md`](references/coverage-artifact-1.0.0-README.md).
 
-1. **Discover** (agent): write a manifest tied to the commit — [`references/consumer-manifest.md`](references/consumer-manifest.md).
-   Check status codes in the code that handles each call, not across the repo. Record reads, not the spec's `required[]`.
-2. **Calculate** (plain script, deterministic, **always exits 0**; never fails the build):
+**1. Discover (agent).** Write a manifest tied to the commit, one per consumer→provider pair, with repo-root-relative
+paths: [`references/consumer-manifest.md`](references/consumer-manifest.md). Give every call a `callSite` with file, line and
+symbol, and a `tests` entry for each pact interaction you can place. Check status codes in the code that handles each
+call, not across the repo. Record what the code reads, not the spec's `required[]`.
+
+- A code-intelligence tool that reports zero hits has not proved there are no calls. An unindexed project returns
+  `complete` with no results (`ripwire --grep`, `--callers` through untyped objects). Cross-check one HTTP-client search
+  with plain `grep`/`rg` before trusting a count of zero.
+- Pair per provider, not per repo. A provider you cannot name from a pact or the broker gets the name the code or config
+  implies, and the manifest says so in `notes`.
+- Third-party SDKs and calls to hosts outside the pair are left out. Message pacts are not supported: the script reports
+  them under `notMeasured`.
+
+**2. Get the pacts.** In order of preference:
+
+1. Pact files on disk (`pacts/`, `target/pacts/`, `build/pacts/`). They can be stale: check `source.pacts` in the artifact.
+2. The broker, read-only: `--broker-url https://<tenant>.pactflow.io` (token from `--broker-token` or
+   `PACT_BROKER_TOKEN`; never print it). The PactFlow MCP `get_pacts_for_verification` returns links only, never pact
+   JSON, so it can find the consumer version but cannot supply the pact.
+3. Run the repo's own consumer tests to write the pacts.
+4. No pacts: `--no-pacts`. Every item is reported Not tested, which says nothing about whether tests exist.
+
+**3. Spec (optional).** It adds declared statuses and nothing else. For a PactFlow BDCT provider, use
+`contract-testing_get_latest_pacticipant_version` for the version number, then `get_bdct_provider_contract`; the OAS is
+`_embedded.providerContract.content` (a YAML string). Do not use the consumer's own generated spec.
+
+**4. Calculate** (plain script, deterministic, **always exits 0**; never fails the build):
 
 ```bash
 uv run scripts/consumer_coverage.py --manifest consumer-manifest.json --pacts "pacts/*.json" \
   [--spec provider-openapi.yaml] [--locations full|hashed|none] [--exclude-statuses 418] \
-  [--pairwise-cap 20] [--verifications verifications.json] --out coverage-artifact.json
+  [--pairwise-cap 20] [--verifications verifications.json] [--check] [--strict] --out coverage-artifact.json
+# no pacts on purpose:     --no-pacts           (instead of --pacts)
+# pact from a broker:      --broker-url URL [--broker-token T] [--consumer C] [--provider P]
 ```
 
+- Run it with absolute paths: relative ones resolve against the directory you run it from.
+- A failure prints `consumer coverage skipped: ...` on stderr and exits 0, so a broken manifest looks like zero
+  coverage. `--strict` exits 1 instead; use it in CI if you want a gate.
+- It prints a self-check: locations, items without `derivedFrom`, and why a level is n/a. `--check` also validates the
+  artifact against the schema (needs `jsonschema`, for example `uv run --with jsonschema`). Its `warnings` list names
+  unknown manifest keys, template syntax left in a path (`${id}`), call sites without a symbol, `tests` keys that
+  match no interaction, interactions with no `tests` entry, and pacts built from another commit.
+- `--pacts` files for another provider or consumer than the manifest names are skipped and reported.
+
 Gap closing: where the code really varies inputs, `operations[].suggestions.coveringArray` lists the fewest new
-interactions covering every uncovered pair (capped; `truncated` says when it was cut short).
+interactions covering every uncovered pair (capped; `truncated` says when it was cut short, including when the
+candidate pool was).
 Where the code varies two or more inputs, `operations[].crossCoverage` also measures pairwise coverage of those inputs.
 `--verifications` takes a JSON map of `<pact file>#<description>` (or just the description) to a provider verification
 result URL; it is attached to the pact reference and never changes coverage.
 
 ---
+
+## Spec-driven report: `parse_pact_coverage.py`
+
+> Everything below this line applies to `scripts/parse_pact_coverage.py` only. The consumer artifact above always exits
+> 0 and has no Sections 1-5.
 
 ## Interpreting the report
 

@@ -20,7 +20,15 @@
       "manifestVersion": "1.0.0",
       "manifestSha256": "566d49e08148694bea6c35523ab7524ec8ed43df9cfaefbf998d4567d8d9b05d",
       "configSha256": "24974f5c8be0ba5f96e450beccef54d01e1214079ead69947ce3172f7193b452"
-    }
+    },
+    "pacts": [
+      {
+        "name": "checkout-product-api.pact.json",
+        "from": "file",
+        "sha256": "22cd7e78894000cf1d3b317d908059a4521ff4968561d3b4b4675748e56868c3",
+        "interactions": 5
+      }
+    ]
   },
   "policy": {
     "model": "consumer-fixed-1",
@@ -31,22 +39,6 @@
     "largeEnumLimit": 5
   },
   "locations": {
-    "loc-0bceebfc75e4": {
-      "kind": "test",
-      "commit": "9f2c1ab",
-      "hash": "e76c520d1f94b8bf",
-      "file": "tests/products.pact.test.ts",
-      "line": 10,
-      "symbol": "get product"
-    },
-    "loc-153ade1c5f3a": {
-      "kind": "test",
-      "commit": "9f2c1ab",
-      "hash": "88875b259bccc288",
-      "file": "tests/products.pact.test.ts",
-      "line": 10,
-      "symbol": "get product"
-    },
     "loc-242fa4222f91": {
       "kind": "call-site",
       "commit": "9f2c1ab",
@@ -55,13 +47,21 @@
       "line": 9,
       "symbol": "createOrder"
     },
-    "loc-3693e63ea575": {
+    "loc-3b6ac4d6e8cb": {
       "kind": "test",
       "commit": "9f2c1ab",
-      "hash": "28981541c52f4216",
+      "hash": "8f5725545dcdc16f",
       "file": "tests/products.pact.test.ts",
       "line": 30,
       "symbol": "get missing product"
+    },
+    "loc-4e19eac84d8f": {
+      "kind": "test",
+      "commit": "9f2c1ab",
+      "hash": "b38b9e97f572780d",
+      "file": "tests/products.pact.test.ts",
+      "line": 10,
+      "symbol": "get product"
     },
     "loc-4e9cd2782e52": {
       "kind": "call-site",
@@ -438,7 +438,7 @@
               "providerStates": [
                 "product 1 exists"
               ],
-              "location": "loc-0bceebfc75e4"
+              "location": "loc-4e19eac84d8f"
             }
           ]
         },
@@ -459,7 +459,7 @@
               "providerStates": [
                 "product 99 does not exist"
               ],
-              "location": "loc-3693e63ea575"
+              "location": "loc-3b6ac4d6e8cb"
             }
           ]
         },
@@ -497,35 +497,6 @@
           ]
         },
         {
-          "id": "GET /products/{id}#input:path:id",
-          "level": "validInput",
-          "label": "path:id",
-          "state": "tested",
-          "derivedFrom": [
-            "loc-c66858cf72fc"
-          ],
-          "tests": [
-            {
-              "type": "pact",
-              "pact": "checkout-product-api.pact.json",
-              "description": "a request for product 1",
-              "providerStates": [
-                "product 1 exists"
-              ],
-              "location": "loc-0bceebfc75e4"
-            },
-            {
-              "type": "pact",
-              "pact": "checkout-product-api.pact.json",
-              "description": "a request for a missing product",
-              "providerStates": [
-                "product 99 does not exist"
-              ],
-              "location": "loc-3693e63ea575"
-            }
-          ]
-        },
-        {
           "id": "GET /products/{id}#field:200:id",
           "level": "responseField",
           "label": "200 id",
@@ -542,7 +513,7 @@
               "providerStates": [
                 "product 1 exists"
               ],
-              "location": "loc-0bceebfc75e4"
+              "location": "loc-4e19eac84d8f"
             }
           ]
         },
@@ -563,7 +534,7 @@
               "providerStates": [
                 "product 1 exists"
               ],
-              "location": "loc-0bceebfc75e4"
+              "location": "loc-4e19eac84d8f"
             }
           ]
         },
@@ -584,7 +555,7 @@
               "providerStates": [
                 "product 1 exists"
               ],
-              "location": "loc-0bceebfc75e4"
+              "location": "loc-4e19eac84d8f"
             }
           ]
         },
@@ -605,7 +576,7 @@
               "providerStates": [
                 "product 99 does not exist"
               ],
-              "location": "loc-3693e63ea575"
+              "location": "loc-3b6ac4d6e8cb"
             }
           ]
         },
@@ -625,7 +596,7 @@
               "providerStates": [
                 "product 1 exists"
               ],
-              "location": "loc-0bceebfc75e4"
+              "location": "loc-4e19eac84d8f"
             }
           ]
         },
@@ -645,7 +616,7 @@
               "providerStates": [
                 "product 99 does not exist"
               ],
-              "location": "loc-3693e63ea575"
+              "location": "loc-3b6ac4d6e8cb"
             }
           ]
         }
@@ -678,7 +649,7 @@
         "providerStates": [
           "product 1 exists"
         ],
-        "location": "loc-0bceebfc75e4"
+        "location": "loc-4e19eac84d8f"
       },
       "handlerChecked": [
         "loc-75c4582da953"
@@ -704,6 +675,9 @@
       "path": "/healthz"
     }
   ],
+  "warnings": [
+    "3 pact interaction(s) have no tests entry, so no test location: create an order, list books by price, ping"
+  ],
   "totals": {
     "operations": {
       "tested": 3,
@@ -721,11 +695,11 @@
     },
     "inputs": {
       "valid": {
-        "tested": 5,
+        "tested": 4,
         "notTested": 3,
         "excluded": 0,
-        "total": 8,
-        "percent": 62.5
+        "total": 7,
+        "percent": 57.1
       },
       "invalid": null
     },
