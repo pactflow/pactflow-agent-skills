@@ -145,6 +145,7 @@ commit, not to uncommitted edits.
   read-only; add `--save-pacts DIR` to keep the pact file). Do not curl by hand.
 - A pact from another consumer version than the manifest commit gives a `commitMismatch` warning. Accept it and keep the
   manifest (discovery reads HEAD); the warning is for the reader. Re-discover only if the code changed in the area.
+- The broker answering 404 for the pair is not an error: the script runs with no pacts and records a warning.
 - No pacts at all: `--no-pacts` (every item is Not tested; that reflects missing pacts, not test quality).
 - No spec: try `get_bdct_provider_contract` once; on 404 or no provider version, run without `--spec`. A BDCT result saved by the MCP
   holds the OAS text at `_embedded.providerContract.content`: extract it with `jq -r` (YAML or JSON), do not hand-trim it.

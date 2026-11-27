@@ -580,8 +580,20 @@ def test_broker_fetch_reads_the_latest_pact_and_records_it(tmp_path, monkeypatch
     assert json.loads(out.read_text())["warnings"] == [] or isinstance(json.loads(out.read_text())["warnings"], list)
 
 
-def test_broker_404_says_to_use_no_pacts(tmp_path, monkeypatch, capsys):
+def test_broker_404_runs_with_no_pacts_and_says_so(tmp_path, monkeypatch):
     def fake_urlopen(request, timeout=0):
+        raise cc.urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)
+
+    monkeypatch.setattr(cc.urllib.request, "urlopen", fake_urlopen)
+    out = tmp_path / "n.json"
+    argv = ["--manifest", _manifest_file(tmp_path), "--broker-url", "https://b.example", "--broker-token", "T"]
+    assert cc.main([*argv, "--quiet", "--out", str(out)]) == 0
+    artifact = json.loads(out.read_text())
+    assert artifact["totals"]["operations"]["tested"] == 0
+    assert any("broker has no pact" in w for w in artifact["warnings"])
+
+
+def fake_urlopen(request, timeout=0):
         raise cc.urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)
 
     monkeypatch.setattr(cc.urllib.request, "urlopen", fake_urlopen)

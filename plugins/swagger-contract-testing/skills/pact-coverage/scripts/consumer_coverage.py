@@ -342,6 +342,10 @@ def load_interactions(pact_paths: list[str]) -> list[Json]:
     return load_pacts(pact_paths)[0]
 
 
+class BrokerPactMissing(ValueError):
+    """The broker answered 404: the pair has no published pact."""
+
+
 def fetch_broker_pact(
     base_url: str, token: str, consumer: str, provider: str, save_dir: str | None = None
 ) -> tuple[list[Json], Json]:
@@ -356,9 +360,7 @@ def fetch_broker_pact(
             raw = response.read()
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            raise ValueError(
-                f"the broker has no pact for {consumer} -> {provider}; rerun with --no-pacts if that is expected"
-            ) from exc
+            raise BrokerPactMissing(f"the broker has no pact for {consumer} -> {provider}") from exc
         raise
     pact = json.loads(raw)
     name = f"{consumer}-{provider}.json"
@@ -1127,9 +1129,13 @@ def main(argv: list[str] | None = None) -> int:
             if not (consumer and provider):
                 raise ValueError("--broker-url needs a consumer and a provider (flags or manifest names)")
             token = args.broker_token or os.environ.get("PACT_BROKER_TOKEN", "")
-            fetched, info = fetch_broker_pact(args.broker_url, token, str(consumer), str(provider), args.save_pacts)
-            interactions.extend(fetched)
-            kept.append(info)
+            try:
+                fetched, info = fetch_broker_pact(args.broker_url, token, str(consumer), str(provider), args.save_pacts)
+                interactions.extend(fetched)
+                kept.append(info)
+            except BrokerPactMissing as missing:
+                notes.append(f"{missing}: ran with no pacts, every item is Not tested")
+                args.no_pacts = True
         if not kept and not args.no_pacts:
             notes.append(
                 "no pact files matched: every item is reported Not tested (use --no-pacts if that is deliberate)"
