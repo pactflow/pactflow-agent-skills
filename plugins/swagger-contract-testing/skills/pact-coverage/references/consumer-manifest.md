@@ -115,6 +115,11 @@ commit, not to uncommitted edits.
 - **Enumerating a large client**: a regex scan of call sites is fine; check multi-line templates and ternary path tails by hand.
 - **No provider version on the broker** (or 404 on the contract): run without `--spec`. Pact-less providers: run with
   `--no-pacts` if the code calls them, skip providers the code does not call.
+- **Pact version not in the local clone**: accept the `commitMismatch` warning; there is nothing to diff.
+- **Named 5xx check** (`status >= 500` raised by name): `5XX` is not a supported entry, so use `non-2XX` and say so in `notes`.
+- **Top-level array request body**: write `[].op`, as for responses.
+- **`passThrough` when the downstream caller is outside the pair**: use `passThrough`.
+- **Provider and consumer names**: copy the exact casing from the pact or broker (`Pactflow-Platform-Service-Organisation`).
 - **Several providers**: one manifest and one script run per pair. Name guessed providers in `notes`.
 - **`notes`** (manifest-level or per call) is for the next reader: allowed, ignored by the script, never published.
 
@@ -128,7 +133,9 @@ commit, not to uncommitted edits.
 - No pacts at all: `--no-pacts` (every item is Not tested; that reflects missing pacts, not test quality).
 - No spec: try `get_bdct_provider_contract` once; on 404 or no provider version, run without `--spec`. A BDCT result saved by the MCP
   holds the OAS text at `_embedded.providerContract.content`: extract it with `jq -r` (YAML or JSON), do not hand-trim it.
-  A spec version that differs from the pacts' is fine: the spec only adds detail to operations the code calls.
+  A result returned inline (no saved file) is
+  not worth retyping: skip `--spec`. The spec only adds detail; operation, response and input totals come from the code
+  and the pacts, so skipping it is acceptable. A spec version that differs from the pacts' is fine: the spec only adds detail to operations the code calls.
 - Folders may hold pacts for other consumers or providers; the script skips them by name.
 
 ## Script checks
