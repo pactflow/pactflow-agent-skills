@@ -334,8 +334,10 @@ def load_interactions(pact_paths: list[str]) -> list[Json]:
     return load_pacts(pact_paths)[0]
 
 
-def fetch_broker_pact(base_url: str, token: str, consumer: str, provider: str) -> tuple[list[Json], Json]:
-    """Latest pact for a consumer/provider pair from a broker (read-only GET)."""
+def fetch_broker_pact(
+    base_url: str, token: str, consumer: str, provider: str, save_dir: str | None = None
+) -> tuple[list[Json], Json]:
+    """Latest pact for a consumer/provider pair from a broker (read-only GET); optionally saved to save_dir."""
     quote = urllib.parse.quote
     url = f"{base_url.rstrip('/')}/pacts/provider/{quote(provider, safe='')}/consumer/{quote(consumer, safe='')}/latest"
     request = urllib.request.Request(
@@ -345,6 +347,9 @@ def fetch_broker_pact(base_url: str, token: str, consumer: str, provider: str) -
         raw = response.read()
     pact = json.loads(raw)
     name = f"{consumer}-{provider}.json"
+    if save_dir:
+        Path(save_dir).mkdir(parents=True, exist_ok=True)
+        (Path(save_dir) / name).write_bytes(raw)
     ixs, skipped = _interactions_from_pact(pact, name)
     info = pact_info(pact, name, "broker", raw)
     info["interactions"], info["messagesSkipped"] = len(ixs), skipped
@@ -924,8 +929,7 @@ def build_artifact(
         artifact["notMeasured"] = [
             {"location": "message interactions", "reason": "messagePacts", "count": messages_skipped}
         ]
-    if warnings:
-        artifact["warnings"] = warnings
+    artifact["warnings"] = warnings
     artifact["totals"] = {
         "operations": _total([o["state"] for o in operations]),
         "responses": level("response"),
@@ -1004,8 +1008,10 @@ def _summary_checks(artifact: Json) -> list[str]:
         lines.append(
             "  Response fields n/a: the manifest records no reads (readsNothing / passThrough say it is deliberate)"
         )
-    if artifact.get("warnings"):
-        lines.append(f"  Warnings: {len(artifact['warnings'])} (listed under 'warnings' in the artifact)")
+    count = len(artifact.get("warnings") or [])
+    lines.append(
+        f"  Warnings: {count} (listed under 'warnings' in the artifact)" if count else "  Warnings: none (checks ran)"
+    )
     return lines
 
 
@@ -1051,6 +1057,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--no-pacts", action="store_true", help="run with no pacts on purpose: every item is Not tested"
     )
+    parser.add_argument("--save-pacts", metavar="DIR", help="with --broker-url: also write the fetched pact into DIR")
     parser.add_argument("--broker-url", help="fetch the latest pact for the pair from this broker (read-only GET)")
     parser.add_argument("--broker-token", help="broker bearer token (default: PACT_BROKER_TOKEN)")
     parser.add_argument("--consumer", help="consumer pacticipant (default: manifest consumer.name)")
@@ -1097,7 +1104,7 @@ def main(argv: list[str] | None = None) -> int:
             if not (consumer and provider):
                 raise ValueError("--broker-url needs a consumer and a provider (flags or manifest names)")
             token = args.broker_token or os.environ.get("PACT_BROKER_TOKEN", "")
-            fetched, info = fetch_broker_pact(args.broker_url, token, str(consumer), str(provider))
+            fetched, info = fetch_broker_pact(args.broker_url, token, str(consumer), str(provider), args.save_pacts)
             interactions.extend(fetched)
             kept.append(info)
         if not kept and not args.no_pacts:

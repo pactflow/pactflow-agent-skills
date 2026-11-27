@@ -98,6 +98,21 @@ commit, not to uncommitted edits.
   `<description>#<providerState>` uses the provider state's `name`.
 - **Stale pact** (interaction with no test in the repo): the script warns. Treat the pact as stale, not the code as
   untested, and say so in `notes`.
+- **`passThrough` with `responseFields`**: both may be set. `responseFields` records what the code reads before the body is
+  passed on; `passThrough` only stops over-specified-field observations for those statuses.
+- **Runtime validators** (zod, valibot, pydantic, decorators): a field the code never reads outside validation is not a
+  read. List only fields the code uses; say so in `notes`.
+- **Typed-error wrappers** that name codes themselves (`HttpError4xx`): handled statuses are those the wrapper or the
+  call site names; a bare 4xx/5xx class means `4XX` and Excluded 5xx.
+- **Query built from an object** (`qs.stringify`, ternary tails): list the keys the code varies, with `optional: true`
+  for keys it sometimes omits. A key sent on every call is not varied: leave it out. Auth headers (`Authorization`) are
+  inputs only if the code varies them.
+- **A 2xx body carrying an error** (`200` with `error=`): not expressible; say so in `notes`.
+- **Optional path tail** (two templates): one call each, both with the same `callSite`.
+- **Consumer name**: the name the pact test config uses, not the repo name.
+- **Enumerating a large client**: a regex scan of call sites is fine; check multi-line templates and ternary path tails by hand.
+- **No provider version on the broker** (or 404 on the contract): run without `--spec`. Pact-less providers: run with
+  `--no-pacts` if the code calls them, skip providers the code does not call.
 - **Several providers**: one manifest and one script run per pair. Name guessed providers in `notes`.
 - **`notes`** (manifest-level or per call) is for the next reader: allowed, ignored by the script, never published.
 
@@ -105,7 +120,7 @@ commit, not to uncommitted edits.
 
 - The PactFlow MCP returns only pact links. Let the script fetch them:
   `--broker-url "$PACT_BROKER_BASE_URL" --broker-token "$PACT_BROKER_TOKEN" --consumer C --provider P` (latest pact,
-  read-only). Do not curl by hand.
+  read-only; add `--save-pacts DIR` to keep the pact file). Do not curl by hand.
 - A pact from another consumer version than the manifest commit gives a `commitMismatch` warning. Accept it and keep the
   manifest (discovery reads HEAD); the warning is for the reader. Re-discover only if the code changed in the area.
 - No pacts at all: `--no-pacts` (every item is Not tested; that reflects missing pacts, not test quality).

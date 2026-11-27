@@ -575,6 +575,9 @@ def test_broker_fetch_reads_the_latest_pact_and_records_it(tmp_path, monkeypatch
     a = json.loads(out.read_text())
     assert a["source"]["pacts"][0]["from"] == "broker" and "commitMismatch" not in a["source"]["pacts"][0]
     assert a["totals"]["operations"]["tested"] == 1
+    assert cc.main([*argv, "--out", str(out), "--save-pacts", str(tmp_path / "kept")]) == 0
+    assert json.loads((tmp_path / "kept" / "app-svc.json").read_text()) == pact
+    assert json.loads(out.read_text())["warnings"] == [] or isinstance(json.loads(out.read_text())["warnings"], list)
 
 
 def Path_read(path):
