@@ -27,7 +27,8 @@ unresolved are outside it; `null` when the denominator is 0.
 Not percentages: `observations` (pact field the code never reads) and `unresolved` (calls/interactions that could not be
 mapped; count in `totals.unresolved`).
 
-Locations (`policy.locations`): `full` (file, line, symbol, commit, hash), `hashed` (commit + hash), `none` (no table, no refs).
+Locations (`policy.locations`): `full` (file, line, symbol, commit, hash), `hashed` (commit, hash, `fileHash`, `symbolHash`: a local agent
+finds the code by hashing its own paths and symbols), `none` (no table, no refs).
 
 ## Changes from 0.4-draft
 
@@ -61,3 +62,12 @@ Open decisions for the PM: the artifact carries states and percentages (Drift's 
   `operations[].pairs`; consumers list items with `level: inputResponse`.
 - An excluded item keeps only `excludedReason`; Drift's optional waiver `by`/`at`/`source` are deliberately not carried.
 - `policy` is required and repeats `source.coverageModelRef.policy`; `label` is required (Drift writes the item id).
+
+## Consumer additions (Rule H alignment)
+
+- `operations[].crossCoverage` and `crossCoverage`: measured pairwise coverage of the input axes (values and optional present/absent),
+  filled only where the code varies two or more inputs. A pair is tested when one interaction sends both values; only covered pairs are
+  listed. Values beyond the large-enum limit are cut (`valuesLimited`). The response axis is not included: that is input → response.
+- `source.analysis.configSha256`: hash of the policy settings, next to `manifestSha256`.
+- `tests[].verification` (pact refs): link to the provider verification result, set from `--verifications`. A failed verification leaves
+  the item Tested.

@@ -111,7 +111,7 @@ def test_locations_modes(checkout):
     full = checkout["locations"]
     assert any("file" in loc and "symbol" in loc for loc in full.values())
     hashed = run("checkout-manifest.json", "checkout-product-api.pact.json", mode="hashed")["locations"]
-    assert hashed and all(set(loc) <= {"kind", "commit", "hash"} for loc in hashed.values())
+    assert hashed and all(set(loc) <= {"kind", "commit", "hash", "fileHash", "symbolHash"} for loc in hashed.values())
     none = run("checkout-manifest.json", "checkout-product-api.pact.json", mode="none")
     assert "locations" not in none
     assert not any(i.get("derivedFrom") or i.get("nearestTests") for o in none["operations"] for i in o["items"])
@@ -240,3 +240,95 @@ def test_covering_array_reports_truncated_when_candidate_pool_is_cut(monkeypatch
     rows, truncated = cc.covering_array(params, set(), cap=10_000)
     assert truncated is True
     assert rows
+
+
+def _ix(query=None, status=200, description="d"):
+    return {
+        "pact": "p.json",
+        "description": description,
+        "providerStates": [],
+        "method": "GET",
+        "path": "/products",
+        "query": query or {},
+        "headers": {},
+        "reqBody": None,
+        "status": status,
+        "respBody": None,
+    }
+
+
+_CROSS_MANIFEST = {
+    "commit": "c1",
+    "calls": [
+        {
+            "method": "GET",
+            "path": "/products",
+            "successStatus": "200",
+            "inputs": {
+                "parameters": [
+                    {"name": "sort", "in": "query", "values": ["price", "name"]},
+                    {"name": "inStock", "in": "query", "optional": True},
+                ]
+            },
+        }
+    ],
+}
+
+
+def test_h8_measured_cross_coverage_for_consumers():
+    a = cc.build_artifact(_CROSS_MANIFEST, [_ix({"sort": ["price"], "inStock": ["true"]}), _ix({"sort": ["name"]})])
+    cross = a["operations"][0]["crossCoverage"]
+    assert cross["strength"] == 2
+    [pair] = cross["fieldPairs"]
+    assert pair["fields"] == ["query:inStock", "query:sort"] and pair["total"] == 4
+    assert {tuple(c["values"]) for c in pair["covered"]} == {("present", "price"), ("absent", "name")}
+    assert all(c["state"] == "tested" and c["tests"] for c in pair["covered"])
+    assert (cross["totals"]["tested"], cross["totals"]["notTested"], cross["totals"]["percent"]) == (2, 2, 50.0)
+    assert a["crossCoverage"]["totals"] == cross["totals"]  # report level sums the operations
+
+
+def test_cross_coverage_left_out_when_code_does_not_vary_inputs():
+    manifest = {"commit": "c1", "calls": [{"method": "GET", "path": "/products", "successStatus": "200"}]}
+    a = cc.build_artifact(manifest, [_ix()])
+    assert "crossCoverage" not in a["operations"][0] and "crossCoverage" not in a
+
+
+def test_hashed_locations_carry_file_and_symbol_hashes(checkout, mobile):
+    for loc in mobile["locations"].values():
+        assert {"kind", "commit", "hash", "fileHash"} <= set(loc) and "file" not in loc and "symbol" not in loc
+    full = next(iter(checkout["locations"].values()))
+    assert "fileHash" not in full and "symbolHash" not in full
+    m = json.loads((FIX / "mobile-manifest.json").read_text())
+    call = next(c for c in m["calls"] if c.get("callSite"))["callSite"]
+    hashed = [loc for loc in mobile["locations"].values() if loc["kind"] == "call-site"]
+    assert cc._sha(call["file"]) in {loc["fileHash"] for loc in hashed}
+    assert cc._sha(call["symbol"]) in {loc["symbolHash"] for loc in hashed}
+
+
+def test_config_hash_recorded_and_changes_with_policy():
+    a = cc.build_artifact(_CROSS_MANIFEST, [])
+    b = cc.build_artifact(_CROSS_MANIFEST, [], exclude_statuses=["418"])
+    ha, hb = a["source"]["analysis"]["configSha256"], b["source"]["analysis"]["configSha256"]
+    assert len(ha) == 64 and ha != hb
+    assert ha == cc.build_artifact(_CROSS_MANIFEST, [])["source"]["analysis"]["configSha256"]
+
+
+def test_verification_links_are_attached_and_do_not_change_coverage():
+    plain = cc.build_artifact(_CROSS_MANIFEST, [_ix({"sort": ["price"]}, description="list")])
+    linked = cc.build_artifact(
+        _CROSS_MANIFEST,
+        [_ix({"sort": ["price"]}, description="list")],
+        verifications={"p.json#list": "https://broker/verification/1"},
+    )
+    refs = [r for o in linked["operations"] for i in o["items"] for r in i.get("tests", [])]
+    assert refs and all(r["verification"] == "https://broker/verification/1" for r in refs)
+    assert plain["totals"] == linked["totals"]
+
+
+def test_verifications_flag_reads_json_file(tmp_path):
+    v = tmp_path / "v.json"
+    v.write_text(json.dumps({"a request for product 1": "https://broker/v/9"}))
+    out = tmp_path / "a.json"
+    args = ["--manifest", str(FIX / "checkout-manifest.json"), "--pacts", str(FIX / "checkout-product-api.pact.json")]
+    assert cc.main([*args, "--verifications", str(v), "--out", str(out), "--quiet"]) == 0
+    assert "https://broker/v/9" in out.read_text()

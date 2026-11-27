@@ -21,7 +21,7 @@ plain, deterministic calculation over that manifest: the same inputs always give
 Usage:
   uv run consumer_coverage.py --manifest consumer-manifest.json --pacts "pacts/*.json" \\
       [--spec provider-openapi.yaml] [--locations full|hashed|none] \\
-      [--exclude-statuses 418 ...] [--pairwise-cap 20] [--out coverage-artifact.json]
+      [--exclude-statuses 418 ...] [--pairwise-cap 20] [--verifications v.json] [--out coverage-artifact.json]
 
 Manifest format: see references/consumer-manifest.md.
 """
@@ -154,6 +154,11 @@ class Locations:
         loc_id = f"loc-{_sha(f'{kind}|{digest}', 12)}"
         if loc_id not in self.table:
             entry: Json = {"kind": kind, "commit": self.commit, "hash": digest}
+            if self.mode == "hashed":  # a local agent finds the code by hashing its own paths and symbols
+                if file:
+                    entry["fileHash"] = _sha(file)
+                if symbol:
+                    entry["symbolHash"] = _sha(symbol)
             if self.mode == "full":
                 if file:
                     entry["file"] = file
@@ -371,6 +376,7 @@ def build_artifact(
     exclude_statuses: list[str] | None = None,
     pairwise_cap: int = DEFAULT_PAIRWISE_CAP,
     large_enum_limit: int = DEFAULT_LARGE_ENUM_LIMIT,
+    verifications: dict[str, str] | None = None,
 ) -> Json:
     commit = str(manifest.get("commit", "unknown"))
     policy_excluded = {s.upper() for s in (exclude_statuses or [])}
@@ -400,10 +406,16 @@ def build_artifact(
         loc = locs.ref("test", test_locs.get(ix["description"]), ix["pact"])
         if loc:
             ref["location"] = loc
+        link = (verifications or {}).get(f"{ix['pact']}#{ix['description']}") or (verifications or {}).get(
+            ix["description"]
+        )
+        if link:  # a failed verification never changes coverage (Rule H3); the item only links to it
+            ref["verification"] = str(link)
         return ref
 
     operations: list[Json] = []
     observations: list[Json] = []
+    report_cross_states: list[str] = []
     for key in sorted(ops, key=lambda k: (k[1], k[0])):
         op, ixs = ops[key], by_op[key]
         method, path = key
@@ -592,6 +604,14 @@ def build_artifact(
         if len(live) >= 2:
             axes["response"] = sorted(live)
 
+        input_axes = {k: sorted(v)[:large_enum_limit] for k, v in axes.items() if k != "response"}
+        if len(input_axes) >= 2:  # Rule H8: only where the code really varies its inputs
+            cross, cross_states = _cross_coverage(ixs, input_axes, axes, op["optional"], param_values, test_ref)
+            if any(len(axes[k]) > large_enum_limit for k in input_axes):
+                cross["valuesLimited"] = True
+            operation["crossCoverage"] = cross
+            report_cross_states.extend(cross_states)
+
         has_gap = any(i["state"] == "notTested" for i in items if i["level"] in ("validInput", "response"))
         if len(axes) >= 2 and has_gap:
             limited = {k: sorted(v)[:large_enum_limit] for k, v in axes.items()}
@@ -668,6 +688,7 @@ def build_artifact(
         "pairwiseCap": pairwise_cap,
         "largeEnumLimit": large_enum_limit,
     }
+    source["analysis"]["configSha256"] = hashlib.sha256(json.dumps(policy, sort_keys=True).encode()).hexdigest()
     artifact: Json = {
         "schemaVersion": SCHEMA_VERSION,
         "participant": {"role": "consumer", "name": str((manifest.get("consumer") or {}).get("name", "unknown"))},
@@ -678,6 +699,8 @@ def build_artifact(
     if locs.table:
         artifact["locations"] = dict(sorted(locs.table.items()))
     artifact["operations"] = operations
+    if report_cross_states:
+        artifact["crossCoverage"] = {"strength": 2, "totals": _total(report_cross_states)}
     artifact["observations"] = observations
     artifact["unresolved"] = unresolved
     artifact["totals"] = {
@@ -689,6 +712,31 @@ def build_artifact(
         "unresolved": len(unresolved),
     }
     return artifact
+
+
+def _cross_coverage(
+    ixs: list[Json],
+    limited: dict[str, list[str]],
+    axes: dict[str, list[str]],
+    optional: set[str],
+    values: dict[str, list[str]],
+    test_ref: Any,
+) -> tuple[Json, list[str]]:
+    """Measured pairwise coverage of the input axes: a pair is tested when one interaction sends both values."""
+    field_pairs: list[Json] = []
+    states: list[str] = []
+    sent = [{k: _axis_value(ix, k, axes, optional, values) for k in limited} for ix in ixs]
+    for a, b in itertools.combinations(sorted(limited), 2):
+        covered: list[Json] = []
+        for va in limited[a]:
+            for vb in limited[b]:
+                hits = [ix for ix, s in zip(ixs, sent, strict=True) if s[a] == va and s[b] == vb]
+                if hits:
+                    covered.append({"values": [va, vb], "state": "tested", "tests": [test_ref(ix) for ix in hits]})
+        total = len(limited[a]) * len(limited[b])
+        field_pairs.append({"fields": [a, b], "total": total, "covered": covered})
+        states += ["tested"] * len(covered) + ["notTested"] * (total - len(covered))
+    return {"strength": 2, "fieldPairs": field_pairs, "totals": _total(states)}, states
 
 
 def _axis_value(
@@ -748,6 +796,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--exclude-statuses", nargs="*", default=[])
     parser.add_argument("--pairwise-cap", type=int, default=DEFAULT_PAIRWISE_CAP)
     parser.add_argument("--large-enum-limit", type=int, default=DEFAULT_LARGE_ENUM_LIMIT)
+    parser.add_argument(
+        "--verifications",
+        help="optional JSON map of '<pact file>#<description>' (or description) to a provider verification result URL",
+    )
     parser.add_argument("--out", help="write the artifact here (default: stdout)")
     parser.add_argument("--quiet", action="store_true", help="suppress the human summary on stderr")
     try:
@@ -761,6 +813,7 @@ def main(argv: list[str] | None = None) -> int:
         spec_info, spec_ops = (None, None)
         if args.spec:
             spec_info, spec_ops = load_spec_operations(args.spec)
+        verifications = json.loads(Path(args.verifications).read_text()) if args.verifications else None
         artifact = build_artifact(
             manifest,
             interactions,
@@ -770,6 +823,7 @@ def main(argv: list[str] | None = None) -> int:
             args.exclude_statuses,
             args.pairwise_cap,
             args.large_enum_limit,
+            verifications,
         )
         text = json.dumps(artifact, indent=2) + "\n"
         if args.out:

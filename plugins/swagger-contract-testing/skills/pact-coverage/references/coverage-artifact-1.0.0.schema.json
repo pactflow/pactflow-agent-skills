@@ -101,6 +101,11 @@
             "manifestSha256": {
               "type": "string",
               "pattern": "^[0-9a-f]{64}$"
+            },
+            "configSha256": {
+              "description": "Hash of the policy settings the report was calculated with.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
             }
           }
         },
@@ -319,6 +324,14 @@
         },
         "hash": {
           "description": "Hash of the call (never its source), so an agent can find it again after lines move.",
+          "type": "string"
+        },
+        "fileHash": {
+          "description": "Hashed mode: hash of the file path, so a local agent can find the code by hashing its own paths.",
+          "type": "string"
+        },
+        "symbolHash": {
+          "description": "Hashed mode: hash of the symbol name.",
           "type": "string"
         }
       }
@@ -856,6 +869,10 @@
               }
             }
           }
+        },
+        "valuesLimited": {
+          "description": "True when an axis had more values than the large-enum limit and was cut.",
+          "type": "boolean"
         }
       }
     },

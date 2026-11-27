@@ -13,7 +13,8 @@
     "analysis": {
       "tool": "codebase-memory-mcp",
       "manifestVersion": "1.0.0",
-      "manifestSha256": "d949f5f5b69dcc886000a01fd188efd5edf698c6588c235da05f53dec6bb6c77"
+      "manifestSha256": "d949f5f5b69dcc886000a01fd188efd5edf698c6588c235da05f53dec6bb6c77",
+      "configSha256": "3084e2d264053a2b24260c6d9603ce008d13bb46b48fc5c9d6772039f9f18f6f"
     }
   },
   "policy": {
@@ -28,17 +29,23 @@
     "loc-a319acc6c025": {
       "kind": "call-site",
       "commit": "4be7d20",
-      "hash": "e0190947d31e5d40"
+      "hash": "e0190947d31e5d40",
+      "fileHash": "706c409370cc3959",
+      "symbolHash": "36b38cba7d42a050"
     },
     "loc-b9a419448986": {
       "kind": "call-site",
       "commit": "4be7d20",
-      "hash": "7b9bf4ca8f628179"
+      "hash": "7b9bf4ca8f628179",
+      "fileHash": "8fc1727038feb77d",
+      "symbolHash": "1c4a2bc4c6b98d5a"
     },
     "loc-c883d68c6984": {
       "kind": "handler",
       "commit": "4be7d20",
-      "hash": "506f3255fed0804c"
+      "hash": "506f3255fed0804c",
+      "fileHash": "706c409370cc3959",
+      "symbolHash": "36b38cba7d42a050"
     }
   },
   "operations": [

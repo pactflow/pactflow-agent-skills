@@ -312,11 +312,14 @@ observations. Model, samples and schema: [`references/coverage-artifact-1.0.0-RE
 ```bash
 uv run scripts/consumer_coverage.py --manifest consumer-manifest.json --pacts "pacts/*.json" \
   [--spec provider-openapi.yaml] [--locations full|hashed|none] [--exclude-statuses 418] \
-  [--pairwise-cap 20] --out coverage-artifact.json
+  [--pairwise-cap 20] [--verifications verifications.json] --out coverage-artifact.json
 ```
 
 Gap closing: where the code really varies inputs, `operations[].suggestions.coveringArray` lists the fewest new
 interactions covering every uncovered pair (capped; `truncated` says when it was cut short).
+Where the code varies two or more inputs, `operations[].crossCoverage` also measures pairwise coverage of those inputs.
+`--verifications` takes a JSON map of `<pact file>#<description>` (or just the description) to a provider verification
+result URL; it is attached to the pact reference and never changes coverage.
 
 ---
 

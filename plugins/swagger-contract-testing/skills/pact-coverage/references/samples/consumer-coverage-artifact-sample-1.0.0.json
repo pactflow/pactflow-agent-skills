@@ -18,7 +18,8 @@
     "analysis": {
       "tool": "ripwire",
       "manifestVersion": "1.0.0",
-      "manifestSha256": "566d49e08148694bea6c35523ab7524ec8ed43df9cfaefbf998d4567d8d9b05d"
+      "manifestSha256": "566d49e08148694bea6c35523ab7524ec8ed43df9cfaefbf998d4567d8d9b05d",
+      "configSha256": "24974f5c8be0ba5f96e450beccef54d01e1214079ead69947ce3172f7193b452"
     }
   },
   "policy": {
@@ -351,6 +352,42 @@
       "callSites": [
         "loc-5a6915eebab0"
       ],
+      "crossCoverage": {
+        "strength": 2,
+        "fieldPairs": [
+          {
+            "fields": [
+              "query:category",
+              "query:sort"
+            ],
+            "total": 4,
+            "covered": [
+              {
+                "values": [
+                  "books",
+                  "price"
+                ],
+                "state": "tested",
+                "tests": [
+                  {
+                    "type": "pact",
+                    "pact": "checkout-product-api.pact.json",
+                    "description": "list books by price",
+                    "providerStates": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "totals": {
+          "tested": 1,
+          "notTested": 3,
+          "excluded": 0,
+          "total": 4,
+          "percent": 25.0
+        }
+      },
       "suggestions": {
         "coveringArray": {
           "strength": 2,
@@ -618,6 +655,16 @@
       ]
     }
   ],
+  "crossCoverage": {
+    "strength": 2,
+    "totals": {
+      "tested": 1,
+      "notTested": 3,
+      "excluded": 0,
+      "total": 4,
+      "percent": 25.0
+    }
+  },
   "observations": [
     {
       "kind": "overSpecifiedResponseField",
