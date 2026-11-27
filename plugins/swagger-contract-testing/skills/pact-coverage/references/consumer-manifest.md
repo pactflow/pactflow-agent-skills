@@ -135,6 +135,15 @@ commit, not to uncommitted edits.
   the retries run out.
 - **Guessed provider names**: prefer a pacticipant that already exists on the broker; say in `notes` that the name is
   unconfirmed. The artifact does not publish that.
+- **Merging calls**: `responseFields` and `handledStatuses` are unioned across calls with the same method and path. A
+  call's own `handledStatuses` or `handlers` replace `defaults`, they do not merge with them.
+- **Provider names on the broker**: `list_pacticipants` shows what exists; a name that exists but has no integration
+  with this consumer is still a guess. If the latest provider version has no contract (404), do not hunt other
+  versions: run without `--spec`.
+- **Which commit**: the manifest carries the commit of the code you read (`HEAD`), not the pact's consumer version.
+- **A body only checked for truthiness**: reads nothing; use `readsNothing`.
+- **Test descriptions set in helpers** (`expectErrorStatus(...)`): the `tests` key is still the pact's resolved
+  description; point `symbol` at the test that calls the helper.
 - **Several providers**: one manifest and one script run per pair. Name guessed providers in `notes`.
 - **`notes`** (manifest-level or per call) is for the next reader: allowed, ignored by the script, never published.
 
