@@ -146,6 +146,8 @@ def _total(states: list[str]) -> Json:
 def _get_path(body: Any, dotted: str) -> tuple[bool, Any]:
     cur = body
     for part in (p.removesuffix("[]") for p in dotted.split(".")):
+        if not part:  # a leading "[]" is a top-level array body
+            continue
         if isinstance(cur, list) and cur:
             cur = cur[0]
         if not isinstance(cur, dict) or part not in cur:

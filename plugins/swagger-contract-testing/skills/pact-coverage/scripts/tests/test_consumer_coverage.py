@@ -625,6 +625,13 @@ def test_boolean_body_values_match_lowercase_manifest_text():
     assert not cc._ix_sends(ix, "body:active", "false")
 
 
+def test_top_level_array_body_paths_match():
+    assert cc._get_path([{"op": "remove", "value": {"uuid": "u"}}], "[].op") == (True, "remove")
+    assert cc._get_path([{"op": "remove", "value": {"uuid": "u"}}], "[].value.uuid") == (True, "u")
+    assert cc._get_path([{"op": "remove"}], "op") == (True, "remove")
+    assert cc._get_path([], "[].op")[0] is False
+
+
 def Path_read(path):
     return open(path).read()
 
