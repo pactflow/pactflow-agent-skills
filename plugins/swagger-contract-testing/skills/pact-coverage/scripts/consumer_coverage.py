@@ -289,7 +289,8 @@ def covering_array(
             break
         rows.append(best[1])
         remaining -= best[2]
-    return rows, False
+    # Pairs can only be left when the candidate pool was cut at MAX_CANDIDATES: say so, never claim completeness.
+    return rows, bool(remaining)
 
 
 # ─── core calculation ──────────────────────────────────────────────────────────
@@ -770,16 +771,15 @@ def main(argv: list[str] | None = None) -> int:
             args.pairwise_cap,
             args.large_enum_limit,
         )
+        text = json.dumps(artifact, indent=2) + "\n"
+        if args.out:
+            Path(args.out).write_text(text)
+        else:
+            sys.stdout.write(text)
+        if not args.quiet:
+            print(format_summary(artifact), file=sys.stderr)
     except Exception as exc:  # noqa: BLE001 - the coverage step must never fail the build
         print(f"consumer coverage skipped: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return 0
-    text = json.dumps(artifact, indent=2) + "\n"
-    if args.out:
-        Path(args.out).write_text(text)
-    else:
-        sys.stdout.write(text)
-    if not args.quiet:
-        print(format_summary(artifact), file=sys.stderr)
     return 0
 
 

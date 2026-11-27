@@ -222,3 +222,21 @@ def test_provider_sample_validates_against_schema():
     schema = json.loads((refs / "coverage-artifact-1.0.0.schema.json").read_text())
     sample = json.loads((refs / "samples" / "provider-coverage-artifact-sample-1.0.0.json").read_text())
     jsonschema.Draft202012Validator(schema).validate(sample)
+
+
+def test_cli_exits_zero_when_output_cannot_be_written(tmp_path, capsys):
+    out = tmp_path / "missing-dir" / "artifact.json"
+    argv = ["--manifest", str(FIX / "checkout-manifest.json"), "--pacts", str(FIX / "checkout-product-api.pact.json")]
+    assert cc.main([*argv, "--out", str(out), "--quiet"]) == 0
+    assert not out.exists()
+    assert "consumer coverage skipped" in capsys.readouterr().err
+
+
+def test_covering_array_reports_truncated_when_candidate_pool_is_cut(monkeypatch):
+    params = {f"p{i}": ["a", "b", "c"] for i in range(6)}  # 729 candidate rows
+    rows, truncated = cc.covering_array(params, set(), cap=10_000)
+    assert truncated is False  # full pool: every pair gets covered
+    monkeypatch.setattr(cc, "MAX_CANDIDATES", 3)  # a pool too small to cover every pair
+    rows, truncated = cc.covering_array(params, set(), cap=10_000)
+    assert truncated is True
+    assert rows
