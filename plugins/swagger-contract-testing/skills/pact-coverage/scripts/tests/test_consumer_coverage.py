@@ -607,6 +607,17 @@ def test_manifest_defaults_fill_handled_statuses_and_handlers(tmp_path):
     assert not any("defaults" in w for w in artifact["warnings"])
 
 
+def test_top_level_array_field_has_no_leading_dot(tmp_path):
+    manifest = json.loads(Path_read(_manifest_file(tmp_path)))
+    manifest["calls"][0]["responseFields"] = {"200": ["[].login"]}
+    path = tmp_path / "arr.json"
+    path.write_text(json.dumps(manifest))
+    out = tmp_path / "o.json"
+    assert cc.main(["--manifest", str(path), "--no-pacts", "--quiet", "--out", str(out)]) == 0
+    ids = [i["id"] for op in json.loads(out.read_text())["operations"] for i in op["items"]]
+    assert any(i.endswith("field:200:login") for i in ids) and not any(".login" in i and ":." in i for i in ids)
+
+
 def Path_read(path):
     return open(path).read()
 

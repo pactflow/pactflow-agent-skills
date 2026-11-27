@@ -504,7 +504,7 @@ def _merge_calls(
                 op["optional"].add(f"body:{b['name']}")
         for status, fields in (call.get("responseFields") or {}).items():
             cur = op["fields"].setdefault(str(status), [])
-            cur.extend(f.replace("[]", "") for f in fields if f.replace("[]", "") not in cur)
+            cur.extend(f.replace("[]", "").lstrip(".") for f in fields if f.replace("[]", "").lstrip(".") not in cur)
         if call.get("readsNothing"):
             op["readsNothing"] = True
         pass_through = call.get("passThrough")
