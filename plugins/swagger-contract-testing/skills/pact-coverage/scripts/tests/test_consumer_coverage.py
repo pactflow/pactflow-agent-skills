@@ -581,7 +581,19 @@ def test_broker_fetch_reads_the_latest_pact_and_records_it(tmp_path, monkeypatch
 
 
 def test_broker_404_runs_with_no_pacts_and_says_so(tmp_path, monkeypatch):
-    def test_manifest_defaults_fill_handled_statuses_and_handlers(tmp_path):
+    def fake_urlopen(request, timeout=0):
+        raise cc.urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)
+
+    monkeypatch.setattr(cc.urllib.request, "urlopen", fake_urlopen)
+    out = tmp_path / "n.json"
+    argv = ["--manifest", _manifest_file(tmp_path), "--broker-url", "https://b.example", "--broker-token", "T"]
+    assert cc.main([*argv, "--quiet", "--out", str(out)]) == 0
+    artifact = json.loads(out.read_text())
+    assert artifact["totals"]["operations"]["tested"] == 0
+    assert any("broker has no pact" in w for w in artifact["warnings"])
+
+
+def test_manifest_defaults_fill_handled_statuses_and_handlers(tmp_path):
     manifest = json.loads(Path_read(_manifest_file(tmp_path)))
     for call in manifest["calls"]:
         call.pop("handledStatuses", None)
