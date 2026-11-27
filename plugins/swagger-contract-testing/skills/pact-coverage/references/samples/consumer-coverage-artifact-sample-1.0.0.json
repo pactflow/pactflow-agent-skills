@@ -12,6 +12,8 @@
     "repository": "github.com/example/checkout-web",
     "specification": {
       "format": "openapi",
+      "file": "product-api.openapi.yaml",
+      "sha256": "b766de14526c40d75152815661722d79e3ac8ee95139ebf21a13b2e2d2c94d39",
       "title": "Product API",
       "version": "2.1.0"
     },

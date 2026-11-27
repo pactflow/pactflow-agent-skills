@@ -380,8 +380,8 @@ def load_spec_operations(spec_path: str) -> tuple[Json, dict[tuple[str, str], li
     """Return (spec info, {(METHOD, normalised template): declared response keys})."""
     import yaml
 
-    with open(spec_path) as f:
-        spec = yaml.safe_load(f)
+    raw_spec = Path(spec_path).read_bytes()
+    spec = yaml.safe_load(raw_spec)
     if not isinstance(spec, dict) or not isinstance(spec.get("paths"), dict):
         raise ValueError("specification has no 'paths'")
     ops: dict[tuple[str, str], list[str]] = {}
@@ -389,7 +389,7 @@ def load_spec_operations(spec_path: str) -> tuple[Json, dict[tuple[str, str], li
         for method, op in (item or {}).items():
             if method in HTTP_METHODS and isinstance(op, dict):
                 ops[(method.upper(), _norm_template(path))] = [str(c) for c in (op.get("responses") or {})]
-    info: Json = {"format": "openapi"}
+    info: Json = {"format": "openapi", "file": Path(spec_path).name, "sha256": hashlib.sha256(raw_spec).hexdigest()}
     meta = spec.get("info") or {}
     if meta.get("title"):
         info["title"] = str(meta["title"])

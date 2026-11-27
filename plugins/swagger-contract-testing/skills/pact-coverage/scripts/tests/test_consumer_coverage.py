@@ -652,3 +652,10 @@ def test_check_flag_validates_against_the_schema(tmp_path, capsys):
         ["--manifest", _manifest_file(tmp_path), "--no-pacts", "--out", str(tmp_path / "a.json"), "--check", "--quiet"]
     )
     assert "schema check: valid" in capsys.readouterr().err
+
+
+def test_spec_is_recorded_with_file_name_and_hash(tmp_path):
+    spec = tmp_path / "provider.yaml"
+    spec.write_text("openapi: 3.0.0\ninfo: {title: T, version: '1'}\npaths: {}\n")
+    info, _ = cc.load_spec_operations(str(spec))
+    assert info["file"] == "provider.yaml" and len(info["sha256"]) == 64
