@@ -73,8 +73,48 @@ commit, not to uncommitted edits.
 - **Pacts for another commit**: the artifact records each pact's consumer version and sha256 under `source.pacts` and
   flags a mismatch with the manifest commit.
 
+## Answers to questions discovery runs kept hitting
+
+- **Paths**: relative to the repository root, including a monorepo subdirectory prefix (`app_saas/src/x.ts`).
+- **`tool`**: free text naming what drafted the manifest (`ripwire`, `grep`, `manual`). It is not validated.
+- **Several client classes, one provider**: merge them into one `calls` array. Calls with the same method and path
+  (from any module) merge into one operation, and their `responseFields` are unioned.
+- **Same method and path, different purpose** (`createUser` vs `createOrUpdate`): write both calls; they merge. A client
+  method with no production caller is your call; say which in `notes`.
+- **Array responses**: a top-level array body is written `[].login`. Observation paths print collapsed
+  (`users.roles.name`); it is the same field as `users[].roles[].name`.
+- **Body forwarded whole / a fixed literal query value** (`embed=entitlements`): list neither. Only inputs the code
+  varies are measured, so a constant is not an input.
+- **Shared handler** (a `fetch` wrapper that checks statuses for every call): list it under `handlers` on each call it
+  serves; the same location is stored once.
+- **Two success codes** (200 result or 202 poll): leave `successStatus` out and list the other in `handledStatuses`.
+  A wrapper that throws on any non-2xx is `non-2XX`; 5xx stays Excluded even then, unless a pact interaction returns
+  it and the wrapper is `non-2XX`, in which case that interaction counts as Tested.
+- **`readsNothing` vs `passThrough`**: `readsNothing` if the call site discards the body, even when a helper parsed it;
+  `passThrough` if the body is returned to a caller unread. Record it on the call that sends it on. For 204, use
+  `readsNothing`.
+- **Test symbols**: the test's own name: `it()` title (JS), test function name (pytest, JUnit), or the `uponReceiving`
+  line when there is none. Say which in `notes`. Match pact descriptions exactly (interpolated values resolved).
+  `<description>#<providerState>` uses the provider state's `name`.
+- **Stale pact** (interaction with no test in the repo): the script warns. Treat the pact as stale, not the code as
+  untested, and say so in `notes`.
+- **Several providers**: one manifest and one script run per pair. Name guessed providers in `notes`.
+- **`notes`** (manifest-level or per call) is for the next reader: allowed, ignored by the script, never published.
+
+## Getting pacts and a spec
+
+- The PactFlow MCP returns only pact links. Let the script fetch them:
+  `--broker-url "$PACT_BROKER_BASE_URL" --broker-token "$PACT_BROKER_TOKEN" --consumer C --provider P` (latest pact,
+  read-only). Do not curl by hand.
+- A pact from another consumer version than the manifest commit gives a `commitMismatch` warning. Accept it and keep the
+  manifest (discovery reads HEAD); the warning is for the reader. Re-discover only if the code changed in the area.
+- No pacts at all: `--no-pacts` (every item is Not tested; that reflects missing pacts, not test quality).
+- No spec: try `get_bdct_provider_contract` once; on 404 or no provider version, run without `--spec`. A BDCT contract
+  returned inline can be written to a file as is (do not hand-trim it).
+- Folders may hold pacts for other consumers or providers; the script skips them by name.
+
 ## Script checks
 
 `consumer_coverage.py` lists in the artifact's `warnings`: unknown manifest keys (they are ignored, not guessed at), template syntax in a path, a
 `callSite` without file, line or symbol, `tests` keys that match no interaction, interactions with no `tests` entry, and
-pacts built from another commit. `--check` validates the artifact against the schema.
+pacts built from another commit. `--check` validates the artifact against the schema (`jsonschema` is a script dependency, so it always runs). A malformed manifest prints `consumer coverage skipped, NO artifact written` and still exits 0; read stderr.

@@ -5,6 +5,7 @@
 # dependencies = [
 #   "pyyaml~=6.0",
 #   "jsonref~=1.0",
+#   "jsonschema>=4",
 # ]
 # ///
 """
@@ -50,6 +51,7 @@ MAX_CANDIDATES = 20000
 # handledStatuses the code treats as a class: any client error, or any non-2xx. Tested by any matching interaction.
 BLANKET_ERROR = {"NON-2XX", "ERROR"}
 KNOWN_CALL_KEYS = {
+    "notes",
     "method",
     "path",
     "callSite",
@@ -62,7 +64,6 @@ KNOWN_CALL_KEYS = {
     "unresolvedReason",
     "readsNothing",
     "passThrough",
-    "notes",
 }
 KNOWN_INPUT_KEYS = {"parameters", "body", "headers"}
 KNOWN_PARAM_KEYS = {"name", "in", "values", "optional", "notes"}
@@ -899,7 +900,7 @@ def build_artifact(
         source["pacts"] = pacts_read
     if messages_skipped:
         warnings.append(f"{messages_skipped} message interaction(s) skipped: the consumer artifact measures HTTP only")
-    for key_unused in sorted(set(test_locs) - used_test_keys)[:20]:
+    for key_unused in sorted(set(test_locs) - used_test_keys)[:20] if interactions else []:
         warnings.append(f"tests key '{key_unused}' matches no pact interaction")
     no_tests = sorted({ix["description"] for ix in interactions if test_location(ix) is None})
     if no_tests:
@@ -1132,7 +1133,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.check:
             print(_schema_check(artifact), file=sys.stderr)
     except Exception as exc:  # noqa: BLE001 - the coverage step must never fail the build
-        print(f"consumer coverage skipped: {type(exc).__name__}: {exc}", file=sys.stderr)
+        print(f"consumer coverage skipped, NO artifact written: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1 if args.strict else 0
     return 0
 
